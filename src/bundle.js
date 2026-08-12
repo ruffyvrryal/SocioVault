@@ -97,8 +97,49 @@ function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const loginWithEmail = async (email, password) => {
+    try {
+      await window.firebaseAuth.signInWithEmailAndPassword(email, password);
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: getErrorMessage(error.code) };
+    }
+  };
+
+  const registerWithEmail = async (email, password, displayName) => {
+    try {
+      const result = await window.firebaseAuth.createUserWithEmailAndPassword(email, password);
+      await result.user.updateProfile({ displayName });
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: getErrorMessage(error.code) };
+    }
+  };
+
+  const forgotPassword = async (email) => {
+    try {
+      await window.firebaseAuth.sendPasswordResetEmail(email);
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: getErrorMessage(error.code) };
+    }
+  };
+
+  const getErrorMessage = (code) => {
+    const messages = {
+      'auth/user-not-found': 'No account found with this email.',
+      'auth/wrong-password': 'Incorrect password. Please try again.',
+      'auth/email-already-in-use': 'An account with this email already exists.',
+      'auth/weak-password': 'Password must be at least 6 characters.',
+      'auth/invalid-email': 'Please enter a valid email address.',
+      'auth/too-many-requests': 'Too many attempts. Please try again later.',
+      'auth/invalid-credential': 'Incorrect email or password.',
+    };
+    return messages[code] || 'Something went wrong. Please try again.';
+  };
+
   return (
-    <AuthContext.Provider value={{ user, setUser, loginWithGoogle, logout, authLoading }}>
+    <AuthContext.Provider value={{ user, setUser, loginWithGoogle, loginWithEmail, registerWithEmail, forgotPassword, logout, authLoading }}>
       {children}
     </AuthContext.Provider>
   );
@@ -313,63 +354,235 @@ function VaultProvider({ children }) {
 
 // 3. COMPONENTS
 function LoginPage() {
-  const { loginWithGoogle } = React.useContext(AuthContext);
+  const { loginWithGoogle, loginWithEmail, registerWithEmail, forgotPassword } = React.useContext(AuthContext);
+  const [tab, setTab] = React.useState('signin'); // 'signin' | 'signup'
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [confirmPassword, setConfirmPassword] = React.useState('');
+  const [name, setName] = React.useState('');
+  const [showPass, setShowPass] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const [successMsg, setSuccessMsg] = React.useState('');
+
+  const resetForm = () => { setEmail(''); setPassword(''); setConfirmPassword(''); setName(''); setError(''); setSuccessMsg(''); };
+
+  const handleTabSwitch = (t) => { setTab(t); resetForm(); };
 
   const handleGoogleLogin = async () => {
-    setLoading(true);
+    setLoading(true); setError('');
     await loginWithGoogle();
     setLoading(false);
   };
 
+  const handleEmailSignIn = async (e) => {
+    e.preventDefault();
+    setError(''); setLoading(true);
+    const result = await loginWithEmail(email, password);
+    if (!result.success) setError(result.message);
+    setLoading(false);
+  };
+
+  const handleEmailSignUp = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!name.trim()) return setError('Please enter your full name.');
+    if (password !== confirmPassword) return setError('Passwords do not match.');
+    if (password.length < 6) return setError('Password must be at least 6 characters.');
+    setLoading(true);
+    const result = await registerWithEmail(email, password, name.trim());
+    if (!result.success) setError(result.message);
+    setLoading(false);
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) return setError('Enter your email above first, then click Forgot Password.');
+    setLoading(true); setError('');
+    const result = await forgotPassword(email);
+    if (result.success) setSuccessMsg('Password reset email sent! Check your inbox.');
+    else setError(result.message);
+    setLoading(false);
+  };
+
+  const inputStyle = {
+    width: '100%', padding: '0.75rem 1rem', borderRadius: '10px',
+    border: '1px solid var(--border-color)', background: 'var(--bg-tertiary)',
+    color: 'var(--text-primary)', fontSize: '0.95rem', boxSizing: 'border-box',
+    outline: 'none', transition: 'border-color 0.2s'
+  };
+
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
-      <div className="glass-card" style={{ maxWidth: "460px", width: "100%", textAlign: "center", padding: "2.5rem 2rem" }}>
-        <div style={{
-          width: "56px", height: "56px", borderRadius: "16px",
-          background: "linear-gradient(135deg, var(--accent-primary), var(--accent-cyan))",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          margin: "0 auto 1.25rem", boxShadow: "0 10px 25px rgba(139, 92, 246, 0.3)"
-        }}>
-          <i data-lucide="shield-check" style={{ width: "28px", height: "28px", color: "#fff" }}></i>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
+      <div className="glass-card" style={{ maxWidth: '460px', width: '100%', padding: '2.5rem 2rem' }}>
+
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <div style={{
+            width: '56px', height: '56px', borderRadius: '16px',
+            background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-cyan))',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 1rem', boxShadow: '0 10px 25px rgba(139, 92, 246, 0.3)'
+          }}>
+            <i data-lucide="shield-check" style={{ width: '28px', height: '28px', color: '#fff' }}></i>
+          </div>
+          <h1 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '0.25rem' }}>
+            SociaVault <span style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-cyan))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Pro</span>
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Secure Multi-Account Social Media Vault</p>
         </div>
 
-        <h1 style={{ fontSize: "2rem", fontWeight: 800, marginBottom: "0.5rem" }}>
-          Social Vault <span style={{ background: "linear-gradient(135deg, var(--accent-primary), var(--accent-cyan))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Pro</span>
-        </h1>
-        <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", marginBottom: "2rem" }}>
-          Secure Multi-Account Vault, Content Tables, Hashtags & Subject Analytics
-        </p>
+        {/* Tabs */}
+        <div style={{ display: 'flex', background: 'var(--bg-tertiary)', borderRadius: '12px', padding: '4px', marginBottom: '1.75rem' }}>
+          {['signin', 'signup'].map(t => (
+            <button key={t} onClick={() => handleTabSwitch(t)} style={{
+              flex: 1, padding: '0.6rem', borderRadius: '9px', border: 'none', cursor: 'pointer',
+              fontWeight: 600, fontSize: '0.9rem', transition: 'all 0.2s',
+              background: tab === t ? 'linear-gradient(135deg, var(--accent-primary), var(--accent-cyan))' : 'transparent',
+              color: tab === t ? '#fff' : 'var(--text-muted)'
+            }}>
+              {t === 'signin' ? 'Sign In' : 'Sign Up'}
+            </button>
+          ))}
+        </div>
 
-        <button 
-          onClick={handleGoogleLogin}
-          disabled={loading}
-          className="btn" 
-          style={{
-            width: "100%", padding: "0.85rem", background: "#ffffff", color: "#1f2937",
-            fontWeight: 600, fontSize: "0.95rem", borderRadius: "var(--radius-sm)",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)", cursor: loading ? "not-allowed" : "pointer", marginBottom: "1.5rem",
-            opacity: loading ? 0.7 : 1
-          }}
-        >
-          {loading ? (
-            <span>Signing in...</span>
-          ) : (
-            <>
-              <svg width="20" height="20" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.24v3.15C3.26 21.3 7.37 24 12 24z"/>
-                <path fill="#FBBC05" d="M5.28 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.61H1.24C.45 8.18 0 10.03 0 12s.45 3.82 1.24 5.39l4.04-3.15z"/>
-                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.26 2.7 1.24 6.61l4.04 3.15c.95-2.85 3.6-4.96 6.72-4.96z"/>
-              </svg>
-              Sign in with Google
-            </>
-          )}
+        {/* Google Button */}
+        <button onClick={handleGoogleLogin} disabled={loading} style={{
+          width: '100%', padding: '0.8rem', background: '#ffffff', color: '#1f2937',
+          fontWeight: 600, fontSize: '0.9rem', borderRadius: '10px', border: 'none',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)', cursor: 'pointer', marginBottom: '1.25rem',
+          opacity: loading ? 0.7 : 1
+        }}>
+          <svg width="18" height="18" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.24v3.15C3.26 21.3 7.37 24 12 24z"/>
+            <path fill="#FBBC05" d="M5.28 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.61H1.24C.45 8.18 0 10.03 0 12s.45 3.82 1.24 5.39l4.04-3.15z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.26 2.7 1.24 6.61l4.04 3.15c.95-2.85 3.6-4.96 6.72-4.96z"/>
+          </svg>
+          Continue with Google
         </button>
 
-        <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginTop: "1rem" }}>
-          🔒 Your data is securely stored in the cloud and synced across all your devices.
+        {/* Divider */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+          <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>or with email</span>
+          <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
+        </div>
+
+        {/* Error / Success */}
+        {error && (
+          <div style={{
+            background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)',
+            borderRadius: '10px', padding: '0.75rem 1rem', marginBottom: '1rem',
+            color: '#f87171', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem'
+          }}>
+            <i data-lucide="alert-circle" style={{ width: '16px', height: '16px', flexShrink: 0 }}></i>
+            {error}
+          </div>
+        )}
+        {successMsg && (
+          <div style={{
+            background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)',
+            borderRadius: '10px', padding: '0.75rem 1rem', marginBottom: '1rem',
+            color: '#4ade80', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem'
+          }}>
+            <i data-lucide="check-circle" style={{ width: '16px', height: '16px', flexShrink: 0 }}></i>
+            {successMsg}
+          </div>
+        )}
+
+        {/* Sign In Form */}
+        {tab === 'signin' && (
+          <form onSubmit={handleEmailSignIn} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>Email Address</label>
+              <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com" style={inputStyle} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Password</label>
+                <button type="button" onClick={handleForgotPassword} style={{
+                  background: 'none', border: 'none', color: 'var(--accent-primary)',
+                  fontSize: '0.8rem', cursor: 'pointer', padding: 0, fontWeight: 500
+                }}>Forgot password?</button>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <input type={showPass ? 'text' : 'password'} required value={password} onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••" style={{ ...inputStyle, paddingRight: '2.75rem' }} />
+                <button type="button" onClick={() => setShowPass(!showPass)} style={{
+                  position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0
+                }}>
+                  <i data-lucide={showPass ? 'eye-off' : 'eye'} style={{ width: '16px', height: '16px' }}></i>
+                </button>
+              </div>
+            </div>
+            <button type="submit" disabled={loading} className="btn btn-primary" style={{
+              width: '100%', padding: '0.8rem', marginTop: '0.25rem',
+              opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer'
+            }}>
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+            <p style={{ textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+              No account yet?{' '}
+              <button type="button" onClick={() => handleTabSwitch('signup')} style={{
+                background: 'none', border: 'none', color: 'var(--accent-primary)',
+                cursor: 'pointer', fontWeight: 600, padding: 0, fontSize: '0.85rem'
+              }}>Sign up free</button>
+            </p>
+          </form>
+        )}
+
+        {/* Sign Up Form */}
+        {tab === 'signup' && (
+          <form onSubmit={handleEmailSignUp} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>Full Name</label>
+              <input type="text" required value={name} onChange={e => setName(e.target.value)}
+                placeholder="Your full name" style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>Email Address</label>
+              <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com" style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>Password</label>
+              <div style={{ position: 'relative' }}>
+                <input type={showPass ? 'text' : 'password'} required value={password} onChange={e => setPassword(e.target.value)}
+                  placeholder="Min. 6 characters" style={{ ...inputStyle, paddingRight: '2.75rem' }} />
+                <button type="button" onClick={() => setShowPass(!showPass)} style={{
+                  position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0
+                }}>
+                  <i data-lucide={showPass ? 'eye-off' : 'eye'} style={{ width: '16px', height: '16px' }}></i>
+                </button>
+              </div>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>Confirm Password</label>
+              <input type={showPass ? 'text' : 'password'} required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="Repeat your password" style={inputStyle} />
+            </div>
+            <button type="submit" disabled={loading} className="btn btn-primary" style={{
+              width: '100%', padding: '0.8rem', marginTop: '0.25rem',
+              opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer'
+            }}>
+              {loading ? 'Creating account...' : 'Create Account'}
+            </button>
+            <p style={{ textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+              Already have an account?{' '}
+              <button type="button" onClick={() => handleTabSwitch('signin')} style={{
+                background: 'none', border: 'none', color: 'var(--accent-primary)',
+                cursor: 'pointer', fontWeight: 600, padding: 0, fontSize: '0.85rem'
+              }}>Sign in</button>
+            </p>
+          </form>
+        )}
+
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textAlign: 'center', marginTop: '1.5rem' }}>
+          🔒 Your data is securely stored in the cloud and synced across all devices.
         </p>
       </div>
     </div>
