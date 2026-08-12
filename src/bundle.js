@@ -928,7 +928,6 @@ function AccountCenterPage() {
                 <input type="text" className="form-input" placeholder="@handle" required value={handle} onChange={e => setHandle(e.target.value)} />
               </div>
               <div className="form-group">
-              <div className="form-group">
                 <label className="form-label">Followers Count</label>
                 <input type="number" className="form-input" placeholder="10000" value={followers} onChange={e => setFollowers(e.target.value)} />
               </div>
