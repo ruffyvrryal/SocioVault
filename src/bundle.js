@@ -1650,196 +1650,210 @@ function ContentTablePage() {
 // DOCX REPORT GENERATOR UTILITY
 // -----------------------------------------------------------------------
 async function generateDocxReport({ accountName, timeframeLabel, contents, accountContents }) {
-  if (!window.docx) {
-    alert("DOCX library not loaded yet. Please wait a moment and try again.");
-    return;
+  try {
+    if (!window.docx) {
+      alert("DOCX library not loaded yet. Please check your internet connection and try again.");
+      return;
+    }
+
+    const {
+      Document, Paragraph, TextRun, Table, TableRow, TableCell,
+      Packer, HeadingLevel, AlignmentType, WidthType, BorderStyle
+    } = window.docx;
+
+    const titleStyle = { bold: true, size: 52, color: "2D3748" };
+    const sectionStyle = { bold: true, size: 32, color: "4A5568" };
+    const labelStyle = { bold: true, size: 22, color: "2B6CB0" };
+    const valueStyle = { size: 22, color: "1A202C" };
+    const mutedStyle = { size: 20, color: "718096" };
+
+    const tableBorder = {
+      top: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      left: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      right: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+    };
+
+    const makeHeaderRow = (cells) => new TableRow({
+      children: cells.map(text => new TableCell({
+        borders: tableBorder,
+        shading: { fill: "2D3748" },
+        children: [new Paragraph({ children: [new TextRun({ text: String(text ?? ""), bold: true, size: 18, color: "FFFFFF" })] })]
+      }))
+    });
+
+    const makeDataRow = (cells) => new TableRow({
+      children: cells.map(text => new TableCell({
+        borders: tableBorder,
+        children: [new Paragraph({ children: [new TextRun({ text: String(text ?? ""), size: 18, color: "2D3748" })] })]
+      }))
+    });
+
+    const totalImpressions = accountContents.reduce((s, c) => s + (Number(c.impressions) || 0), 0);
+    const totalReach = accountContents.reduce((s, c) => s + (Number(c.reach) || 0), 0);
+    const totalEngagement = accountContents.reduce((s, c) => s + (Number(c.likes) || 0) + (Number(c.comments) || 0) + (Number(c.shares) || 0) + (Number(c.saves) || 0), 0);
+    const erRate = totalReach > 0 ? ((totalEngagement / totalReach) * 100).toFixed(2) : "0.00";
+    const topPost = [...accountContents].sort((a, b) => (Number(b.impressions) || 0) - (Number(a.impressions) || 0))[0];
+
+    // Hashtag aggregation
+    const hashMap = {};
+    accountContents.forEach(item => {
+      const eng = (Number(item.likes) || 0) + (Number(item.comments) || 0) + (Number(item.shares) || 0) + (Number(item.saves) || 0);
+      (item.hashtags || []).forEach(tag => {
+        if (!tag) return;
+        const t = tag.trim().toLowerCase();
+        if (!t) return;
+        if (!hashMap[t]) hashMap[t] = { tag: t, count: 0, impressions: 0, reach: 0, engagement: 0 };
+        hashMap[t].count += 1;
+        hashMap[t].impressions += Number(item.impressions) || 0;
+        hashMap[t].reach += Number(item.reach) || 0;
+        hashMap[t].engagement += eng;
+      });
+    });
+    const hashtagRows = Object.values(hashMap).sort((a, b) => b.impressions - a.impressions);
+
+    // Subject aggregation
+    const subMap = {};
+    accountContents.forEach(item => {
+      const eng = (Number(item.likes) || 0) + (Number(item.comments) || 0) + (Number(item.shares) || 0) + (Number(item.saves) || 0);
+      (item.subjects || []).forEach(sub => {
+        if (!sub) return;
+        const name = sub.trim();
+        if (!name) return;
+        if (!subMap[name]) subMap[name] = { name, count: 0, impressions: 0, reach: 0, engagement: 0 };
+        subMap[name].count += 1;
+        subMap[name].impressions += Number(item.impressions) || 0;
+        subMap[name].reach += Number(item.reach) || 0;
+        subMap[name].engagement += eng;
+      });
+    });
+    const subjectRows = Object.values(subMap).sort((a, b) => b.impressions - a.impressions);
+
+    const generatedAt = new Date().toLocaleString();
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: [
+          // ---- HEADER ----
+          new Paragraph({ children: [new TextRun({ text: "SocialVault Analytics Report", ...titleStyle })], alignment: AlignmentType.CENTER }),
+          new Paragraph({ children: [new TextRun({ text: `Account: ${accountName || "Media Account"}`, size: 28, bold: true, color: "4A5568" })], alignment: AlignmentType.CENTER }),
+          new Paragraph({ children: [new TextRun({ text: `Report Period: ${timeframeLabel || "All-Time"}`, size: 24, color: "718096" })], alignment: AlignmentType.CENTER }),
+          new Paragraph({ children: [new TextRun({ text: `Generated: ${generatedAt}`, size: 20, color: "A0AEC0" })], alignment: AlignmentType.CENTER }),
+          new Paragraph({ text: "", spacing: { after: 300 } }),
+
+          // ---- SUMMARY METRICS ----
+          new Paragraph({ children: [new TextRun({ text: "1. Summary Metrics", ...sectionStyle })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }),
+          new Paragraph({ children: [new TextRun({ text: "Total Content Items: ", ...labelStyle }), new TextRun({ text: String(accountContents.length), ...valueStyle })] }),
+          new Paragraph({ children: [new TextRun({ text: "Total Impressions (Views): ", ...labelStyle }), new TextRun({ text: totalImpressions.toLocaleString(), ...valueStyle })] }),
+          new Paragraph({ children: [new TextRun({ text: "Total Reach: ", ...labelStyle }), new TextRun({ text: totalReach.toLocaleString(), ...valueStyle })] }),
+          new Paragraph({ children: [new TextRun({ text: "Total Engagement: ", ...labelStyle }), new TextRun({ text: totalEngagement.toLocaleString(), ...valueStyle })] }),
+          new Paragraph({ children: [new TextRun({ text: "Engagement Rate (ER %): ", ...labelStyle }), new TextRun({ text: `${erRate}%`, ...valueStyle })] }),
+          new Paragraph({ text: "", spacing: { after: 200 } }),
+
+          // ---- TOP PERFORMING POST ----
+          new Paragraph({ children: [new TextRun({ text: "2. Top Performing Post", ...sectionStyle })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }),
+          ...(topPost ? [
+            new Paragraph({ children: [new TextRun({ text: "Caption: ", ...labelStyle }), new TextRun({ text: String(topPost.caption || "No caption"), ...valueStyle })] }),
+            new Paragraph({ children: [new TextRun({ text: "Platform: ", ...labelStyle }), new TextRun({ text: String(topPost.platform || "N/A"), ...valueStyle })] }),
+            new Paragraph({ children: [new TextRun({ text: "Upload Date: ", ...labelStyle }), new TextRun({ text: String(topPost.uploadDate || "N/A"), ...valueStyle })] }),
+            new Paragraph({ children: [new TextRun({ text: "Subjects: ", ...labelStyle }), new TextRun({ text: (topPost.subjects || []).join(", ") || "None", ...valueStyle })] }),
+            new Paragraph({ children: [new TextRun({ text: "Impressions: ", ...labelStyle }), new TextRun({ text: (Number(topPost.impressions) || 0).toLocaleString(), ...valueStyle })] }),
+            new Paragraph({ children: [new TextRun({ text: "Reach: ", ...labelStyle }), new TextRun({ text: (Number(topPost.reach) || 0).toLocaleString(), ...valueStyle })] }),
+            new Paragraph({ children: [new TextRun({ text: "Likes: ", ...labelStyle }), new TextRun({ text: String(topPost.likes || 0), ...valueStyle })] }),
+            new Paragraph({ children: [new TextRun({ text: "Comments: ", ...labelStyle }), new TextRun({ text: String(topPost.comments || 0), ...valueStyle })] }),
+            new Paragraph({ children: [new TextRun({ text: "Shares: ", ...labelStyle }), new TextRun({ text: String(topPost.shares || 0), ...valueStyle })] }),
+            new Paragraph({ children: [new TextRun({ text: "Saves: ", ...labelStyle }), new TextRun({ text: String(topPost.saves || 0), ...valueStyle })] }),
+          ] : [new Paragraph({ children: [new TextRun({ text: "No posts recorded for this period.", ...mutedStyle })] })]),
+          new Paragraph({ text: "", spacing: { after: 200 } }),
+
+          // ---- CONTENT TABLE ----
+          new Paragraph({ children: [new TextRun({ text: "3. Content Log Table", ...sectionStyle })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              makeHeaderRow(["Date", "Platform", "Caption (truncated)", "Hashtags", "Subjects", "Impressions", "Reach", "Likes", "Comments", "Shares", "Saves", "Status"]),
+              ...accountContents.map(item => {
+                const cap = String(item.caption || "");
+                const capTrunc = cap.length > 60 ? cap.substring(0, 57) + "..." : cap;
+                return makeDataRow([
+                  String(item.uploadDate || "N/A"),
+                  String(item.platform || "N/A"),
+                  capTrunc || "No caption",
+                  (item.hashtags || []).join(" "),
+                  (item.subjects || []).join(", "),
+                  (Number(item.impressions) || 0).toLocaleString(),
+                  (Number(item.reach) || 0).toLocaleString(),
+                  String(item.likes || 0),
+                  String(item.comments || 0),
+                  String(item.shares || 0),
+                  String(item.saves || 0),
+                  String(item.status || "uploaded")
+                ]);
+              })
+            ]
+          }),
+          new Paragraph({ text: "", spacing: { after: 200 } }),
+
+          // ---- HASHTAG TABLE ----
+          new Paragraph({ children: [new TextRun({ text: "4. Hashtag Performance", ...sectionStyle })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              makeHeaderRow(["Hashtag", "Posts Used", "Total Impressions", "Total Reach", "Total Engagement", "Avg ER %"]),
+              ...hashtagRows.map(h => makeDataRow([
+                String(h.tag),
+                String(h.count),
+                h.impressions.toLocaleString(),
+                h.reach.toLocaleString(),
+                h.engagement.toLocaleString(),
+                h.reach > 0 ? ((h.engagement / h.reach) * 100).toFixed(2) + "%" : "0.00%"
+              ]))
+            ]
+          }),
+          new Paragraph({ text: "", spacing: { after: 200 } }),
+
+          // ---- SUBJECT TABLE ----
+          new Paragraph({ children: [new TextRun({ text: "5. Subject Performance", ...sectionStyle })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              makeHeaderRow(["Subject / Person", "Contents Featured", "Total Impressions", "Total Reach", "Total Engagement", "Avg ER %"]),
+              ...subjectRows.map(s => makeDataRow([
+                String(s.name),
+                String(s.count),
+                s.impressions.toLocaleString(),
+                s.reach.toLocaleString(),
+                s.engagement.toLocaleString(),
+                s.reach > 0 ? ((s.engagement / s.reach) * 100).toFixed(2) + "%" : "0.00%"
+              ]))
+            ]
+          }),
+
+          // ---- FOOTER ----
+          new Paragraph({ text: "", spacing: { after: 400 } }),
+          new Paragraph({ children: [new TextRun({ text: `SocialVault Pro Analytics Report — ${generatedAt}`, size: 18, color: "A0AEC0", italics: true })], alignment: AlignmentType.CENTER }),
+        ]
+      }]
+    });
+
+    const blob = await Packer.toBlob(doc);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const safeName = (accountName || "Account").replace(/[^a-zA-Z0-9]/g, "_");
+    const safeTimeframe = (timeframeLabel || "Report").replace(/[^a-zA-Z0-9]/g, "_");
+    a.download = `SocialVault_Report_${safeName}_${safeTimeframe}.docx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("Error generating DOCX report:", err);
+    alert(`Failed to generate DOCX report: ${err.message || err}`);
   }
-
-  const {
-    Document, Paragraph, TextRun, Table, TableRow, TableCell,
-    Packer, HeadingLevel, AlignmentType, WidthType, BorderStyle
-  } = window.docx;
-
-  const titleStyle = { bold: true, size: 52, color: "2D3748" };
-  const sectionStyle = { bold: true, size: 32, color: "4A5568" };
-  const labelStyle = { bold: true, size: 22, color: "2B6CB0" };
-  const valueStyle = { size: 22, color: "1A202C" };
-  const mutedStyle = { size: 20, color: "718096" };
-
-  const tableBorder = {
-    top: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-    bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-    left: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-    right: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-    insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-    insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-  };
-
-  const makeHeaderRow = (cells) => new TableRow({
-    children: cells.map(text => new TableCell({
-      borders: tableBorder,
-      shading: { fill: "2D3748" },
-      children: [new Paragraph({ children: [new TextRun({ text, bold: true, size: 18, color: "FFFFFF" })] })]
-    }))
-  });
-
-  const makeDataRow = (cells) => new TableRow({
-    children: cells.map(text => new TableCell({
-      borders: tableBorder,
-      children: [new Paragraph({ children: [new TextRun({ text: String(text), size: 18, color: "2D3748" })] })]
-    }))
-  });
-
-  const totalImpressions = accountContents.reduce((s, c) => s + (c.impressions || 0), 0);
-  const totalReach = accountContents.reduce((s, c) => s + (c.reach || 0), 0);
-  const totalEngagement = accountContents.reduce((s, c) => s + (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0), 0);
-  const erRate = totalReach > 0 ? ((totalEngagement / totalReach) * 100).toFixed(2) : "0.00";
-  const topPost = [...accountContents].sort((a, b) => (b.impressions || 0) - (a.impressions || 0))[0];
-
-  // Hashtag aggregation
-  const hashMap = {};
-  accountContents.forEach(item => {
-    const eng = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
-    (item.hashtags || []).forEach(tag => {
-      const t = tag.trim().toLowerCase();
-      if (!hashMap[t]) hashMap[t] = { tag: t, count: 0, impressions: 0, reach: 0, engagement: 0 };
-      hashMap[t].count += 1;
-      hashMap[t].impressions += item.impressions || 0;
-      hashMap[t].reach += item.reach || 0;
-      hashMap[t].engagement += eng;
-    });
-  });
-  const hashtagRows = Object.values(hashMap).sort((a, b) => b.impressions - a.impressions);
-
-  // Subject aggregation
-  const subMap = {};
-  accountContents.forEach(item => {
-    const eng = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
-    (item.subjects || []).forEach(sub => {
-      if (!subMap[sub]) subMap[sub] = { name: sub, count: 0, impressions: 0, reach: 0, engagement: 0 };
-      subMap[sub].count += 1;
-      subMap[sub].impressions += item.impressions || 0;
-      subMap[sub].reach += item.reach || 0;
-      subMap[sub].engagement += eng;
-    });
-  });
-  const subjectRows = Object.values(subMap).sort((a, b) => b.impressions - a.impressions);
-
-  const generatedAt = new Date().toLocaleString();
-
-  const doc = new Document({
-    sections: [{
-      properties: {},
-      children: [
-        // ---- HEADER ----
-        new Paragraph({ children: [new TextRun({ text: "SocialVault Analytics Report", ...titleStyle })], alignment: AlignmentType.CENTER }),
-        new Paragraph({ children: [new TextRun({ text: `Account: ${accountName}`, size: 28, bold: true, color: "4A5568" })], alignment: AlignmentType.CENTER }),
-        new Paragraph({ children: [new TextRun({ text: `Report Period: ${timeframeLabel}`, size: 24, color: "718096" })], alignment: AlignmentType.CENTER }),
-        new Paragraph({ children: [new TextRun({ text: `Generated: ${generatedAt}`, size: 20, color: "A0AEC0" })], alignment: AlignmentType.CENTER }),
-        new Paragraph({ text: "", spacing: { after: 300 } }),
-
-        // ---- SUMMARY METRICS ----
-        new Paragraph({ children: [new TextRun({ text: "1. Summary Metrics", ...sectionStyle })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }),
-        new Paragraph({ children: [new TextRun({ text: "Total Content Items: ", ...labelStyle }), new TextRun({ text: String(accountContents.length), ...valueStyle })] }),
-        new Paragraph({ children: [new TextRun({ text: "Total Impressions (Views): ", ...labelStyle }), new TextRun({ text: totalImpressions.toLocaleString(), ...valueStyle })] }),
-        new Paragraph({ children: [new TextRun({ text: "Total Reach: ", ...labelStyle }), new TextRun({ text: totalReach.toLocaleString(), ...valueStyle })] }),
-        new Paragraph({ children: [new TextRun({ text: "Total Engagement: ", ...labelStyle }), new TextRun({ text: totalEngagement.toLocaleString(), ...valueStyle })] }),
-        new Paragraph({ children: [new TextRun({ text: "Engagement Rate (ER %): ", ...labelStyle }), new TextRun({ text: `${erRate}%`, ...valueStyle })] }),
-        new Paragraph({ text: "", spacing: { after: 200 } }),
-
-        // ---- TOP PERFORMING POST ----
-        new Paragraph({ children: [new TextRun({ text: "2. Top Performing Post", ...sectionStyle })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }),
-        ...(topPost ? [
-          new Paragraph({ children: [new TextRun({ text: "Caption: ", ...labelStyle }), new TextRun({ text: topPost.caption, ...valueStyle })] }),
-          new Paragraph({ children: [new TextRun({ text: "Platform: ", ...labelStyle }), new TextRun({ text: topPost.platform, ...valueStyle })] }),
-          new Paragraph({ children: [new TextRun({ text: "Upload Date: ", ...labelStyle }), new TextRun({ text: topPost.uploadDate, ...valueStyle })] }),
-          new Paragraph({ children: [new TextRun({ text: "Subjects: ", ...labelStyle }), new TextRun({ text: (topPost.subjects || []).join(", "), ...valueStyle })] }),
-          new Paragraph({ children: [new TextRun({ text: "Impressions: ", ...labelStyle }), new TextRun({ text: topPost.impressions.toLocaleString(), ...valueStyle })] }),
-          new Paragraph({ children: [new TextRun({ text: "Reach: ", ...labelStyle }), new TextRun({ text: topPost.reach.toLocaleString(), ...valueStyle })] }),
-          new Paragraph({ children: [new TextRun({ text: "Likes: ", ...labelStyle }), new TextRun({ text: String(topPost.likes), ...valueStyle })] }),
-          new Paragraph({ children: [new TextRun({ text: "Comments: ", ...labelStyle }), new TextRun({ text: String(topPost.comments), ...valueStyle })] }),
-          new Paragraph({ children: [new TextRun({ text: "Shares: ", ...labelStyle }), new TextRun({ text: String(topPost.shares), ...valueStyle })] }),
-          new Paragraph({ children: [new TextRun({ text: "Saves: ", ...labelStyle }), new TextRun({ text: String(topPost.saves), ...valueStyle })] }),
-        ] : [new Paragraph({ children: [new TextRun({ text: "No posts recorded for this period.", ...mutedStyle })] })]),
-        new Paragraph({ text: "", spacing: { after: 200 } }),
-
-        // ---- CONTENT TABLE ----
-        new Paragraph({ children: [new TextRun({ text: "3. Content Log Table", ...sectionStyle })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }),
-        new Table({
-          width: { size: 100, type: WidthType.PERCENTAGE },
-          rows: [
-            makeHeaderRow(["Date", "Platform", "Caption (truncated)", "Hashtags", "Subjects", "Impressions", "Reach", "Likes", "Comments", "Shares", "Saves", "Status"]),
-            ...accountContents.map(item => makeDataRow([
-              item.uploadDate,
-              item.platform,
-              item.caption.length > 60 ? item.caption.substring(0, 57) + "..." : item.caption,
-              (item.hashtags || []).join(" "),
-              (item.subjects || []).join(", "),
-              (item.impressions || 0).toLocaleString(),
-              (item.reach || 0).toLocaleString(),
-              String(item.likes || 0),
-              String(item.comments || 0),
-              String(item.shares || 0),
-              String(item.saves || 0),
-              item.status
-            ]))
-          ]
-        }),
-        new Paragraph({ text: "", spacing: { after: 200 } }),
-
-        // ---- HASHTAG TABLE ----
-        new Paragraph({ children: [new TextRun({ text: "4. Hashtag Performance", ...sectionStyle })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }),
-        new Table({
-          width: { size: 100, type: WidthType.PERCENTAGE },
-          rows: [
-            makeHeaderRow(["Hashtag", "Posts Used", "Total Impressions", "Total Reach", "Total Engagement", "Avg ER %"]),
-            ...hashtagRows.map(h => makeDataRow([
-              h.tag,
-              String(h.count),
-              h.impressions.toLocaleString(),
-              h.reach.toLocaleString(),
-              h.engagement.toLocaleString(),
-              h.reach > 0 ? ((h.engagement / h.reach) * 100).toFixed(2) + "%" : "0.00%"
-            ]))
-          ]
-        }),
-        new Paragraph({ text: "", spacing: { after: 200 } }),
-
-        // ---- SUBJECT TABLE ----
-        new Paragraph({ children: [new TextRun({ text: "5. Subject Performance", ...sectionStyle })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }),
-        new Table({
-          width: { size: 100, type: WidthType.PERCENTAGE },
-          rows: [
-            makeHeaderRow(["Subject / Person", "Contents Featured", "Total Impressions", "Total Reach", "Total Engagement", "Avg ER %"]),
-            ...subjectRows.map(s => makeDataRow([
-              s.name,
-              String(s.count),
-              s.impressions.toLocaleString(),
-              s.reach.toLocaleString(),
-              s.engagement.toLocaleString(),
-              s.reach > 0 ? ((s.engagement / s.reach) * 100).toFixed(2) + "%" : "0.00%"
-            ]))
-          ]
-        }),
-
-        // ---- FOOTER ----
-        new Paragraph({ text: "", spacing: { after: 400 } }),
-        new Paragraph({ children: [new TextRun({ text: `SocialVault Pro Analytics Report — ${generatedAt}`, size: 18, color: "A0AEC0", italics: true })], alignment: AlignmentType.CENTER }),
-      ]
-    }]
-  });
-
-  const blob = await Packer.toBlob(doc);
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  const safeName = accountName.replace(/[^a-zA-Z0-9]/g, "_");
-  const safeTimeframe = timeframeLabel.replace(/[^a-zA-Z0-9]/g, "_");
-  a.download = `SocialVault_Report_${safeName}_${safeTimeframe}.docx`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 // TIMEFRAME ANALYTICS PAGE (WITH TOP PERFORMING POST HIGHLIGHT BOX)
@@ -2194,16 +2208,22 @@ function TimeframeAnalyticsPage() {
                   key={option.scope}
                   disabled={isExporting}
                   onClick={async () => {
-                    setIsExporting(true);
-                    const filtered = accountContents.filter(option.filterFn);
-                    await generateDocxReport({
-                      accountName: activeAccount.name,
-                      timeframeLabel: option.timeframeLabel,
-                      contents: contents,
-                      accountContents: filtered
-                    });
-                    setIsExporting(false);
-                    setShowExportModal(false);
+                    try {
+                      setIsExporting(true);
+                      const filtered = accountContents.filter(option.filterFn);
+                      await generateDocxReport({
+                        accountName: activeAccount.name,
+                        timeframeLabel: option.timeframeLabel,
+                        contents: contents,
+                        accountContents: filtered
+                      });
+                    } catch (err) {
+                      console.error("DOCX export error:", err);
+                      alert("DOCX export error: " + (err.message || err));
+                    } finally {
+                      setIsExporting(false);
+                      setShowExportModal(false);
+                    }
                   }}
                   style={{
                     display: "flex", alignItems: "center", gap: "1rem",
@@ -2383,10 +2403,13 @@ function SubjectAnalyticsPage() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 25;
 
-  // Photo upload modal state
+  // Photo upload & crop modal state
   const [photoModal, setPhotoModal] = React.useState(null); // { subjectName }
   const [photoUrl, setPhotoUrl] = React.useState("");
   const [photoPreview, setPhotoPreview] = React.useState("");
+  const [cropZoom, setCropZoom] = React.useState(1);
+  const [cropOffsetX, setCropOffsetX] = React.useState(0);
+  const [cropOffsetY, setCropOffsetY] = React.useState(0);
   const [photoSaving, setPhotoSaving] = React.useState(false);
   const fileInputRef = React.useRef(null);
 
@@ -2402,24 +2425,82 @@ function SubjectAnalyticsPage() {
     setPhotoModal({ subjectName });
     setPhotoUrl(existing);
     setPhotoPreview(existing);
+    setCropZoom(1);
+    setCropOffsetX(0);
+    setCropOffsetY(0);
   };
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 800 * 1024) { alert("Image must be under 800KB. Please compress or use a URL instead."); return; }
+    if (file.size > 2 * 1024 * 1024) { alert("Image file must be under 2MB."); return; }
     const reader = new FileReader();
-    reader.onload = (ev) => { setPhotoPreview(ev.target.result); setPhotoUrl(ev.target.result); };
+    reader.onload = (ev) => {
+      setPhotoPreview(ev.target.result);
+      setPhotoUrl(ev.target.result);
+      setCropZoom(1);
+      setCropOffsetX(0);
+      setCropOffsetY(0);
+    };
     reader.readAsDataURL(file);
   };
 
   const handleSavePhoto = async () => {
-    if (!photoModal) return;
+    if (!photoModal || !photoPreview) return;
     setPhotoSaving(true);
-    await updateSubjectPhoto(photoModal.subjectName, photoUrl);
+
+    let finalDataUrl = photoPreview;
+
+    // Use offscreen canvas to bake zoom/crop adjustments into a high-res 300x300 circular crop
+    try {
+      finalDataUrl = await new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            const size = 300;
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext("2d");
+
+            ctx.beginPath();
+            ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+
+            const imgAspect = img.width / img.height;
+            let drawW, drawH;
+            if (imgAspect > 1) {
+              drawH = size * cropZoom;
+              drawW = size * imgAspect * cropZoom;
+            } else {
+              drawW = size * cropZoom;
+              drawH = (size / imgAspect) * cropZoom;
+            }
+
+            const drawX = (size - drawW) / 2 + (cropOffsetX * (size / 160));
+            const drawY = (size - drawH) / 2 + (cropOffsetY * (size / 160));
+
+            ctx.drawImage(img, drawX, drawY, drawW, drawH);
+            resolve(canvas.toDataURL("image/jpeg", 0.85));
+          } catch (err) {
+            console.warn("Canvas crop failed, saving original image:", err);
+            resolve(photoPreview);
+          }
+        };
+        img.onerror = () => resolve(photoPreview);
+        img.src = photoPreview;
+      });
+    } catch (err) {
+      finalDataUrl = photoPreview;
+    }
+
+    await updateSubjectPhoto(photoModal.subjectName, finalDataUrl);
     setPhotoSaving(false);
     setPhotoModal(null);
     setPhotoUrl(""); setPhotoPreview("");
+    setCropZoom(1); setCropOffsetX(0); setCropOffsetY(0);
   };
 
   const handleRemovePhoto = async () => {
@@ -2429,6 +2510,7 @@ function SubjectAnalyticsPage() {
     setPhotoSaving(false);
     setPhotoModal(null);
     setPhotoUrl(""); setPhotoPreview("");
+    setCropZoom(1); setCropOffsetX(0); setCropOffsetY(0);
   };
 
   const subjectStats = React.useMemo(() => {
@@ -2650,48 +2732,136 @@ function SubjectAnalyticsPage() {
         </div>
       )}
 
-      {/* Subject Photo Upload Modal */}
+      {/* Subject Photo Upload & Crop Modal */}
       {photoModal && (
         <div className="modal-overlay" onClick={() => { setPhotoModal(null); setPhotoUrl(""); setPhotoPreview(""); }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: "460px" }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: "480px" }}>
             <div className="modal-header">
-              <h2 className="modal-title">Set Photo — {photoModal.subjectName}</h2>
+              <h2 className="modal-title">Set & Adjust Photo — {photoModal.subjectName}</h2>
               <button type="button" onClick={() => { setPhotoModal(null); setPhotoUrl(""); setPhotoPreview(""); }} className="btn btn-secondary btn-icon" style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>✕</span>
               </button>
             </div>
 
-            {/* Preview */}
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.25rem" }}>
-              {photoPreview ? (
-                <img src={photoPreview} alt="Preview" style={{ width: "96px", height: "96px", borderRadius: "50%", objectFit: "cover", border: "3px solid var(--accent-cyan)" }} onError={() => setPhotoPreview("")} />
-              ) : (
-                <div style={{ width: "96px", height: "96px", borderRadius: "50%", background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-emerald))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.2rem", fontWeight: 800, color: "#fff" }}>
-                  {photoModal.subjectName.charAt(0)}
-                </div>
-              )}
+            {/* Circular Crop Viewport */}
+            <div style={{ textAlign: "center", marginBottom: "1rem" }}>
+              <div style={{
+                width: "160px", height: "160px", borderRadius: "50%",
+                overflow: "hidden", position: "relative",
+                border: "3px solid var(--accent-cyan)",
+                boxShadow: "0 0 20px rgba(6, 182, 212, 0.4)",
+                margin: "0 auto 0.5rem", background: "#111827",
+                display: "flex", alignItems: "center", justifyContent: "center"
+              }}>
+                {photoPreview ? (
+                  <img
+                    src={photoPreview}
+                    alt="Crop Preview"
+                    style={{
+                      width: "100%", height: "100%", objectFit: "cover",
+                      transform: `scale(${cropZoom}) translate(${cropOffsetX}px, ${cropOffsetY}px)`,
+                      transformOrigin: "center center",
+                      transition: "transform 0.05s ease-out"
+                    }}
+                    onError={() => setPhotoPreview("")}
+                  />
+                ) : (
+                  <div style={{ fontSize: "3rem", fontWeight: 800, color: "#fff" }}>
+                    {photoModal.subjectName.charAt(0)}
+                  </div>
+                )}
+              </div>
+              <p style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                {photoPreview ? "Target Circle Crop Preview" : "No photo loaded"}
+              </p>
             </div>
+
+            {/* Image Adjustment / Crop Sliders */}
+            {photoPreview && (
+              <div style={{ background: "rgba(255,255,255,0.03)", padding: "0.85rem 1rem", borderRadius: "12px", border: "1px solid var(--border-color)", marginBottom: "1rem" }}>
+                <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--accent-cyan)", marginBottom: "0.6rem" }}>
+                  ✂️ Crop & Position Controls
+                </div>
+
+                {/* Zoom Slider */}
+                <div style={{ marginBottom: "0.5rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: "0.2rem" }}>
+                    <span>🔍 Zoom (Scale):</span>
+                    <strong style={{ color: "#fff" }}>{Math.round(cropZoom * 100)}%</strong>
+                  </div>
+                  <input
+                    type="range" min="1" max="3" step="0.05"
+                    value={cropZoom}
+                    onChange={e => setCropZoom(parseFloat(e.target.value))}
+                    style={{ width: "100%", accentColor: "var(--accent-cyan)", cursor: "pointer" }}
+                  />
+                </div>
+
+                {/* Horizontal Shift */}
+                <div style={{ marginBottom: "0.5rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: "0.2rem" }}>
+                    <span>↔️ Horizontal Position (X):</span>
+                    <strong style={{ color: "#fff" }}>{cropOffsetX}px</strong>
+                  </div>
+                  <input
+                    type="range" min="-100" max="100" step="1"
+                    value={cropOffsetX}
+                    onChange={e => setCropOffsetX(parseInt(e.target.value))}
+                    style={{ width: "100%", accentColor: "var(--accent-cyan)", cursor: "pointer" }}
+                  />
+                </div>
+
+                {/* Vertical Shift */}
+                <div style={{ marginBottom: "0.5rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: "0.2rem" }}>
+                    <span>↕️ Vertical Position (Y):</span>
+                    <strong style={{ color: "#fff" }}>{cropOffsetY}px</strong>
+                  </div>
+                  <input
+                    type="range" min="-100" max="100" step="1"
+                    value={cropOffsetY}
+                    onChange={e => setCropOffsetY(parseInt(e.target.value))}
+                    style={{ width: "100%", accentColor: "var(--accent-cyan)", cursor: "pointer" }}
+                  />
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
+                    onClick={() => { setCropZoom(1); setCropOffsetX(0); setCropOffsetY(0); }}
+                  >
+                    🔄 Reset Position
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* URL Input */}
             <div className="form-group">
-              <label className="form-label">Photo URL (paste an image link)</label>
+              <label className="form-label">Photo Link (URL)</label>
               <input
                 type="url"
                 className="form-input"
                 placeholder="https://example.com/photo.jpg"
                 value={photoUrl.startsWith("data:") ? "" : photoUrl}
-                onChange={e => { setPhotoUrl(e.target.value); setPhotoPreview(e.target.value); }}
+                onChange={e => {
+                  setPhotoUrl(e.target.value);
+                  setPhotoPreview(e.target.value);
+                  setCropZoom(1); setCropOffsetX(0); setCropOffsetY(0);
+                }}
               />
             </div>
 
-            <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem", margin: "0.5rem 0" }}>— or —</div>
+            <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "0.82rem", margin: "0.35rem 0" }}>— or —</div>
 
             {/* File Upload */}
             <div className="form-group">
-              <label className="form-label">Upload from Device (max 800KB)</label>
+              <label className="form-label">Upload Image File (max 2MB)</label>
               <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} style={{ display: "none" }} />
               <button type="button" className="btn btn-secondary" style={{ width: "100%" }} onClick={() => fileInputRef.current && fileInputRef.current.click()}>
-                📁 Choose Image File
+                📁 Choose Image File from Device
               </button>
             </div>
 
@@ -2702,8 +2872,8 @@ function SubjectAnalyticsPage() {
                 </button>
               )}
               <button type="button" onClick={() => { setPhotoModal(null); setPhotoUrl(""); setPhotoPreview(""); }} className="btn btn-secondary">Cancel</button>
-              <button type="button" onClick={handleSavePhoto} className="btn btn-primary" disabled={photoSaving || !photoUrl}>
-                {photoSaving ? "Saving..." : "💾 Save Photo"}
+              <button type="button" onClick={handleSavePhoto} className="btn btn-primary" disabled={photoSaving || !photoPreview}>
+                {photoSaving ? "Saving..." : "💾 Crop & Save Photo"}
               </button>
             </div>
           </div>
