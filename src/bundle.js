@@ -164,51 +164,101 @@ function AuthProvider({ children }) {
 function VaultProvider({ children }) {
   const { user } = React.useContext(AuthContext);
 
-  const [accounts, setAccounts] = React.useState([]);
-  const [contents, setContents] = React.useState([]);
+  const [ownAccounts, setOwnAccounts] = React.useState([]);
+  const [sharedAccounts, setSharedAccounts] = React.useState([]);
+  const [ownContents, setOwnContents] = React.useState([]);
+  const [sharedContents, setSharedContents] = React.useState([]);
   const [activeAccountIdState, setActiveAccountIdState] = React.useState(null);
   const [activePage, setActivePage] = React.useState("account-center");
   const [dataLoading, setDataLoading] = React.useState(true);
 
-  // Helper to get current user's Firestore reference
+  const accounts = React.useMemo(() => [...ownAccounts, ...sharedAccounts], [ownAccounts, sharedAccounts]);
+  const contents = React.useMemo(() => [...ownContents, ...sharedContents], [ownContents, sharedContents]);
+
+  // Returns Firestore ref for the account's actual owner
+  const getRefForUid = (uid) => window.firebaseDb.collection('users').doc(uid || user.uid);
   const getUserRef = () => window.firebaseDb.collection('users').doc(user.uid);
 
   // Listen to Firestore in real-time when user logs in
   React.useEffect(() => {
     if (!user) {
-      setAccounts([]);
-      setContents([]);
+      setOwnAccounts([]); setSharedAccounts([]);
+      setOwnContents([]); setSharedContents([]);
       setDataLoading(false);
       return;
     }
 
     setDataLoading(true);
-    const userRef = window.firebaseDb.collection('users').doc(user.uid);
+    const userRef = getUserRef();
 
-    // Real-time listener for accounts
+    // Real-time listener for OWN accounts
     const unsubAccounts = userRef.collection('accounts').onSnapshot(snap => {
-      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setAccounts(data);
+      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), _ownerUid: user.uid }));
+      setOwnAccounts(data);
       setDataLoading(false);
     });
 
-    // Real-time listener for contents
+    // Real-time listener for OWN contents
     const unsubContents = userRef.collection('contents').orderBy('uploadDate', 'desc').onSnapshot(snap => {
       const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setContents(data);
+      setOwnContents(data);
     });
 
-    // Restore last active account from Firestore user profile
+    // Restore last active account
     userRef.get().then(doc => {
       if (doc.exists && doc.data().activeAccountId) {
         setActiveAccountIdState(doc.data().activeAccountId);
       }
     });
 
-    return () => {
-      unsubAccounts();
-      unsubContents();
-    };
+    // Load SHARED vaults this user was invited to
+    const emailKey = user.email.replace(/\./g, '__dot__');
+    window.firebaseDb.collection('collaboratorIndex').doc(emailKey).get().then(async (doc) => {
+      if (!doc.exists) return;
+      const vaults = doc.data().vaults || [];
+      const accDocs = await Promise.all(vaults.map(v =>
+        window.firebaseDb.collection('users').doc(v.ownerUid).collection('accounts').doc(v.accountId).get()
+          .then(d => d.exists ? { id: d.id, ...d.data(), _ownerUid: v.ownerUid } : null)
+      ));
+      const validAccs = accDocs.filter(Boolean);
+      const contArrays = await Promise.all(validAccs.map(acc =>
+        window.firebaseDb.collection('users').doc(acc._ownerUid).collection('contents')
+          .where('accountId', '==', acc.id).get()
+          .then(snap => snap.docs.map(d => ({ id: d.id, ...d.data() })))
+      ));
+      setSharedAccounts(validAccs);
+      setSharedContents(contArrays.flat());
+    }).catch(() => {});
+
+    // Handle ?vaultToken in URL — let collaborator jump directly to shared vault
+    const params = new URLSearchParams(window.location.search);
+    const vaultToken = params.get('vaultToken');
+    if (vaultToken) {
+      window.firebaseDb.collection('vaultShareIndex').doc(vaultToken).get().then(async (tokenDoc) => {
+        if (!tokenDoc.exists) return;
+        const { ownerUid, accountId } = tokenDoc.data();
+        const accDoc = await window.firebaseDb.collection('users').doc(ownerUid).collection('accounts').doc(accountId).get();
+        if (!accDoc.exists) return;
+        const accData = accDoc.data();
+        const isAllowed = accData.ownerEmail === user.email ||
+          (accData.collaborators || []).some(c => c.email === user.email);
+        if (!isAllowed) { alert("You have not been invited to this vault. Ask the owner to add your email as a collaborator first."); return; }
+        const sharedAcc = { id: accDoc.id, ...accData, _ownerUid: ownerUid };
+        setSharedAccounts(prev => prev.some(a => a.id === sharedAcc.id) ? prev : [...prev, sharedAcc]);
+        const contSnap = await window.firebaseDb.collection('users').doc(ownerUid).collection('contents')
+          .where('accountId', '==', accountId).get();
+        const sharedConts = contSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setSharedContents(prev => {
+          const ids = new Set(prev.map(c => c.id));
+          return [...prev, ...sharedConts.filter(c => !ids.has(c.id))];
+        });
+        setActiveAccountIdState(accountId);
+        setActivePage('account-center');
+        window.history.replaceState({}, '', window.location.pathname);
+      }).catch(() => {});
+    }
+
+    return () => { unsubAccounts(); unsubContents(); };
   }, [user]);
 
   const activeAccountId = activeAccountIdState;
@@ -216,17 +266,17 @@ function VaultProvider({ children }) {
   const setActiveAccountId = (id) => {
     setActiveAccountIdState(id);
     if (user) {
-      // Save active account preference to Firestore user profile
-      window.firebaseDb.collection('users').doc(user.uid).set(
-        { activeAccountId: id || null },
-        { merge: true }
-      );
+      window.firebaseDb.collection('users').doc(user.uid).set({ activeAccountId: id || null }, { merge: true });
     }
   };
 
-  const activeAccount = React.useMemo(() => {
-    return accounts.find(a => a.id === activeAccountId) || null;
-  }, [accounts, activeAccountId]);
+  const activeAccount = React.useMemo(() => accounts.find(a => a.id === activeAccountId) || null, [accounts, activeAccountId]);
+
+  // Get the ownerUid for any account (own or shared)
+  const getOwnerUidForAccount = (accountId) => {
+    const acc = accounts.find(a => a.id === accountId);
+    return (acc && acc._ownerUid) || user.uid;
+  };
 
   const getUserRole = React.useCallback((account) => {
     if (!user || !account) return "viewer";
@@ -236,35 +286,35 @@ function VaultProvider({ children }) {
     return "viewer";
   }, [user]);
 
-  const activeUserRole = React.useMemo(() => {
-    return getUserRole(activeAccount);
-  }, [activeAccount, getUserRole]);
-
+  const activeUserRole = React.useMemo(() => getUserRole(activeAccount), [activeAccount, getUserRole]);
   const canEdit = activeUserRole === "owner" || activeUserRole === "editor";
   const isOwner = activeUserRole === "owner";
 
   // ── Account Actions (Firestore) ──
   const addAccount = async (name, description) => {
     if (!user) return;
+    const shareToken = "vlt_token_" + Math.random().toString(36).substr(2, 8);
     const newAcc = {
       name: name || "New Media Account",
       ownerEmail: user.email,
       description: description || "Social media account workspace",
-      platforms: [
-        { id: "p_" + Date.now(), name: "Instagram", handle: "@" + name.toLowerCase().replace(/\s+/g, "_"), followers: 0, url: "#" }
-      ],
+      platforms: [{ id: "p_" + Date.now(), name: "Instagram", handle: "@" + name.toLowerCase().replace(/\s+/g, "_"), followers: 0, url: "#" }],
       collaborators: [],
-      shareToken: "vlt_token_" + Math.random().toString(36).substr(2, 8)
+      subjectPhotos: {},
+      shareToken
     };
     const docRef = await getUserRef().collection('accounts').add(newAcc);
+    // Store share token → owner mapping so others can look it up
+    await window.firebaseDb.collection('vaultShareIndex').doc(shareToken).set({ ownerUid: user.uid, accountId: docRef.id, accountName: name });
     setActiveAccountId(docRef.id);
     setActivePage("account-center");
   };
 
   const removeAccount = async (accountId) => {
-    await getUserRef().collection('accounts').doc(accountId).delete();
-    // Delete related contents
-    const contentSnap = await getUserRef().collection('contents').where('accountId', '==', accountId).get();
+    const ownerUid = getOwnerUidForAccount(accountId);
+    const ref = getRefForUid(ownerUid);
+    await ref.collection('accounts').doc(accountId).delete();
+    const contentSnap = await ref.collection('contents').where('accountId', '==', accountId).get();
     const batch = window.firebaseDb.batch();
     contentSnap.docs.forEach(doc => batch.delete(doc.ref));
     await batch.commit();
@@ -273,100 +323,122 @@ function VaultProvider({ children }) {
 
   // ── Platform Actions (Firestore) ──
   const addPlatform = async (accountId, platformData) => {
-    const ref = getUserRef().collection('accounts').doc(accountId);
+    const ownerUid = getOwnerUidForAccount(accountId);
+    const ref = getRefForUid(ownerUid).collection('accounts').doc(accountId);
     const snap = await ref.get();
     if (snap.exists) {
-      const current = snap.data();
-      await ref.update({ platforms: [...(current.platforms || []), { id: "p_" + Date.now(), ...platformData }] });
+      await ref.update({ platforms: [...(snap.data().platforms || []), { id: "p_" + Date.now(), ...platformData }] });
     }
   };
 
   const removePlatform = async (accountId, platformId) => {
-    const ref = getUserRef().collection('accounts').doc(accountId);
+    const ownerUid = getOwnerUidForAccount(accountId);
+    const ref = getRefForUid(ownerUid).collection('accounts').doc(accountId);
     const snap = await ref.get();
     if (snap.exists) {
-      const current = snap.data();
-      await ref.update({ platforms: (current.platforms || []).filter(p => p.id !== platformId) });
+      await ref.update({ platforms: (snap.data().platforms || []).filter(p => p.id !== platformId) });
     }
   };
 
   // ── Content Actions (Firestore) ──
   const addContent = async (contentData) => {
-    await getUserRef().collection('contents').add({
-      accountId: activeAccountId,
-      ...contentData
-    });
+    const ownerUid = getOwnerUidForAccount(activeAccountId);
+    await getRefForUid(ownerUid).collection('contents').add({ accountId: activeAccountId, ...contentData });
   };
 
   const updateContent = async (contentId, updatedData) => {
-    await getUserRef().collection('contents').doc(contentId).update(updatedData);
+    const ownerUid = getOwnerUidForAccount(activeAccountId);
+    await getRefForUid(ownerUid).collection('contents').doc(contentId).update(updatedData);
   };
 
   const deleteContent = async (contentId) => {
-    await getUserRef().collection('contents').doc(contentId).delete();
+    const ownerUid = getOwnerUidForAccount(activeAccountId);
+    await getRefForUid(ownerUid).collection('contents').doc(contentId).delete();
   };
 
   // ── Collaborator Actions (Firestore) ──
   const addCollaborator = async (accountId, email, role) => {
-    const ref = getUserRef().collection('accounts').doc(accountId);
+    const ownerUid = getOwnerUidForAccount(accountId);
+    const ref = getRefForUid(ownerUid).collection('accounts').doc(accountId);
     const snap = await ref.get();
-    if (snap.exists) {
-      const current = snap.data();
-      const collabs = current.collaborators || [];
-      if (collabs.some(c => c.email === email)) return;
-      await ref.update({ collaborators: [...collabs, { email, role, joinedAt: new Date().toISOString().split("T")[0] }] });
+    if (!snap.exists) return;
+    const current = snap.data();
+    const collabs = current.collaborators || [];
+    if (collabs.some(c => c.email === email)) { alert("This person is already a collaborator."); return; }
+    await ref.update({ collaborators: [...collabs, { email, role, joinedAt: new Date().toISOString().split("T")[0] }] });
+
+    // Write to top-level collaboratorIndex so the invitee can find this vault on login
+    const emailKey = email.replace(/\./g, '__dot__');
+    const indexRef = window.firebaseDb.collection('collaboratorIndex').doc(emailKey);
+    const indexDoc = await indexRef.get();
+    const existingVaults = indexDoc.exists ? (indexDoc.data().vaults || []) : [];
+    if (!existingVaults.some(v => v.accountId === accountId)) {
+      await indexRef.set({ vaults: [...existingVaults, { ownerUid, accountId, role, shareToken: current.shareToken, accountName: current.name }] }, { merge: true });
     }
+    alert(`✅ Invite sent! ${email} can now access this vault by logging in or opening the share link.`);
   };
 
   const updateCollaboratorRole = async (accountId, email, newRole) => {
-    const ref = getUserRef().collection('accounts').doc(accountId);
+    const ownerUid = getOwnerUidForAccount(accountId);
+    const ref = getRefForUid(ownerUid).collection('accounts').doc(accountId);
     const snap = await ref.get();
     if (snap.exists) {
-      const current = snap.data();
-      const collabs = (current.collaborators || []).map(c => c.email === email ? { ...c, role: newRole } : c);
-      await ref.update({ collaborators: collabs });
+      await ref.update({ collaborators: (snap.data().collaborators || []).map(c => c.email === email ? { ...c, role: newRole } : c) });
     }
   };
 
   const removeCollaborator = async (accountId, email) => {
-    const ref = getUserRef().collection('accounts').doc(accountId);
+    const ownerUid = getOwnerUidForAccount(accountId);
+    const ref = getRefForUid(ownerUid).collection('accounts').doc(accountId);
     const snap = await ref.get();
     if (snap.exists) {
-      const current = snap.data();
-      const collabs = (current.collaborators || []).filter(c => c.email !== email);
-      await ref.update({ collaborators: collabs });
+      await ref.update({ collaborators: (snap.data().collaborators || []).filter(c => c.email !== email) });
+    }
+    // Remove from collaboratorIndex
+    const emailKey = email.replace(/\./g, '__dot__');
+    const indexRef = window.firebaseDb.collection('collaboratorIndex').doc(emailKey);
+    const indexDoc = await indexRef.get();
+    if (indexDoc.exists) {
+      const remaining = (indexDoc.data().vaults || []).filter(v => v.accountId !== accountId);
+      await indexRef.set({ vaults: remaining }, { merge: true });
+    }
+  };
+
+  // ── Subject Photo Action ──
+  const updateSubjectPhoto = async (subjectName, photoUrl) => {
+    if (!activeAccount) return;
+    const ownerUid = getOwnerUidForAccount(activeAccount.id);
+    const ref = getRefForUid(ownerUid).collection('accounts').doc(activeAccount.id);
+    const fieldKey = "subjectPhotos." + subjectName.replace(/\./g, '_');
+    await ref.update({ [fieldKey]: photoUrl });
+    // Update local state immediately for responsiveness
+    if (activeAccount._ownerUid && activeAccount._ownerUid !== user.uid) {
+      setSharedAccounts(prev => prev.map(a => a.id === activeAccount.id
+        ? { ...a, subjectPhotos: { ...(a.subjectPhotos || {}), [subjectName]: photoUrl } }
+        : a
+      ));
+    } else {
+      setOwnAccounts(prev => prev.map(a => a.id === activeAccount.id
+        ? { ...a, subjectPhotos: { ...(a.subjectPhotos || {}), [subjectName]: photoUrl } }
+        : a
+      ));
     }
   };
 
   return (
     <VaultContext.Provider value={{
-      accounts,
-      activeAccountId,
-      setActiveAccountId,
-      activeAccount,
-      activePage,
-      setActivePage,
-      contents,
-      activeUserRole,
-      canEdit,
-      isOwner,
-      dataLoading,
-      addAccount,
-      removeAccount,
-      addPlatform,
-      removePlatform,
-      addContent,
-      updateContent,
-      deleteContent,
-      addCollaborator,
-      updateCollaboratorRole,
-      removeCollaborator,
-      getUserRole
+      accounts, activeAccountId, setActiveAccountId, activeAccount,
+      activePage, setActivePage, contents, activeUserRole, canEdit, isOwner,
+      dataLoading, addAccount, removeAccount, addPlatform, removePlatform,
+      addContent, updateContent, deleteContent,
+      addCollaborator, updateCollaboratorRole, removeCollaborator,
+      updateSubjectPhoto, getUserRole
     }}>
       {children}
     </VaultContext.Provider>
   );
 }
+
 
 // 3. COMPONENTS
 function LoginPage() {
@@ -2204,15 +2276,63 @@ function HashtagAnalyticsPage() {
     });
     return Object.values(map).map(h => ({
       ...h,
+      avgImpressionsPerPost: h.contentCount > 0 ? Math.round(h.impressions / h.contentCount) : 0,
       avgEr: h.reach > 0 ? ((h.engagement / h.reach) * 100).toFixed(2) : "0.00"
     }));
   }, [accountContents]);
+
+  const bestHashtag = React.useMemo(() => {
+    if (!hashtagStats.length) return null;
+    return hashtagStats.reduce((best, h) => h.avgImpressionsPerPost > best.avgImpressionsPerPost ? h : best, hashtagStats[0]);
+  }, [hashtagStats]);
+
+  const sortedHashtags = React.useMemo(() =>
+    [...hashtagStats].sort((a, b) => b.avgImpressionsPerPost - a.avgImpressionsPerPost),
+    [hashtagStats]
+  );
 
   return (
     <div className="page-container">
       <div className="page-header">
         <h1 className="page-title">{activeAccount.name} - Hashtag Studio</h1>
+        <p className="page-subtitle">Track performance of every hashtag across your content</p>
       </div>
+
+      {/* Best Performer Card */}
+      {bestHashtag && (
+        <div style={{ marginBottom: "1.75rem" }}>
+          <h2 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.85rem" }}>
+            🏆 Top Hashtag — Best Avg. Impressions Per Post
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem" }}>
+            {sortedHashtags.slice(0, 3).map((h, idx) => (
+              <div key={h.tag} className="glass-card" style={{ borderLeft: `4px solid ${idx === 0 ? "var(--accent-primary)" : idx === 1 ? "var(--accent-cyan)" : "var(--accent-emerald)"}`, position: "relative", overflow: "hidden" }}>
+                {idx === 0 && (
+                  <div style={{ position: "absolute", top: "0.75rem", right: "0.75rem", fontSize: "1.25rem" }}>🥇</div>
+                )}
+                {idx === 1 && (
+                  <div style={{ position: "absolute", top: "0.75rem", right: "0.75rem", fontSize: "1.25rem" }}>🥈</div>
+                )}
+                {idx === 2 && (
+                  <div style={{ position: "absolute", top: "0.75rem", right: "0.75rem", fontSize: "1.25rem" }}>🥉</div>
+                )}
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <span className="chip" style={{ fontSize: "0.95rem", padding: "0.35rem 0.85rem", fontWeight: 700 }}>{h.tag}</span>
+                </div>
+                <div style={{ fontSize: "1.8rem", fontWeight: 800, color: idx === 0 ? "var(--accent-primary)" : idx === 1 ? "var(--accent-cyan)" : "var(--accent-emerald)", marginBottom: "0.25rem" }}>
+                  {h.avgImpressionsPerPost.toLocaleString()}
+                </div>
+                <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "0.75rem" }}>avg views per post</div>
+                <div style={{ display: "flex", gap: "1rem", fontSize: "0.82rem" }}>
+                  <div><span style={{ color: "var(--text-muted)" }}>Posts:</span> <strong>{h.contentCount}</strong></div>
+                  <div><span style={{ color: "var(--text-muted)" }}>Total Views:</span> <strong>{h.impressions.toLocaleString()}</strong></div>
+                  <div><span style={{ color: "var(--text-muted)" }}>ER:</span> <strong style={{ color: "var(--accent-primary)" }}>{h.avgEr}%</strong></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="table-container">
         <table className="custom-table">
@@ -2220,6 +2340,7 @@ function HashtagAnalyticsPage() {
             <tr>
               <th>Hashtag Tag</th>
               <th>Contents Used</th>
+              <th>Avg Views / Post</th>
               <th>Total Viewers (Impressions)</th>
               <th>Total Reach</th>
               <th>Total Engagement</th>
@@ -2227,16 +2348,22 @@ function HashtagAnalyticsPage() {
             </tr>
           </thead>
           <tbody>
-            {hashtagStats.map(h => (
+            {sortedHashtags.map(h => (
               <tr key={h.tag}>
                 <td><span className="chip">{h.tag}</span></td>
                 <td>{h.contentCount} posts</td>
+                <td style={{ color: "var(--accent-emerald)", fontWeight: 700 }}>{h.avgImpressionsPerPost.toLocaleString()}</td>
                 <td style={{ color: "var(--accent-cyan)", fontWeight: 700 }}>{h.impressions.toLocaleString()}</td>
                 <td>{h.reach.toLocaleString()}</td>
                 <td>{h.engagement.toLocaleString()}</td>
                 <td style={{ color: "var(--accent-primary)", fontWeight: 700 }}>{h.avgEr}%</td>
               </tr>
             ))}
+            {sortedHashtags.length === 0 && (
+              <tr>
+                <td colSpan="7" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>No hashtag data yet. Add hashtags to your content entries.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -2244,26 +2371,65 @@ function HashtagAnalyticsPage() {
   );
 }
 
+
 // ----------------------------------------------------------------------
 // SUBJECT PERFORMANCE STUDIO (WITH SORTING & 25 PER PAGE PAGINATION)
 // ----------------------------------------------------------------------
 function SubjectAnalyticsPage() {
-  const { activeAccount, contents } = React.useContext(VaultContext);
+  const { activeAccount, contents, updateSubjectPhoto, canEdit } = React.useContext(VaultContext);
   const [searchSubject, setSearchSubject] = React.useState("");
-
   const [sortBy, setSortBy] = React.useState("impressions");
   const [sortOrder, setSortOrder] = React.useState("desc");
-
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 25;
 
+  // Photo upload modal state
+  const [photoModal, setPhotoModal] = React.useState(null); // { subjectName }
+  const [photoUrl, setPhotoUrl] = React.useState("");
+  const [photoPreview, setPhotoPreview] = React.useState("");
+  const [photoSaving, setPhotoSaving] = React.useState(false);
+  const fileInputRef = React.useRef(null);
+
   if (!activeAccount) return <div className="page-container"><p>No active account selected.</p></div>;
 
+  const subjectPhotos = activeAccount.subjectPhotos || {};
   const accountContents = contents.filter(c => c.accountId === activeAccount.id);
 
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [searchSubject, sortBy, sortOrder]);
+  React.useEffect(() => { setCurrentPage(1); }, [searchSubject, sortBy, sortOrder]);
+
+  const openPhotoModal = (subjectName) => {
+    const existing = subjectPhotos[subjectName] || "";
+    setPhotoModal({ subjectName });
+    setPhotoUrl(existing);
+    setPhotoPreview(existing);
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 800 * 1024) { alert("Image must be under 800KB. Please compress or use a URL instead."); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => { setPhotoPreview(ev.target.result); setPhotoUrl(ev.target.result); };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSavePhoto = async () => {
+    if (!photoModal) return;
+    setPhotoSaving(true);
+    await updateSubjectPhoto(photoModal.subjectName, photoUrl);
+    setPhotoSaving(false);
+    setPhotoModal(null);
+    setPhotoUrl(""); setPhotoPreview("");
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!photoModal) return;
+    setPhotoSaving(true);
+    await updateSubjectPhoto(photoModal.subjectName, "");
+    setPhotoSaving(false);
+    setPhotoModal(null);
+    setPhotoUrl(""); setPhotoPreview("");
+  };
 
   const subjectStats = React.useMemo(() => {
     const map = {};
@@ -2377,13 +2543,28 @@ function SubjectAnalyticsPage() {
         {paginatedSubjects.map(s => (
           <div key={s.name} className="glass-card" style={{ borderLeft: "4px solid var(--accent-cyan)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-              <div style={{
-                width: "42px", height: "42px", borderRadius: "50%",
-                background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-emerald))",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontWeight: 700, color: "#fff", fontSize: "1.1rem"
-              }}>
-                {s.name.charAt(0)}
+              {/* Clickable avatar circle */}
+              <div
+                onClick={() => canEdit && openPhotoModal(s.name)}
+                title={canEdit ? "Click to set photo" : ""}
+                style={{ position: "relative", flexShrink: 0, cursor: canEdit ? "pointer" : "default" }}
+              >
+                {subjectPhotos[s.name] ? (
+                  <img
+                    src={subjectPhotos[s.name]}
+                    alt={s.name}
+                    style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover", border: "2px solid var(--accent-cyan)" }}
+                  />
+                ) : (
+                  <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-emerald))", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: "1.2rem" }}>
+                    {s.name.charAt(0)}
+                  </div>
+                )}
+                {canEdit && (
+                  <div style={{ position: "absolute", bottom: 0, right: 0, width: "16px", height: "16px", borderRadius: "50%", background: "var(--accent-primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", color: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
+                    ✏️
+                  </div>
+                )}
               </div>
               <div>
                 <h3 style={{ fontSize: "1.15rem", fontWeight: 700 }}>{s.name}</h3>
@@ -2437,9 +2618,9 @@ function SubjectAnalyticsPage() {
           </div>
 
           <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
-            <button 
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} 
-              className="btn btn-secondary" 
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              className="btn btn-secondary"
               disabled={currentPage === 1}
               style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
             >
@@ -2447,7 +2628,7 @@ function SubjectAnalyticsPage() {
             </button>
 
             {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button 
+              <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
                 className={`btn ${currentPage === page ? "btn-primary" : "btn-secondary"}`}
@@ -2457,9 +2638,9 @@ function SubjectAnalyticsPage() {
               </button>
             ))}
 
-            <button 
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} 
-              className="btn btn-secondary" 
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              className="btn btn-secondary"
               disabled={currentPage === totalPages}
               style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
             >
@@ -2469,64 +2650,205 @@ function SubjectAnalyticsPage() {
         </div>
       )}
 
+      {/* Subject Photo Upload Modal */}
+      {photoModal && (
+        <div className="modal-overlay" onClick={() => { setPhotoModal(null); setPhotoUrl(""); setPhotoPreview(""); }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: "460px" }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Set Photo — {photoModal.subjectName}</h2>
+              <button type="button" onClick={() => { setPhotoModal(null); setPhotoUrl(""); setPhotoPreview(""); }} className="btn btn-secondary btn-icon" style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>✕</span>
+              </button>
+            </div>
+
+            {/* Preview */}
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.25rem" }}>
+              {photoPreview ? (
+                <img src={photoPreview} alt="Preview" style={{ width: "96px", height: "96px", borderRadius: "50%", objectFit: "cover", border: "3px solid var(--accent-cyan)" }} onError={() => setPhotoPreview("")} />
+              ) : (
+                <div style={{ width: "96px", height: "96px", borderRadius: "50%", background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-emerald))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.2rem", fontWeight: 800, color: "#fff" }}>
+                  {photoModal.subjectName.charAt(0)}
+                </div>
+              )}
+            </div>
+
+            {/* URL Input */}
+            <div className="form-group">
+              <label className="form-label">Photo URL (paste an image link)</label>
+              <input
+                type="url"
+                className="form-input"
+                placeholder="https://example.com/photo.jpg"
+                value={photoUrl.startsWith("data:") ? "" : photoUrl}
+                onChange={e => { setPhotoUrl(e.target.value); setPhotoPreview(e.target.value); }}
+              />
+            </div>
+
+            <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem", margin: "0.5rem 0" }}>— or —</div>
+
+            {/* File Upload */}
+            <div className="form-group">
+              <label className="form-label">Upload from Device (max 800KB)</label>
+              <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} style={{ display: "none" }} />
+              <button type="button" className="btn btn-secondary" style={{ width: "100%" }} onClick={() => fileInputRef.current && fileInputRef.current.click()}>
+                📁 Choose Image File
+              </button>
+            </div>
+
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1.25rem", flexWrap: "wrap" }}>
+              {subjectPhotos[photoModal.subjectName] && (
+                <button type="button" className="btn btn-danger" onClick={handleRemovePhoto} disabled={photoSaving}>
+                  🗑 Remove Photo
+                </button>
+              )}
+              <button type="button" onClick={() => { setPhotoModal(null); setPhotoUrl(""); setPhotoPreview(""); }} className="btn btn-secondary">Cancel</button>
+              <button type="button" onClick={handleSavePhoto} className="btn btn-primary" disabled={photoSaving || !photoUrl}>
+                {photoSaving ? "Saving..." : "💾 Save Photo"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden file input reference holder */}
+      <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} style={{ display: "none" }} />
+
     </div>
   );
 }
+
 
 function CollaboratorsPage() {
   const { activeAccount, addCollaborator, removeCollaborator, isOwner } = React.useContext(VaultContext);
   const [inviteEmail, setInviteEmail] = React.useState("");
   const [inviteRole, setInviteRole] = React.useState("editor");
+  const [copied, setCopied] = React.useState(false);
+  const [inviting, setInviting] = React.useState(false);
 
   if (!activeAccount) return <div className="page-container"><p>No active account selected.</p></div>;
 
   const shareLink = `${window.location.origin}${window.location.pathname}?vaultToken=${activeAccount.shareToken}`;
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(shareLink).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  };
+
+  const handleInvite = async (e) => {
+    e.preventDefault();
+    setInviting(true);
+    await addCollaborator(activeAccount.id, inviteEmail.trim().toLowerCase(), inviteRole);
+    setInviteEmail("");
+    setInviting(false);
+  };
+
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1 className="page-title">{activeAccount.name} - Vault Sharing & Collaborators</h1>
+        <div>
+          <h1 className="page-title">{activeAccount.name} - Vault Sharing & Collaborators</h1>
+          <p className="page-subtitle">Invite teammates and share read/edit access to this vault</p>
+        </div>
       </div>
 
+      {/* Share Link Card */}
       <div className="glass-card" style={{ marginBottom: "1.5rem" }}>
-        <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "0.5rem" }}>🔗 Shareable Vault Link</h3>
-        <input type="text" className="form-input" readOnly value={shareLink} />
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+          <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-primary))", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <i data-lucide="link" style={{ width: "18px", height: "18px", color: "#fff" }}></i>
+          </div>
+          <div>
+            <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "0.1rem" }}>🔗 Shareable Vault Link</h3>
+            <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Anyone with this link who is on the collaborators list can access this vault</p>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          <input type="text" className="form-input" readOnly value={shareLink} style={{ flex: 1, fontSize: "0.82rem" }} onClick={e => e.target.select()} />
+          <button onClick={handleCopy} className={`btn ${copied ? "btn-secondary" : "btn-primary"}`} style={{ whiteSpace: "nowrap", minWidth: "110px" }}>
+            {copied ? "✅ Copied!" : "📋 Copy Link"}
+          </button>
+        </div>
+        <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.75rem", background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "0.6rem 0.75rem" }}>
+          ℹ️ <strong>How it works:</strong> First add the collaborator's email below, then share this link with them. When they open the link and log in, the vault will automatically appear in their account.
+        </p>
       </div>
 
+      {/* Invite Form */}
       {isOwner && (
         <div className="glass-card" style={{ marginBottom: "1.5rem" }}>
-          <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1rem" }}>✉️ Invite Collaborator</h3>
-          <form onSubmit={(e) => { e.preventDefault(); addCollaborator(activeAccount.id, inviteEmail, inviteRole); setInviteEmail(""); }} style={{ display: "flex", gap: "1rem" }}>
-            <input type="email" className="form-input" placeholder="friend@gmail.com" required value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} style={{ flex: 1 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, var(--accent-emerald), var(--accent-cyan))", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <i data-lucide="user-plus" style={{ width: "18px", height: "18px", color: "#fff" }}></i>
+            </div>
+            <h3 style={{ fontSize: "1.05rem", fontWeight: 700 }}>✉️ Invite Collaborator</h3>
+          </div>
+          <form onSubmit={handleInvite} style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+            <input
+              type="email"
+              className="form-input"
+              placeholder="collaborator@gmail.com"
+              required
+              value={inviteEmail}
+              onChange={e => setInviteEmail(e.target.value)}
+              style={{ flex: 1, minWidth: "200px" }}
+            />
             <select className="form-select" value={inviteRole} onChange={e => setInviteRole(e.target.value)} style={{ width: "auto" }}>
-              <option value="editor">Editor</option>
-              <option value="viewer">Viewer</option>
+              <option value="editor">Editor (can add/edit content)</option>
+              <option value="viewer">Viewer (read-only)</option>
             </select>
-            <button type="submit" className="btn btn-primary">Grant Access</button>
+            <button type="submit" className="btn btn-primary" disabled={inviting} style={{ minWidth: "120px" }}>
+              {inviting ? "Sending..." : "Grant Access"}
+            </button>
           </form>
         </div>
       )}
 
-      <div className="table-container">
-        <table className="custom-table">
-          <thead>
-            <tr><th>Collaborator</th><th>Role</th><th>Actions</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>👑 {activeAccount.ownerEmail} (Owner)</td><td><span className="badge badge-uploaded">Owner</span></td><td>-</td></tr>
-            {activeAccount.collaborators.map(c => (
-              <tr key={c.email}>
-                <td>👤 {c.email}</td>
-                <td><span className="badge badge-scheduled">{c.role}</span></td>
-                <td>{isOwner && <button onClick={() => removeCollaborator(activeAccount.id, c.email)} className="btn btn-danger btn-icon"><i data-lucide="user-x" style={{ width: "14px", height: "14px" }}></i></button>}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Collaborators Table */}
+      <div className="glass-card">
+        <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "1rem" }}>👥 Vault Members ({1 + (activeAccount.collaborators || []).length})</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          {/* Owner row */}
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.75rem 1rem", background: "rgba(255,255,255,0.04)", borderRadius: "10px", border: "1px solid var(--border-color)" }}>
+            <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, var(--accent-primary), var(--accent-cyan))", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: "0.9rem" }}>
+              {activeAccount.ownerEmail.charAt(0).toUpperCase()}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: "0.92rem" }}>👑 {activeAccount.ownerEmail}</div>
+              <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Account Owner</div>
+            </div>
+            <span className="badge badge-uploaded">Owner</span>
+          </div>
+          {/* Collaborator rows */}
+          {(activeAccount.collaborators || []).map(c => (
+            <div key={c.email} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.75rem 1rem", background: "rgba(255,255,255,0.03)", borderRadius: "10px", border: "1px solid var(--border-color)" }}>
+              <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, var(--accent-emerald), var(--accent-cyan))", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: "0.9rem" }}>
+                {c.email.charAt(0).toUpperCase()}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: "0.92rem" }}>👤 {c.email}</div>
+                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Joined {c.joinedAt || "—"}</div>
+              </div>
+              <span className="badge badge-scheduled">{c.role}</span>
+              {isOwner && (
+                <button onClick={() => confirm(`Remove ${c.email} from this vault?`) && removeCollaborator(activeAccount.id, c.email)} className="btn btn-danger btn-icon" title="Remove collaborator">
+                  <i data-lucide="user-x" style={{ width: "14px", height: "14px" }}></i>
+                </button>
+              )}
+            </div>
+          ))}
+          {(activeAccount.collaborators || []).length === 0 && (
+            <div style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)", fontSize: "0.88rem" }}>
+              No collaborators yet. Invite someone using the form above.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
+
 
 // 4. MAIN APP CONTROLLER
 function AppContent() {
