@@ -68,19 +68,7 @@ window.AccountVaultPage = function() {
             >
               <div>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1rem" }}>
-                  <div style={{
-                    width: "44px",
-                    height: "44px",
-                    borderRadius: "12px",
-                    background: "rgba(139, 92, 246, 0.15)",
-                    border: "1px solid rgba(139, 92, 246, 0.3)",
-                    display: "flex",
-                    alignItems: "center",
-                    justify-content: "center",
-                    color: "var(--accent-primary)",
-                    fontSize: "1.2rem",
-                    fontWeight: 700
-                  }}>
+                  <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "rgba(139, 92, 246, 0.15)", border: "1px solid rgba(139, 92, 246, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", fontSize: "1.2rem", fontWeight: 700 }}>
                     {acc.name.charAt(0)}
                   </div>
                   
@@ -118,15 +106,7 @@ window.AccountVaultPage = function() {
                 </div>
               </div>
 
-              <div style={{
-                display: "flex",
-                alignItems: "center",
-                justify-content: "space-between",
-                paddingTop: "1rem",
-                borderTop: "1px solid var(--border-color)",
-                fontSize: "0.85rem",
-                color: "var(--text-muted)"
-              }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "1rem", borderTop: "1px solid var(--border-color)", fontSize: "0.85rem", color: "var(--text-muted)" }}>
                 <div>
                   <strong style={{ color: "#fff" }}>{accContents.length}</strong> Content Items
                 </div>
@@ -154,8 +134,8 @@ window.AccountVaultPage = function() {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Add New Social Account Vault</h2>
-              <button onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon">
-                <i data-lucide="x" style={{ width: "18px", height: "18px" }}></i>
+              <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon" style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }} title="Close">
+                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>✕</span>
               </button>
             </div>
             

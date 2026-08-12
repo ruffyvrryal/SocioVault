@@ -47,10 +47,72 @@ window.ContentTablePage = function() {
     });
   }, [accountContents, searchTerm, platformFilter, statusFilter, sortBy, sortOrder]);
 
+  const handleOpenEdit = (item) => {
+    setEditingContent({
+      id: item.id,
+      uploadDate: item.uploadDate || new Date().toISOString().split("T")[0],
+      platform: item.platform || "Instagram",
+      caption: item.caption || "",
+      hashtagsInput: (item.hashtags || []).join(" "),
+      subjectInput: "",
+      subjectsList: [...(item.subjects || [])],
+      impressions: item.impressions !== undefined ? String(item.impressions) : "",
+      reach: item.reach !== undefined ? String(item.reach) : "",
+      likes: item.likes !== undefined ? String(item.likes) : "",
+      comments: item.comments !== undefined ? String(item.comments) : "",
+      shares: item.shares !== undefined ? String(item.shares) : "",
+      saves: item.saves !== undefined ? String(item.saves) : "",
+      status: item.status || "Uploaded"
+    });
+  };
+
+  const handleAddEditSubject = () => {
+    if (!editingContent || !editingContent.subjectInput.trim()) return;
+    const clean = editingContent.subjectInput.trim();
+    if (!editingContent.subjectsList.includes(clean)) {
+      setEditingContent({
+        ...editingContent,
+        subjectsList: [...editingContent.subjectsList, clean],
+        subjectInput: ""
+      });
+    } else {
+      setEditingContent({ ...editingContent, subjectInput: "" });
+    }
+  };
+
+  const handleRemoveEditSubject = (name) => {
+    if (!editingContent) return;
+    setEditingContent({
+      ...editingContent,
+      subjectsList: editingContent.subjectsList.filter(s => s !== name)
+    });
+  };
+
   const handleEditSave = (e) => {
     e.preventDefault();
     if (!editingContent) return;
-    updateContent(editingContent.id, editingContent);
+
+    const hashtagsArray = editingContent.hashtagsInput
+      .split(/[\s,]+/)
+      .map(tag => tag.trim())
+      .filter(Boolean)
+      .map(tag => tag.startsWith("#") ? tag : "#" + tag);
+
+    updateContent(editingContent.id, {
+      uploadDate: editingContent.uploadDate,
+      platform: editingContent.platform,
+      caption: editingContent.caption,
+      hashtags: hashtagsArray,
+      subjects: editingContent.subjectsList,
+      impressions: Number(editingContent.impressions) || 0,
+      reach: Number(editingContent.reach) || 0,
+      likes: Number(editingContent.likes) || 0,
+      comments: Number(editingContent.comments) || 0,
+      shares: Number(editingContent.shares) || 0,
+      saves: Number(editingContent.saves) || 0,
+      status: editingContent.status
+    });
+
     setEditingContent(null);
   };
 
@@ -181,7 +243,7 @@ window.ContentTablePage = function() {
                     <td>
                       <div style={{ display: "flex", gap: "0.35rem" }}>
                         <button 
-                          onClick={() => setEditingContent({ ...item })} 
+                          onClick={() => handleOpenEdit(item)} 
                           className="btn btn-secondary btn-icon"
                           title="Edit Content Entry"
                         >
@@ -217,69 +279,132 @@ window.ContentTablePage = function() {
       {/* Edit Content Modal */}
       {editingContent && (
         <div className="modal-overlay" onClick={() => setEditingContent(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">Edit Content Entry</h2>
-              <button onClick={() => setEditingContent(null)} className="btn btn-secondary btn-icon">
-                <i data-lucide="x" style={{ width: "18px", height: "18px" }}></i>
+          <div className="modal-content" style={{ maxWidth: "800px", width: "90%", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+              <h2 className="modal-title" style={{ margin: 0, fontSize: "1.35rem", fontWeight: 700 }}>Edit Content Entry</h2>
+              <button 
+                type="button" 
+                onClick={() => setEditingContent(null)} 
+                className="btn btn-secondary btn-icon"
+                style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                title="Close"
+              >
+                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>✕</span>
               </button>
             </div>
 
             <form onSubmit={handleEditSave}>
-              <div className="form-group">
-                <label className="form-label">Caption</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", marginBottom: "1rem" }}>
+                <div className="form-group">
+                  <label className="form-label">Upload / Scheduled Date</label>
+                  <input 
+                    type="date" 
+                    className="form-input" 
+                    required 
+                    value={editingContent.uploadDate} 
+                    onChange={e => setEditingContent({ ...editingContent, uploadDate: e.target.value })} 
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Platform</label>
+                  <select 
+                    className="form-select" 
+                    value={editingContent.platform} 
+                    onChange={e => setEditingContent({ ...editingContent, platform: e.target.value })}
+                  >
+                    {activeAccount.platforms && activeAccount.platforms.length > 0 ? (
+                      activeAccount.platforms.map(p => (
+                        <option key={p.id} value={p.name}>{p.name}</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="Instagram">Instagram</option>
+                        <option value="YouTube">YouTube</option>
+                        <option value="TikTok">TikTok</option>
+                        <option value="X (Twitter)">X (Twitter)</option>
+                        <option value="Facebook">Facebook</option>
+                        <option value="Threads">Threads</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label className="form-label">Caption / Post Text</label>
                 <textarea 
                   className="form-textarea" 
-                  rows="3"
-                  value={editingContent.caption}
+                  rows="3" 
+                  required 
+                  value={editingContent.caption} 
                   onChange={e => setEditingContent({ ...editingContent, caption: e.target.value })}
                 ></textarea>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                <div className="form-group">
-                  <label className="form-label">Impressions (Views)</label>
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label className="form-label">Hashtags (space or comma separated)</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="e.g. #tech #gadgets" 
+                  value={editingContent.hashtagsInput} 
+                  onChange={e => setEditingContent({ ...editingContent, hashtagsInput: e.target.value })} 
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label className="form-label">Subjects Featured (Multiple People)</label>
+                <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
                   <input 
-                    type="number" 
-                    className="form-input"
-                    value={editingContent.impressions}
-                    onChange={e => setEditingContent({ ...editingContent, impressions: Number(e.target.value) })}
+                    type="text" 
+                    className="form-input" 
+                    placeholder="Type person's name..." 
+                    value={editingContent.subjectInput} 
+                    onChange={e => setEditingContent({ ...editingContent, subjectInput: e.target.value })} 
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddEditSubject();
+                      }
+                    }}
                   />
+                  <button type="button" onClick={handleAddEditSubject} className="btn btn-secondary">Add Person</button>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Reach (Unique Viewers)</label>
-                  <input 
-                    type="number" 
-                    className="form-input"
-                    value={editingContent.reach}
-                    onChange={e => setEditingContent({ ...editingContent, reach: Number(e.target.value) })}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Likes</label>
-                  <input 
-                    type="number" 
-                    className="form-input"
-                    value={editingContent.likes}
-                    onChange={e => setEditingContent({ ...editingContent, likes: Number(e.target.value) })}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Comments</label>
-                  <input 
-                    type="number" 
-                    className="form-input"
-                    value={editingContent.comments}
-                    onChange={e => setEditingContent({ ...editingContent, comments: Number(e.target.value) })}
-                  />
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                  {editingContent.subjectsList.map(name => (
+                    <span key={name} className="chip chip-subject" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                      👤 {name}
+                      <button 
+                        type="button" 
+                        onClick={() => handleRemoveEditSubject(name)} 
+                        style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold", fontSize: "0.85rem", lineHeight: 1 }}
+                        title="Remove subject"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Status</label>
+              <hr style={{ borderColor: "var(--border-color)", margin: "1.25rem 0" }} />
+
+              <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "1rem" }}>Content Performance Metrics</h3>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "0.85rem", marginBottom: "1rem" }}>
+                <div className="form-group"><label className="form-label">Impressions</label><input type="number" className="form-input" min="0" value={editingContent.impressions} onChange={e => setEditingContent({ ...editingContent, impressions: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Reach</label><input type="number" className="form-input" min="0" value={editingContent.reach} onChange={e => setEditingContent({ ...editingContent, reach: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Likes</label><input type="number" className="form-input" min="0" value={editingContent.likes} onChange={e => setEditingContent({ ...editingContent, likes: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Comments</label><input type="number" className="form-input" min="0" value={editingContent.comments} onChange={e => setEditingContent({ ...editingContent, comments: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Shares</label><input type="number" className="form-input" min="0" value={editingContent.shares} onChange={e => setEditingContent({ ...editingContent, shares: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Saves</label><input type="number" className="form-input" min="0" value={editingContent.saves} onChange={e => setEditingContent({ ...editingContent, saves: e.target.value })} /></div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label className="form-label">Post Status</label>
                 <select 
-                  className="form-select"
-                  value={editingContent.status}
+                  className="form-select" 
+                  value={editingContent.status} 
                   onChange={e => setEditingContent({ ...editingContent, status: e.target.value })}
                 >
                   <option value="Uploaded">Uploaded</option>

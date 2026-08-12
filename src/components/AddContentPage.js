@@ -3,17 +3,17 @@ window.AddContentPage = function() {
   const { activeAccount, addContent, canEdit, setActivePage } = React.useContext(window.VaultContext);
 
   const [uploadDate, setUploadDate] = React.useState(() => new Date().toISOString().split("T")[0]);
-  const [platform, setPlatform] = React.useState("Instagram");
+  const [platform, setPlatform] = React.useState(() => activeAccount?.platforms?.[0]?.name || "Instagram");
   const [caption, setCaption] = React.useState("");
   const [hashtagsInput, setHashtagsInput] = React.useState("");
   const [subjectInput, setSubjectInput] = React.useState("");
-  const [subjectsList, setSubjectsList] = React.useState(["Alex"]);
-  const [impressions, setImpressions] = React.useState("10000");
-  const [reach, setReach] = React.useState("8500");
-  const [likes, setLikes] = React.useState("850");
-  const [comments, setComments] = React.useState("45");
-  const [shares, setShares] = React.useState("30");
-  const [saves, setSaves] = React.useState("120");
+  const [subjectsList, setSubjectsList] = React.useState([]);
+  const [impressions, setImpressions] = React.useState("");
+  const [reach, setReach] = React.useState("");
+  const [likes, setLikes] = React.useState("");
+  const [comments, setComments] = React.useState("");
+  const [shares, setShares] = React.useState("");
+  const [saves, setSaves] = React.useState("");
   const [status, setStatus] = React.useState("Uploaded");
 
   if (!activeAccount) {
@@ -175,14 +175,17 @@ window.AddContentPage = function() {
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
               {subjectsList.map(name => (
-                <span key={name} className="chip chip-subject">
+                <span key={name} className="chip chip-subject" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
                   👤 {name}
                   {canEdit && (
-                    <i 
-                      data-lucide="x" 
+                    <button 
+                      type="button" 
                       onClick={() => handleRemoveSubject(name)} 
-                      style={{ cursor: "pointer", width: "14px", height: "14px", marginLeft: "0.2rem" }}
-                    ></i>
+                      style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold", fontSize: "0.85rem", lineHeight: 1 }}
+                      title="Remove subject"
+                    >
+                      ✕
+                    </button>
                   )}
                 </span>
               ))}

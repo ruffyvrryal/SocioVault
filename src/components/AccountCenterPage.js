@@ -177,8 +177,8 @@ window.AccountCenterPage = function() {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Link Platform to {activeAccount.name}</h2>
-              <button onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon">
-                <i data-lucide="x" style={{ width: "18px", height: "18px" }}></i>
+              <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon" style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }} title="Close">
+                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>✕</span>
               </button>
             </div>
 

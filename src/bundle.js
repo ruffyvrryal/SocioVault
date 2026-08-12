@@ -698,7 +698,9 @@ function AccountVaultPage() {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Add New Social Account Vault</h2>
-              <button onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon"><i data-lucide="x" style={{ width: "18px", height: "18px" }}></i></button>
+              <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon" style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }} title="Close">
+                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>✕</span>
+              </button>
             </div>
             <form onSubmit={handleCreate}>
               <div className="form-group">
@@ -925,7 +927,9 @@ function AccountCenterPage() {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Link Platform to {activeAccount.name}</h2>
-              <button onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon"><i data-lucide="x" style={{ width: "18px", height: "18px" }}></i></button>
+              <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon" style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }} title="Close">
+                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>✕</span>
+              </button>
             </div>
             <form onSubmit={handleAddPlatform}>
               <div className="form-group">
@@ -976,25 +980,30 @@ function AddContentPage() {
   const { activeAccount, addContent, canEdit, setActivePage } = React.useContext(VaultContext);
 
   const [uploadDate, setUploadDate] = React.useState(() => new Date().toISOString().split("T")[0]);
-  const [platform, setPlatform] = React.useState("Instagram");
+  const [platform, setPlatform] = React.useState(() => activeAccount?.platforms?.[0]?.name || "Instagram");
   const [caption, setCaption] = React.useState("");
   const [hashtagsInput, setHashtagsInput] = React.useState("");
   const [subjectInput, setSubjectInput] = React.useState("");
-  const [subjectsList, setSubjectsList] = React.useState(["Alex"]);
-  const [impressions, setImpressions] = React.useState("10000");
-  const [reach, setReach] = React.useState("8500");
-  const [likes, setLikes] = React.useState("850");
-  const [comments, setComments] = React.useState("45");
-  const [shares, setShares] = React.useState("30");
-  const [saves, setSaves] = React.useState("120");
+  const [subjectsList, setSubjectsList] = React.useState([]);
+  const [impressions, setImpressions] = React.useState("");
+  const [reach, setReach] = React.useState("");
+  const [likes, setLikes] = React.useState("");
+  const [comments, setComments] = React.useState("");
+  const [shares, setShares] = React.useState("");
+  const [saves, setSaves] = React.useState("");
   const [status, setStatus] = React.useState("Uploaded");
 
   if (!activeAccount) return <div className="page-container"><p>No active account selected.</p></div>;
 
   const handleAddSubject = () => {
     if (!subjectInput.trim()) return;
-    if (!subjectsList.includes(subjectInput.trim())) setSubjectsList([...subjectsList, subjectInput.trim()]);
+    const clean = subjectInput.trim();
+    if (!subjectsList.includes(clean)) setSubjectsList([...subjectsList, clean]);
     setSubjectInput("");
+  };
+
+  const handleRemoveSubject = (name) => {
+    setSubjectsList(subjectsList.filter(s => s !== name));
   };
 
   const handleSubmit = (e) => {
@@ -1004,9 +1013,11 @@ function AddContentPage() {
     const hashtagsArray = hashtagsInput.split(/[\s,]+/).map(t => t.trim()).filter(Boolean).map(t => t.startsWith("#") ? t : "#" + t);
 
     addContent({
-      uploadDate, platform, caption,
-      hashtags: hashtagsArray.length > 0 ? hashtagsArray : ["#social"],
-      subjects: subjectsList.length > 0 ? subjectsList : ["Self"],
+      uploadDate,
+      platform,
+      caption,
+      hashtags: hashtagsArray,
+      subjects: subjectsList,
       impressions: Number(impressions) || 0,
       reach: Number(reach) || 0,
       likes: Number(likes) || 0,
@@ -1021,59 +1032,99 @@ function AddContentPage() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1 className="page-title">Add Content Log</h1>
+        <div>
+          <h1 className="page-title">Add Content Log</h1>
+          <p className="page-subtitle">Input content performance metrics, subjects featured, and hashtags for {activeAccount.name}</p>
+        </div>
       </div>
       <div className="glass-card" style={{ maxWidth: "800px", margin: "0 auto" }}>
         <form onSubmit={handleSubmit}>
-          <div className="form-row-2col">
+          <div className="form-row-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
             <div className="form-group">
-              <label className="form-label">Upload Date</label>
+              <label className="form-label">Upload / Scheduled Date</label>
               <input type="date" className="form-input" required value={uploadDate} onChange={e => setUploadDate(e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">Platform</label>
               <select className="form-select" value={platform} onChange={e => setPlatform(e.target.value)}>
-                {activeAccount.platforms.map(p => (
-                  <option key={p.id} value={p.name}>{p.name}</option>
-                ))}
+                {activeAccount.platforms && activeAccount.platforms.length > 0 ? (
+                  activeAccount.platforms.map(p => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))
+                ) : (
+                  <>
+                    <option value="Instagram">Instagram</option>
+                    <option value="YouTube">YouTube</option>
+                    <option value="TikTok">TikTok</option>
+                    <option value="X (Twitter)">X (Twitter)</option>
+                    <option value="Facebook">Facebook</option>
+                    <option value="Threads">Threads</option>
+                  </>
+                )}
               </select>
             </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label">Caption</label>
-            <textarea className="form-textarea" rows="3" required value={caption} onChange={e => setCaption(e.target.value)}></textarea>
+            <label className="form-label">Caption / Post Text</label>
+            <textarea className="form-textarea" rows="3" placeholder="Enter post caption or video title..." required value={caption} onChange={e => setCaption(e.target.value)}></textarea>
           </div>
 
           <div className="form-group">
-            <label className="form-label">Hashtags</label>
-            <input type="text" className="form-input" placeholder="#tech #ai" value={hashtagsInput} onChange={e => setHashtagsInput(e.target.value)} />
+            <label className="form-label">Hashtags (space or comma separated)</label>
+            <input type="text" className="form-input" placeholder="e.g. #tech #gadgets" value={hashtagsInput} onChange={e => setHashtagsInput(e.target.value)} />
           </div>
 
           <div className="form-group">
             <label className="form-label">Subjects Featured (Multiple People)</label>
             <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
-              <input type="text" className="form-input" placeholder="Name (e.g. Sarah)" value={subjectInput} onChange={e => setSubjectInput(e.target.value)} />
-              <button type="button" onClick={handleAddSubject} className="btn btn-secondary">Add</button>
+              <input 
+                type="text" 
+                className="form-input" 
+                placeholder="Type person's name (e.g. Sarah)..." 
+                value={subjectInput} 
+                onChange={e => setSubjectInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddSubject();
+                  }
+                }}
+              />
+              <button type="button" onClick={handleAddSubject} className="btn btn-secondary">Add Person</button>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
               {subjectsList.map(name => (
-                <span key={name} className="chip chip-subject">👤 {name}</span>
+                <span key={name} className="chip chip-subject" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                  👤 {name}
+                  <button 
+                    type="button" 
+                    onClick={() => handleRemoveSubject(name)} 
+                    style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold", fontSize: "0.85rem", lineHeight: 1 }}
+                    title="Remove subject"
+                  >
+                    ✕
+                  </button>
+                </span>
               ))}
             </div>
           </div>
 
-          <div className="form-grid-metrics">
-            <div className="form-group"><label className="form-label">Impressions</label><input type="number" className="form-input" value={impressions} onChange={e => setImpressions(e.target.value)} /></div>
-            <div className="form-group"><label className="form-label">Reach</label><input type="number" className="form-input" value={reach} onChange={e => setReach(e.target.value)} /></div>
-            <div className="form-group"><label className="form-label">Likes</label><input type="number" className="form-input" value={likes} onChange={e => setLikes(e.target.value)} /></div>
-            <div className="form-group"><label className="form-label">Comments</label><input type="number" className="form-input" value={comments} onChange={e => setComments(e.target.value)} /></div>
-            <div className="form-group"><label className="form-label">Shares</label><input type="number" className="form-input" value={shares} onChange={e => setShares(e.target.value)} /></div>
-            <div className="form-group"><label className="form-label">Saves</label><input type="number" className="form-input" value={saves} onChange={e => setSaves(e.target.value)} /></div>
+          <hr style={{ borderColor: "var(--border-color)", margin: "1.5rem 0" }} />
+
+          <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "1rem" }}>Content Performance Metrics</h3>
+
+          <div className="form-grid-metrics" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "1rem" }}>
+            <div className="form-group"><label className="form-label">Impressions</label><input type="number" className="form-input" min="0" placeholder="0" value={impressions} onChange={e => setImpressions(e.target.value)} /></div>
+            <div className="form-group"><label className="form-label">Reach</label><input type="number" className="form-input" min="0" placeholder="0" value={reach} onChange={e => setReach(e.target.value)} /></div>
+            <div className="form-group"><label className="form-label">Likes</label><input type="number" className="form-input" min="0" placeholder="0" value={likes} onChange={e => setLikes(e.target.value)} /></div>
+            <div className="form-group"><label className="form-label">Comments</label><input type="number" className="form-input" min="0" placeholder="0" value={comments} onChange={e => setComments(e.target.value)} /></div>
+            <div className="form-group"><label className="form-label">Shares</label><input type="number" className="form-input" min="0" placeholder="0" value={shares} onChange={e => setShares(e.target.value)} /></div>
+            <div className="form-group"><label className="form-label">Saves</label><input type="number" className="form-input" min="0" placeholder="0" value={saves} onChange={e => setSaves(e.target.value)} /></div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Status</label>
+          <div className="form-group" style={{ marginTop: "1rem" }}>
+            <label className="form-label">Post Status</label>
             <select className="form-select" value={status} onChange={e => setStatus(e.target.value)}>
               <option value="Uploaded">Uploaded</option>
               <option value="Scheduled">Scheduled</option>
@@ -1125,6 +1176,75 @@ function ContentTablePage() {
   const totalPages = Math.ceil(filteredContents.length / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedContents = filteredContents.slice(startIndex, startIndex + itemsPerPage);
+
+  const handleOpenEdit = (item) => {
+    setEditingContent({
+      id: item.id,
+      uploadDate: item.uploadDate || new Date().toISOString().split("T")[0],
+      platform: item.platform || "Instagram",
+      caption: item.caption || "",
+      hashtagsInput: (item.hashtags || []).join(" "),
+      subjectInput: "",
+      subjectsList: [...(item.subjects || [])],
+      impressions: item.impressions !== undefined ? String(item.impressions) : "",
+      reach: item.reach !== undefined ? String(item.reach) : "",
+      likes: item.likes !== undefined ? String(item.likes) : "",
+      comments: item.comments !== undefined ? String(item.comments) : "",
+      shares: item.shares !== undefined ? String(item.shares) : "",
+      saves: item.saves !== undefined ? String(item.saves) : "",
+      status: item.status || "Uploaded"
+    });
+  };
+
+  const handleAddEditSubject = () => {
+    if (!editingContent || !editingContent.subjectInput.trim()) return;
+    const clean = editingContent.subjectInput.trim();
+    if (!editingContent.subjectsList.includes(clean)) {
+      setEditingContent({
+        ...editingContent,
+        subjectsList: [...editingContent.subjectsList, clean],
+        subjectInput: ""
+      });
+    } else {
+      setEditingContent({ ...editingContent, subjectInput: "" });
+    }
+  };
+
+  const handleRemoveEditSubject = (name) => {
+    if (!editingContent) return;
+    setEditingContent({
+      ...editingContent,
+      subjectsList: editingContent.subjectsList.filter(s => s !== name)
+    });
+  };
+
+  const handleSaveEdit = (e) => {
+    e.preventDefault();
+    if (!editingContent) return;
+
+    const hashtagsArray = editingContent.hashtagsInput
+      .split(/[\s,]+/)
+      .map(t => t.trim())
+      .filter(Boolean)
+      .map(t => t.startsWith("#") ? t : "#" + t);
+
+    updateContent(editingContent.id, {
+      uploadDate: editingContent.uploadDate,
+      platform: editingContent.platform,
+      caption: editingContent.caption,
+      hashtags: hashtagsArray,
+      subjects: editingContent.subjectsList,
+      impressions: Number(editingContent.impressions) || 0,
+      reach: Number(editingContent.reach) || 0,
+      likes: Number(editingContent.likes) || 0,
+      comments: Number(editingContent.comments) || 0,
+      shares: Number(editingContent.shares) || 0,
+      saves: Number(editingContent.saves) || 0,
+      status: editingContent.status
+    });
+
+    setEditingContent(null);
+  };
 
   return (
     <div className="page-container">
@@ -1202,8 +1322,8 @@ function ContentTablePage() {
                   <td><span className={`badge badge-${item.status.toLowerCase()}`}>{item.status}</span></td>
                   {canEdit && (
                     <td>
-                      <button onClick={() => setEditingContent({ ...item })} className="btn btn-secondary btn-icon"><i data-lucide="edit-2" style={{ width: "14px", height: "14px" }}></i></button>
-                      <button onClick={() => confirm("Delete content?") && deleteContent(item.id)} className="btn btn-danger btn-icon" style={{ marginLeft: "0.3rem" }}><i data-lucide="trash-2" style={{ width: "14px", height: "14px" }}></i></button>
+                      <button onClick={() => handleOpenEdit(item)} className="btn btn-secondary btn-icon" title="Edit Content"><i data-lucide="edit-2" style={{ width: "14px", height: "14px" }}></i></button>
+                      <button onClick={() => confirm("Delete content?") && deleteContent(item.id)} className="btn btn-danger btn-icon" style={{ marginLeft: "0.3rem" }} title="Delete Content"><i data-lucide="trash-2" style={{ width: "14px", height: "14px" }}></i></button>
                     </td>
                   )}
                 </tr>
@@ -1262,20 +1382,141 @@ function ContentTablePage() {
 
       {editingContent && (
         <div className="modal-overlay" onClick={() => setEditingContent(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">Edit Content</h2>
-              <button onClick={() => setEditingContent(null)} className="btn btn-secondary btn-icon"><i data-lucide="x" style={{ width: "18px", height: "18px" }}></i></button>
+          <div className="modal-content" style={{ maxWidth: "800px", width: "90%", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+              <h2 className="modal-title" style={{ margin: 0, fontSize: "1.35rem", fontWeight: 700 }}>Edit Content Entry</h2>
+              <button 
+                type="button" 
+                onClick={() => setEditingContent(null)} 
+                className="btn btn-secondary btn-icon"
+                style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                title="Close"
+              >
+                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>✕</span>
+              </button>
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); updateContent(editingContent.id, editingContent); setEditingContent(null); }}>
-              <div className="form-group">
-                <label className="form-label">Caption</label>
-                <textarea className="form-textarea" rows="3" value={editingContent.caption} onChange={e => setEditingContent({ ...editingContent, caption: e.target.value })}></textarea>
+
+            <form onSubmit={handleSaveEdit}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", marginBottom: "1rem" }}>
+                <div className="form-group">
+                  <label className="form-label">Upload / Scheduled Date</label>
+                  <input 
+                    type="date" 
+                    className="form-input" 
+                    required 
+                    value={editingContent.uploadDate} 
+                    onChange={e => setEditingContent({ ...editingContent, uploadDate: e.target.value })} 
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Platform</label>
+                  <select 
+                    className="form-select" 
+                    value={editingContent.platform} 
+                    onChange={e => setEditingContent({ ...editingContent, platform: e.target.value })}
+                  >
+                    {activeAccount.platforms && activeAccount.platforms.length > 0 ? (
+                      activeAccount.platforms.map(p => (
+                        <option key={p.id} value={p.name}>{p.name}</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="Instagram">Instagram</option>
+                        <option value="YouTube">YouTube</option>
+                        <option value="TikTok">TikTok</option>
+                        <option value="X (Twitter)">X (Twitter)</option>
+                        <option value="Facebook">Facebook</option>
+                        <option value="Threads">Threads</option>
+                      </>
+                    )}
+                  </select>
+                </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                <div className="form-group"><label className="form-label">Impressions</label><input type="number" className="form-input" value={editingContent.impressions} onChange={e => setEditingContent({ ...editingContent, impressions: Number(e.target.value) })} /></div>
-                <div className="form-group"><label className="form-label">Reach</label><input type="number" className="form-input" value={editingContent.reach} onChange={e => setEditingContent({ ...editingContent, reach: Number(e.target.value) })} /></div>
+
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label className="form-label">Caption / Post Text</label>
+                <textarea 
+                  className="form-textarea" 
+                  rows="3" 
+                  required 
+                  value={editingContent.caption} 
+                  onChange={e => setEditingContent({ ...editingContent, caption: e.target.value })}
+                ></textarea>
               </div>
+
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label className="form-label">Hashtags (space or comma separated)</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="e.g. #tech #gadgets" 
+                  value={editingContent.hashtagsInput} 
+                  onChange={e => setEditingContent({ ...editingContent, hashtagsInput: e.target.value })} 
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label className="form-label">Subjects Featured (Multiple People)</label>
+                <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="Type person's name..." 
+                    value={editingContent.subjectInput} 
+                    onChange={e => setEditingContent({ ...editingContent, subjectInput: e.target.value })} 
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddEditSubject();
+                      }
+                    }}
+                  />
+                  <button type="button" onClick={handleAddEditSubject} className="btn btn-secondary">Add Person</button>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                  {editingContent.subjectsList.map(name => (
+                    <span key={name} className="chip chip-subject" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                      👤 {name}
+                      <button 
+                        type="button" 
+                        onClick={() => handleRemoveEditSubject(name)} 
+                        style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold", fontSize: "0.85rem", lineHeight: 1 }}
+                        title="Remove subject"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <hr style={{ borderColor: "var(--border-color)", margin: "1.25rem 0" }} />
+
+              <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "1rem" }}>Content Performance Metrics</h3>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "0.85rem", marginBottom: "1rem" }}>
+                <div className="form-group"><label className="form-label">Impressions</label><input type="number" className="form-input" min="0" value={editingContent.impressions} onChange={e => setEditingContent({ ...editingContent, impressions: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Reach</label><input type="number" className="form-input" min="0" value={editingContent.reach} onChange={e => setEditingContent({ ...editingContent, reach: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Likes</label><input type="number" className="form-input" min="0" value={editingContent.likes} onChange={e => setEditingContent({ ...editingContent, likes: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Comments</label><input type="number" className="form-input" min="0" value={editingContent.comments} onChange={e => setEditingContent({ ...editingContent, comments: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Shares</label><input type="number" className="form-input" min="0" value={editingContent.shares} onChange={e => setEditingContent({ ...editingContent, shares: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Saves</label><input type="number" className="form-input" min="0" value={editingContent.saves} onChange={e => setEditingContent({ ...editingContent, saves: e.target.value })} /></div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label className="form-label">Post Status</label>
+                <select 
+                  className="form-select" 
+                  value={editingContent.status} 
+                  onChange={e => setEditingContent({ ...editingContent, status: e.target.value })}
+                >
+                  <option value="Uploaded">Uploaded</option>
+                  <option value="Scheduled">Scheduled</option>
+                  <option value="Privated">Privated</option>
+                  <option value="Deleted">Deleted</option>
+                </select>
+              </div>
+
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
                 <button type="button" onClick={() => setEditingContent(null)} className="btn btn-secondary">Cancel</button>
                 <button type="submit" className="btn btn-primary">Save Changes</button>
