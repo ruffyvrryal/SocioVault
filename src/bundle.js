@@ -85,10 +85,26 @@ function AuthProvider({ children }) {
   const loginWithGoogle = async () => {
     try {
       const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
       await window.firebaseAuth.signInWithPopup(provider);
+      return { success: true };
     } catch (error) {
       console.error('Google Sign-In error:', error);
-      alert('Sign-in failed. Please try again.');
+      if (error.code === 'auth/unauthorized-domain') {
+        alert(`Google Sign-In Error: Domain "${window.location.hostname}" is not authorized in your Firebase Console.\n\nTo fix this:\n1. Go to console.firebase.google.com\n2. Open your SociaVault project\n3. Go to Authentication -> Settings -> Authorized domains\n4. Add "${window.location.hostname}"`);
+      } else if (error.code === 'auth/popup-blocked') {
+        try {
+          const provider = new firebase.auth.GoogleAuthProvider();
+          await window.firebaseAuth.signInWithRedirect(provider);
+        } catch (redirectErr) {
+          alert(`Google Sign-In failed: ${redirectErr.message}`);
+        }
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        // User cancelled login popup
+      } else {
+        alert(`Google Sign-In failed (${error.code}): ${error.message}`);
+      }
+      return { success: false, message: error.message };
     }
   };
 
