@@ -179,11 +179,10 @@ function VaultProvider({ children }) {
   const getRefForUid = (uid) => window.firebaseDb.collection('users').doc(uid || user.uid);
   const getUserRef = () => window.firebaseDb.collection('users').doc(user.uid);
 
-  // Listen to Firestore in real-time when user logs in
+  // Real-time listener for OWN accounts & contents
   React.useEffect(() => {
     if (!user) {
-      setOwnAccounts([]); setSharedAccounts([]);
-      setOwnContents([]); setSharedContents([]);
+      setOwnAccounts([]); setOwnContents([]);
       setDataLoading(false);
       return;
     }
@@ -211,54 +210,109 @@ function VaultProvider({ children }) {
       }
     });
 
-    // Load SHARED vaults this user was invited to
-    const emailKey = user.email.replace(/\./g, '__dot__');
-    window.firebaseDb.collection('collaboratorIndex').doc(emailKey).get().then(async (doc) => {
-      if (!doc.exists) return;
-      const vaults = doc.data().vaults || [];
-      const accDocs = await Promise.all(vaults.map(v =>
-        window.firebaseDb.collection('users').doc(v.ownerUid).collection('accounts').doc(v.accountId).get()
-          .then(d => d.exists ? { id: d.id, ...d.data(), _ownerUid: v.ownerUid } : null)
-      ));
-      const validAccs = accDocs.filter(Boolean);
-      const contArrays = await Promise.all(validAccs.map(acc =>
-        window.firebaseDb.collection('users').doc(acc._ownerUid).collection('contents')
-          .where('accountId', '==', acc.id).get()
-          .then(snap => snap.docs.map(d => ({ id: d.id, ...d.data() })))
-      ));
-      setSharedAccounts(validAccs);
-      setSharedContents(contArrays.flat());
-    }).catch(() => {});
+    return () => {
+      unsubAccounts();
+      unsubContents();
+    };
+  }, [user]);
 
-    // Handle ?vaultToken in URL — let collaborator jump directly to shared vault
+  // Real-time listener for SHARED vaults
+  React.useEffect(() => {
+    if (!user) {
+      setSharedAccounts([]); setSharedContents([]);
+      return;
+    }
+
+    const emailKey = (user.email || "").toLowerCase().trim().replace(/\./g, '__dot__');
+    const indexRef = window.firebaseDb.collection('collaboratorIndex').doc(emailKey);
+
+    let activeUnsubscribers = [];
+
+    const unsubIndex = indexRef.onSnapshot((indexSnap) => {
+      // Clean up previous shared vault listeners
+      activeUnsubscribers.forEach(unsub => unsub());
+      activeUnsubscribers = [];
+
+      if (!indexSnap.exists) {
+        setSharedAccounts([]); setSharedContents([]);
+        return;
+      }
+
+      const vaults = indexSnap.data().vaults || [];
+      if (vaults.length === 0) {
+        setSharedAccounts([]); setSharedContents([]);
+        return;
+      }
+
+      const sharedAccMap = {};
+      const sharedContMap = {};
+
+      vaults.forEach(v => {
+        const { ownerUid, accountId } = v;
+        if (!ownerUid || !accountId) return;
+
+        // Listen in real time to shared account document
+        const unsubAcc = window.firebaseDb.collection('users').doc(ownerUid)
+          .collection('accounts').doc(accountId)
+          .onSnapshot(accDoc => {
+            if (accDoc.exists) {
+              sharedAccMap[accountId] = { id: accDoc.id, ...accDoc.data(), _ownerUid: ownerUid };
+            } else {
+              delete sharedAccMap[accountId];
+            }
+            setSharedAccounts(Object.values(sharedAccMap));
+          });
+        activeUnsubscribers.push(unsubAcc);
+
+        // Listen in real time to shared contents collection
+        const unsubCont = window.firebaseDb.collection('users').doc(ownerUid)
+          .collection('contents').where('accountId', '==', accountId)
+          .onSnapshot(contSnap => {
+            sharedContMap[accountId] = contSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            setSharedContents(Object.values(sharedContMap).flat());
+          });
+        activeUnsubscribers.push(unsubCont);
+      });
+    });
+
+    // Handle ?vaultToken in URL — automatically register shared vault into collaborator index
     const params = new URLSearchParams(window.location.search);
     const vaultToken = params.get('vaultToken');
-    if (vaultToken) {
+    if (vaultToken && user) {
       window.firebaseDb.collection('vaultShareIndex').doc(vaultToken).get().then(async (tokenDoc) => {
         if (!tokenDoc.exists) return;
         const { ownerUid, accountId } = tokenDoc.data();
         const accDoc = await window.firebaseDb.collection('users').doc(ownerUid).collection('accounts').doc(accountId).get();
         if (!accDoc.exists) return;
         const accData = accDoc.data();
-        const isAllowed = accData.ownerEmail === user.email ||
-          (accData.collaborators || []).some(c => c.email === user.email);
-        if (!isAllowed) { alert("You have not been invited to this vault. Ask the owner to add your email as a collaborator first."); return; }
-        const sharedAcc = { id: accDoc.id, ...accData, _ownerUid: ownerUid };
-        setSharedAccounts(prev => prev.some(a => a.id === sharedAcc.id) ? prev : [...prev, sharedAcc]);
-        const contSnap = await window.firebaseDb.collection('users').doc(ownerUid).collection('contents')
-          .where('accountId', '==', accountId).get();
-        const sharedConts = contSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        setSharedContents(prev => {
-          const ids = new Set(prev.map(c => c.id));
-          return [...prev, ...sharedConts.filter(c => !ids.has(c.id))];
-        });
+        const userEmail = (user.email || "").toLowerCase().trim();
+        const ownerEmail = (accData.ownerEmail || "").toLowerCase().trim();
+        const isAllowed = ownerEmail === userEmail ||
+          (accData.collaborators || []).some(c => (c.email || "").toLowerCase().trim() === userEmail);
+        if (!isAllowed) {
+          alert("You have not been invited to this vault. Ask the owner to add your email as a collaborator first.");
+          return;
+        }
+
+        // Add to collaboratorIndex if missing so real-time listeners pick it up
+        const indexDoc = await indexRef.get();
+        const existingVaults = indexDoc.exists ? (indexDoc.data().vaults || []) : [];
+        if (!existingVaults.some(v => v.accountId === accountId)) {
+          const collab = (accData.collaborators || []).find(c => (c.email || "").toLowerCase().trim() === userEmail);
+          const role = collab ? collab.role : "editor";
+          await indexRef.set({ vaults: [...existingVaults, { ownerUid, accountId, role, shareToken: vaultToken, accountName: accData.name }] }, { merge: true });
+        }
+
         setActiveAccountIdState(accountId);
         setActivePage('account-center');
         window.history.replaceState({}, '', window.location.pathname);
       }).catch(() => {});
     }
 
-    return () => { unsubAccounts(); unsubContents(); };
+    return () => {
+      unsubIndex();
+      activeUnsubscribers.forEach(unsub => unsub());
+    };
   }, [user]);
 
   const activeAccountId = activeAccountIdState;
@@ -272,7 +326,7 @@ function VaultProvider({ children }) {
 
   const activeAccount = React.useMemo(() => accounts.find(a => a.id === activeAccountId) || null, [accounts, activeAccountId]);
 
-  // Get the ownerUid for any account (own or shared)
+  // Get ownerUid for an account
   const getOwnerUidForAccount = (accountId) => {
     const acc = accounts.find(a => a.id === accountId);
     return (acc && acc._ownerUid) || user.uid;
@@ -280,8 +334,10 @@ function VaultProvider({ children }) {
 
   const getUserRole = React.useCallback((account) => {
     if (!user || !account) return "viewer";
-    if (account.ownerEmail === user.email) return "owner";
-    const collab = (account.collaborators || []).find(c => c.email === user.email);
+    const userEmail = (user.email || "").toLowerCase().trim();
+    const ownerEmail = (account.ownerEmail || "").toLowerCase().trim();
+    if (ownerEmail === userEmail) return "owner";
+    const collab = (account.collaborators || []).find(c => (c.email || "").toLowerCase().trim() === userEmail);
     if (collab) return collab.role;
     return "viewer";
   }, [user]);
@@ -296,7 +352,7 @@ function VaultProvider({ children }) {
     const shareToken = "vlt_token_" + Math.random().toString(36).substr(2, 8);
     const newAcc = {
       name: name || "New Media Account",
-      ownerEmail: user.email,
+      ownerEmail: user.email.toLowerCase().trim(),
       description: description || "Social media account workspace",
       platforms: [{ id: "p_" + Date.now(), name: "Instagram", handle: "@" + name.toLowerCase().replace(/\s+/g, "_"), followers: 0, url: "#" }],
       collaborators: [],
@@ -304,7 +360,6 @@ function VaultProvider({ children }) {
       shareToken
     };
     const docRef = await getUserRef().collection('accounts').add(newAcc);
-    // Store share token → owner mapping so others can look it up
     await window.firebaseDb.collection('vaultShareIndex').doc(shareToken).set({ ownerUid: user.uid, accountId: docRef.id, accountName: name });
     setActiveAccountId(docRef.id);
     setActivePage("account-center");
@@ -358,44 +413,49 @@ function VaultProvider({ children }) {
 
   // ── Collaborator Actions (Firestore) ──
   const addCollaborator = async (accountId, email, role) => {
+    const cleanEmail = (email || "").toLowerCase().trim();
+    if (!cleanEmail) return;
     const ownerUid = getOwnerUidForAccount(accountId);
     const ref = getRefForUid(ownerUid).collection('accounts').doc(accountId);
     const snap = await ref.get();
     if (!snap.exists) return;
     const current = snap.data();
     const collabs = current.collaborators || [];
-    if (collabs.some(c => c.email === email)) { alert("This person is already a collaborator."); return; }
-    await ref.update({ collaborators: [...collabs, { email, role, joinedAt: new Date().toISOString().split("T")[0] }] });
+    if (collabs.some(c => (c.email || "").toLowerCase().trim() === cleanEmail)) {
+      alert("This person is already a collaborator.");
+      return;
+    }
+    await ref.update({ collaborators: [...collabs, { email: cleanEmail, role, joinedAt: new Date().toISOString().split("T")[0] }] });
 
-    // Write to top-level collaboratorIndex so the invitee can find this vault on login
-    const emailKey = email.replace(/\./g, '__dot__');
+    const emailKey = cleanEmail.replace(/\./g, '__dot__');
     const indexRef = window.firebaseDb.collection('collaboratorIndex').doc(emailKey);
     const indexDoc = await indexRef.get();
     const existingVaults = indexDoc.exists ? (indexDoc.data().vaults || []) : [];
     if (!existingVaults.some(v => v.accountId === accountId)) {
       await indexRef.set({ vaults: [...existingVaults, { ownerUid, accountId, role, shareToken: current.shareToken, accountName: current.name }] }, { merge: true });
     }
-    alert(`✅ Invite sent! ${email} can now access this vault by logging in or opening the share link.`);
+    alert(`✅ Access granted! ${cleanEmail} can now view and edit this vault in real time.`);
   };
 
   const updateCollaboratorRole = async (accountId, email, newRole) => {
+    const cleanEmail = (email || "").toLowerCase().trim();
     const ownerUid = getOwnerUidForAccount(accountId);
     const ref = getRefForUid(ownerUid).collection('accounts').doc(accountId);
     const snap = await ref.get();
     if (snap.exists) {
-      await ref.update({ collaborators: (snap.data().collaborators || []).map(c => c.email === email ? { ...c, role: newRole } : c) });
+      await ref.update({ collaborators: (snap.data().collaborators || []).map(c => (c.email || "").toLowerCase().trim() === cleanEmail ? { ...c, role: newRole } : c) });
     }
   };
 
   const removeCollaborator = async (accountId, email) => {
+    const cleanEmail = (email || "").toLowerCase().trim();
     const ownerUid = getOwnerUidForAccount(accountId);
     const ref = getRefForUid(ownerUid).collection('accounts').doc(accountId);
     const snap = await ref.get();
     if (snap.exists) {
-      await ref.update({ collaborators: (snap.data().collaborators || []).filter(c => c.email !== email) });
+      await ref.update({ collaborators: (snap.data().collaborators || []).filter(c => (c.email || "").toLowerCase().trim() !== cleanEmail) });
     }
-    // Remove from collaboratorIndex
-    const emailKey = email.replace(/\./g, '__dot__');
+    const emailKey = cleanEmail.replace(/\./g, '__dot__');
     const indexRef = window.firebaseDb.collection('collaboratorIndex').doc(emailKey);
     const indexDoc = await indexRef.get();
     if (indexDoc.exists) {
@@ -411,18 +471,6 @@ function VaultProvider({ children }) {
     const ref = getRefForUid(ownerUid).collection('accounts').doc(activeAccount.id);
     const fieldKey = "subjectPhotos." + subjectName.replace(/\./g, '_');
     await ref.update({ [fieldKey]: photoUrl });
-    // Update local state immediately for responsiveness
-    if (activeAccount._ownerUid && activeAccount._ownerUid !== user.uid) {
-      setSharedAccounts(prev => prev.map(a => a.id === activeAccount.id
-        ? { ...a, subjectPhotos: { ...(a.subjectPhotos || {}), [subjectName]: photoUrl } }
-        : a
-      ));
-    } else {
-      setOwnAccounts(prev => prev.map(a => a.id === activeAccount.id
-        ? { ...a, subjectPhotos: { ...(a.subjectPhotos || {}), [subjectName]: photoUrl } }
-        : a
-      ));
-    }
   };
 
   return (
@@ -809,7 +857,13 @@ function Navbar() {
     { id: "collaborators", label: "Collaborators", icon: "share-2" }
   ];
 
-  const accessibleAccounts = accounts.filter(acc => user && (acc.ownerEmail === user.email || acc.collaborators.some(c => c.email === user.email)));
+  const accessibleAccounts = accounts.filter(acc => {
+    if (!user) return false;
+    const uEmail = (user.email || "").toLowerCase().trim();
+    const oEmail = (acc.ownerEmail || "").toLowerCase().trim();
+    if (oEmail === uEmail) return true;
+    return (acc.collaborators || []).some(c => (c.email || "").toLowerCase().trim() === uEmail);
+  });
 
   return (
     <nav className="navbar">
