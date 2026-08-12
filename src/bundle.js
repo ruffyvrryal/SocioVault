@@ -40,19 +40,19 @@ window.INITIAL_DATA = {
     }
   ],
   contents: [
-    { id: "cnt_01", accountId: "acc_01", uploadDate: "2026-08-10", platform: "Instagram", caption: "Unboxing the futuristic AI Glasses with Sarah! Is this the replacement for smartphones?", hashtags: ["#tech", "#gadgets", "#aiglasses"], subjects: ["Alex", "Sarah"], impressions: 145000, reach: 122000, likes: 12400, comments: 980, shares: 1420, saves: 3100, status: "Uploaded" },
-    { id: "cnt_02", accountId: "acc_01", uploadDate: "2026-08-08", platform: "YouTube", caption: "Full Day in the Life of a Tech Creator feat. Jordan & Alex (Setup Tour 2026)", hashtags: ["#vlog", "#setuptour", "#tech"], subjects: ["Alex", "Jordan"], impressions: 380000, reach: 295000, likes: 28900, comments: 2450, shares: 3100, saves: 5400, status: "Uploaded" },
-    { id: "cnt_03", accountId: "acc_01", uploadDate: "2026-08-05", platform: "TikTok", caption: "3 AI tools you need to try this week! 🚀 #ai #productivity #tech", hashtags: ["#ai", "#productivity", "#tech"], subjects: ["Alex"], impressions: 620000, reach: 540000, likes: 54000, comments: 3120, shares: 12400, saves: 18900, status: "Uploaded" },
-    { id: "cnt_04", accountId: "acc_01", uploadDate: "2026-08-15", platform: "Instagram", caption: "Behind the scenes with Sarah on the new studio build podcast!", hashtags: ["#podcast", "#studio"], subjects: ["Sarah"], impressions: 85000, reach: 71000, likes: 7200, comments: 420, shares: 610, saves: 1100, status: "Scheduled" },
-    { id: "cnt_05", accountId: "acc_01", uploadDate: "2026-07-28", platform: "X (Twitter)", caption: "Thread: Why 2026 is the turning point for wearable spatial computing. 🧵👇", hashtags: ["#tech", "#spatialcomputing"], subjects: ["Alex"], impressions: 92000, reach: 84000, likes: 4100, comments: 630, shares: 1890, saves: 2200, status: "Uploaded" },
-    { id: "cnt_06", accountId: "acc_01", uploadDate: "2026-07-20", platform: "Instagram", caption: "Testing camera quality at sunset with Jordan #photography", hashtags: ["#photography", "#tech"], subjects: ["Jordan"], impressions: 110000, reach: 95000, likes: 9800, comments: 510, shares: 720, saves: 1400, status: "Uploaded" },
-    { id: "cnt_07", accountId: "acc_01", uploadDate: "2026-07-12", platform: "YouTube", caption: "Top 5 Mac Apps for Creators in 2026", hashtags: ["#mac", "#apps", "#productivity"], subjects: ["Alex"], impressions: 240000, reach: 210000, likes: 18500, comments: 1200, shares: 1900, saves: 4200, status: "Uploaded" },
-    { id: "cnt_08", accountId: "acc_01", uploadDate: "2026-07-04", platform: "TikTok", caption: "How to edit videos 2x faster with AI shortcodes!", hashtags: ["#editing", "#ai", "#tutorial"], subjects: ["Alex"], impressions: 450000, reach: 390000, likes: 41000, comments: 1950, shares: 8900, saves: 12500, status: "Uploaded" },
-    { id: "cnt_09", accountId: "acc_01", uploadDate: "2026-06-25", platform: "Instagram", caption: "Summer tech gift guide feat. Sarah & Alex", hashtags: ["#giftguide", "#tech"], subjects: ["Alex", "Sarah"], impressions: 130000, reach: 115000, likes: 11200, comments: 680, shares: 950, saves: 2100, status: "Uploaded" },
-    { id: "cnt_10", accountId: "acc_01", uploadDate: "2026-06-15", platform: "YouTube", caption: "Building a $10,000 Dream Desk Setup 2026", hashtags: ["#desksetup", "#workspace"], subjects: ["Alex"], impressions: 520000, reach: 430000, likes: 46000, comments: 3400, shares: 5100, saves: 9800, status: "Uploaded" },
-    { id: "cnt_11", accountId: "acc_01", uploadDate: "2026-06-02", platform: "TikTok", caption: "Secret iPhone feature you definitely didn't know!", hashtags: ["#iphone", "#hacks"], subjects: ["Alex"], impressions: 780000, reach: 690000, likes: 72000, comments: 4500, shares: 18900, saves: 24500, status: "Uploaded" },
-    { id: "cnt_12", accountId: "acc_01", uploadDate: "2026-05-18", platform: "Instagram", caption: "Coffee & Code with Jordan", hashtags: ["#vlog", "#code"], subjects: ["Jordan"], impressions: 95000, reach: 82000, likes: 8100, comments: 410, shares: 520, saves: 980, status: "Uploaded" },
-    { id: "cnt_13", accountId: "acc_02", uploadDate: "2026-08-02", platform: "YouTube", caption: "Apex 2026 Smartphone Flagship Shootout: Jordan vs Alex blind camera test", hashtags: ["#smartphone", "#cameratest", "#tech"], subjects: ["Alex", "Jordan"], impressions: 410000, reach: 340000, likes: 31000, comments: 1850, shares: 2400, saves: 4800, status: "Uploaded" }
+    { id: "cnt_01", accountId: "acc_01", uploadDate: "2026-08-10", uploadTime: "14:30", platform: "Instagram", caption: "Unboxing the futuristic AI Glasses with Sarah! Is this the replacement for smartphones?", hashtags: ["#tech", "#gadgets", "#aiglasses"], subjects: ["Alex", "Sarah"], impressions: 145000, reach: 122000, likes: 12400, comments: 980, shares: 1420, saves: 3100, status: "Uploaded" },
+    { id: "cnt_02", accountId: "acc_01", uploadDate: "2026-08-08", uploadTime: "18:00", platform: "YouTube", caption: "Full Day in the Life of a Tech Creator feat. Jordan & Alex (Setup Tour 2026)", hashtags: ["#vlog", "#setuptour", "#tech"], subjects: ["Alex", "Jordan"], impressions: 380000, reach: 295000, likes: 28900, comments: 2450, shares: 3100, saves: 5400, status: "Uploaded" },
+    { id: "cnt_03", accountId: "acc_01", uploadDate: "2026-08-05", uploadTime: "11:15", platform: "TikTok", caption: "3 AI tools you need to try this week! 🚀 #ai #productivity #tech", hashtags: ["#ai", "#productivity", "#tech"], subjects: ["Alex"], impressions: 620000, reach: 540000, likes: 54000, comments: 3120, shares: 12400, saves: 18900, status: "Uploaded" },
+    { id: "cnt_04", accountId: "acc_01", uploadDate: "2026-08-15", uploadTime: "09:00", platform: "Instagram", caption: "Behind the scenes with Sarah on the new studio build podcast!", hashtags: ["#podcast", "#studio"], subjects: ["Sarah"], impressions: 85000, reach: 71000, likes: 7200, comments: 420, shares: 610, saves: 1100, status: "Scheduled" },
+    { id: "cnt_05", accountId: "acc_01", uploadDate: "2026-07-28", uploadTime: "16:45", platform: "X (Twitter)", caption: "Thread: Why 2026 is the turning point for wearable spatial computing. 🧵👇", hashtags: ["#tech", "#spatialcomputing"], subjects: ["Alex"], impressions: 92000, reach: 84000, likes: 4100, comments: 630, shares: 1890, saves: 2200, status: "Uploaded" },
+    { id: "cnt_06", accountId: "acc_01", uploadDate: "2026-07-20", uploadTime: "19:30", platform: "Instagram", caption: "Testing camera quality at sunset with Jordan #photography", hashtags: ["#photography", "#tech"], subjects: ["Jordan"], impressions: 110000, reach: 95000, likes: 9800, comments: 510, shares: 720, saves: 1400, status: "Uploaded" },
+    { id: "cnt_07", accountId: "acc_01", uploadDate: "2026-07-12", uploadTime: "13:00", platform: "YouTube", caption: "Top 5 Mac Apps for Creators in 2026", hashtags: ["#mac", "#apps", "#productivity"], subjects: ["Alex"], impressions: 240000, reach: 210000, likes: 18500, comments: 1200, shares: 1900, saves: 4200, status: "Uploaded" },
+    { id: "cnt_08", accountId: "acc_01", uploadDate: "2026-07-04", uploadTime: "15:20", platform: "TikTok", caption: "How to edit videos 2x faster with AI shortcodes!", hashtags: ["#editing", "#ai", "#tutorial"], subjects: ["Alex"], impressions: 450000, reach: 390000, likes: 41000, comments: 1950, shares: 8900, saves: 12500, status: "Uploaded" },
+    { id: "cnt_09", accountId: "acc_01", uploadDate: "2026-06-25", uploadTime: "10:10", platform: "Instagram", caption: "Summer tech gift guide feat. Sarah & Alex", hashtags: ["#giftguide", "#tech"], subjects: ["Alex", "Sarah"], impressions: 130000, reach: 115000, likes: 11200, comments: 680, shares: 950, saves: 2100, status: "Uploaded" },
+    { id: "cnt_10", accountId: "acc_01", uploadDate: "2026-06-15", uploadTime: "17:00", platform: "YouTube", caption: "Building a $10,000 Dream Desk Setup 2026", hashtags: ["#desksetup", "#workspace"], subjects: ["Alex"], impressions: 520000, reach: 430000, likes: 46000, comments: 3400, shares: 5100, saves: 9800, status: "Uploaded" },
+    { id: "cnt_11", accountId: "acc_01", uploadDate: "2026-06-02", uploadTime: "12:45", platform: "TikTok", caption: "Secret iPhone feature you definitely didn't know!", hashtags: ["#iphone", "#hacks"], subjects: ["Alex"], impressions: 780000, reach: 690000, likes: 72000, comments: 4500, shares: 18900, saves: 24500, status: "Uploaded" },
+    { id: "cnt_12", accountId: "acc_01", uploadDate: "2026-05-18", uploadTime: "08:30", platform: "Instagram", caption: "Coffee & Code with Jordan", hashtags: ["#vlog", "#code"], subjects: ["Jordan"], impressions: 95000, reach: 82000, likes: 8100, comments: 410, shares: 520, saves: 980, status: "Uploaded" },
+    { id: "cnt_13", accountId: "acc_02", uploadDate: "2026-08-02", uploadTime: "14:00", platform: "YouTube", caption: "Apex 2026 Smartphone Flagship Shootout: Jordan vs Alex blind camera test", hashtags: ["#smartphone", "#cameratest", "#tech"], subjects: ["Alex", "Jordan"], impressions: 410000, reach: 340000, likes: 31000, comments: 1850, shares: 2400, saves: 4800, status: "Uploaded" }
   ]
 };
 
@@ -980,7 +980,11 @@ function AddContentPage() {
   const { activeAccount, addContent, canEdit, setActivePage } = React.useContext(VaultContext);
 
   const [uploadDate, setUploadDate] = React.useState(() => new Date().toISOString().split("T")[0]);
-  const [platform, setPlatform] = React.useState(() => activeAccount?.platforms?.[0]?.name || "Instagram");
+  const [uploadTime, setUploadTime] = React.useState(() => {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  });
+  const [platform, setPlatform] = React.useState("Instagram");
   const [caption, setCaption] = React.useState("");
   const [hashtagsInput, setHashtagsInput] = React.useState("");
   const [subjectInput, setSubjectInput] = React.useState("");
@@ -992,6 +996,12 @@ function AddContentPage() {
   const [shares, setShares] = React.useState("");
   const [saves, setSaves] = React.useState("");
   const [status, setStatus] = React.useState("Uploaded");
+
+  const availablePlatforms = React.useMemo(() => {
+    const defaults = ["Instagram", "YouTube", "TikTok", "X (Twitter)", "Facebook", "Threads", "LinkedIn"];
+    const connected = (activeAccount?.platforms || []).map(p => p.name);
+    return Array.from(new Set([...defaults, ...connected]));
+  }, [activeAccount]);
 
   if (!activeAccount) return <div className="page-container"><p>No active account selected.</p></div>;
 
@@ -1014,6 +1024,7 @@ function AddContentPage() {
 
     addContent({
       uploadDate,
+      uploadTime: uploadTime || "12:00",
       platform,
       caption,
       hashtags: hashtagsArray,
@@ -1039,28 +1050,21 @@ function AddContentPage() {
       </div>
       <div className="glass-card" style={{ maxWidth: "800px", margin: "0 auto" }}>
         <form onSubmit={handleSubmit}>
-          <div className="form-row-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1.25rem", marginBottom: "1rem" }}>
             <div className="form-group">
               <label className="form-label">Upload / Scheduled Date</label>
               <input type="date" className="form-input" required value={uploadDate} onChange={e => setUploadDate(e.target.value)} />
             </div>
             <div className="form-group">
+              <label className="form-label">Upload Time</label>
+              <input type="time" className="form-input" value={uploadTime} onChange={e => setUploadTime(e.target.value)} />
+            </div>
+            <div className="form-group">
               <label className="form-label">Platform</label>
               <select className="form-select" value={platform} onChange={e => setPlatform(e.target.value)}>
-                {activeAccount.platforms && activeAccount.platforms.length > 0 ? (
-                  activeAccount.platforms.map(p => (
-                    <option key={p.id} value={p.name}>{p.name}</option>
-                  ))
-                ) : (
-                  <>
-                    <option value="Instagram">Instagram</option>
-                    <option value="YouTube">YouTube</option>
-                    <option value="TikTok">TikTok</option>
-                    <option value="X (Twitter)">X (Twitter)</option>
-                    <option value="Facebook">Facebook</option>
-                    <option value="Threads">Threads</option>
-                  </>
-                )}
+                {availablePlatforms.map(pName => (
+                  <option key={pName} value={pName}>{pName}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -1149,10 +1153,17 @@ function ContentTablePage() {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [platformFilter, setPlatformFilter] = React.useState("ALL");
   const [statusFilter, setStatusFilter] = React.useState("ALL");
+  const [sortBy, setSortBy] = React.useState("date-desc");
   const [editingContent, setEditingContent] = React.useState(null);
 
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 10;
+
+  const availablePlatforms = React.useMemo(() => {
+    const defaults = ["Instagram", "YouTube", "TikTok", "X (Twitter)", "Facebook", "Threads", "LinkedIn"];
+    const connected = (activeAccount?.platforms || []).map(p => p.name);
+    return Array.from(new Set([...defaults, ...connected]));
+  }, [activeAccount]);
 
   if (!activeAccount) return <div className="page-container"><p>No active account selected.</p></div>;
 
@@ -1160,7 +1171,7 @@ function ContentTablePage() {
 
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, platformFilter, statusFilter]);
+  }, [searchTerm, platformFilter, statusFilter, sortBy]);
 
   const filteredContents = React.useMemo(() => {
     return accountContents.filter(item => {
@@ -1170,8 +1181,31 @@ function ContentTablePage() {
       const matchPlatform = platformFilter === "ALL" || item.platform === platformFilter;
       const matchStatus = statusFilter === "ALL" || item.status === statusFilter;
       return matchSearch && matchPlatform && matchStatus;
+    }).sort((a, b) => {
+      if (sortBy === "date-desc") {
+        const timeA = `${a.uploadDate || ''}T${a.uploadTime || '00:00'}`;
+        const timeB = `${b.uploadDate || ''}T${b.uploadTime || '00:00'}`;
+        return timeB.localeCompare(timeA);
+      }
+      if (sortBy === "date-asc") {
+        const timeA = `${a.uploadDate || ''}T${a.uploadTime || '00:00'}`;
+        const timeB = `${b.uploadDate || ''}T${b.uploadTime || '00:00'}`;
+        return timeA.localeCompare(timeB);
+      }
+      if (sortBy === "impressions-desc") {
+        return (b.impressions || 0) - (a.impressions || 0);
+      }
+      if (sortBy === "reach-desc") {
+        return (b.reach || 0) - (a.reach || 0);
+      }
+      if (sortBy === "er-desc") {
+        const erA = a.reach > 0 ? (((a.likes + a.comments + a.shares + a.saves) / a.reach) * 100) : 0;
+        const erB = b.reach > 0 ? (((b.likes + b.comments + b.shares + b.saves) / b.reach) * 100) : 0;
+        return erB - erA;
+      }
+      return 0;
     });
-  }, [accountContents, searchTerm, platformFilter, statusFilter]);
+  }, [accountContents, searchTerm, platformFilter, statusFilter, sortBy]);
 
   const totalPages = Math.ceil(filteredContents.length / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -1181,6 +1215,7 @@ function ContentTablePage() {
     setEditingContent({
       id: item.id,
       uploadDate: item.uploadDate || new Date().toISOString().split("T")[0],
+      uploadTime: item.uploadTime || "12:00",
       platform: item.platform || "Instagram",
       caption: item.caption || "",
       hashtagsInput: (item.hashtags || []).join(" "),
@@ -1230,6 +1265,7 @@ function ContentTablePage() {
 
     updateContent(editingContent.id, {
       uploadDate: editingContent.uploadDate,
+      uploadTime: editingContent.uploadTime || "12:00",
       platform: editingContent.platform,
       caption: editingContent.caption,
       hashtags: hashtagsArray,
@@ -1261,14 +1297,22 @@ function ContentTablePage() {
       </div>
 
       <div className="glass-card" style={{ marginBottom: "1.5rem", padding: "1rem" }}>
-        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
           <input type="text" className="form-input" placeholder="Search caption, hashtag, subject..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ flex: 1 }} />
+          
+          <select className="form-select" value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ width: "auto" }}>
+            <option value="date-desc">Sort: Date & Time (Newest First)</option>
+            <option value="date-asc">Sort: Date & Time (Oldest First)</option>
+            <option value="impressions-desc">Sort: Impressions / Views</option>
+            <option value="reach-desc">Sort: Reach</option>
+            <option value="er-desc">Sort: Engagement Rate %</option>
+          </select>
+
           <select className="form-select" value={platformFilter} onChange={e => setPlatformFilter(e.target.value)} style={{ width: "auto" }}>
             <option value="ALL">All Platforms</option>
-            <option value="Instagram">Instagram</option>
-            <option value="YouTube">YouTube</option>
-            <option value="TikTok">TikTok</option>
-            <option value="X (Twitter)">X (Twitter)</option>
+            {availablePlatforms.map(pName => (
+              <option key={pName} value={pName}>{pName}</option>
+            ))}
           </select>
           <select className="form-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ width: "auto" }}>
             <option value="ALL">All Statuses</option>
@@ -1284,7 +1328,7 @@ function ContentTablePage() {
         <table className="custom-table">
           <thead>
             <tr>
-              <th>Upload Date</th>
+              <th>Upload Date & Time</th>
               <th>Platform</th>
               <th>Caption</th>
               <th>Hashtags</th>
@@ -1307,7 +1351,10 @@ function ContentTablePage() {
 
               return (
                 <tr key={item.id}>
-                  <td>{item.uploadDate}</td>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{item.uploadDate}</div>
+                    {item.uploadTime && <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>at {item.uploadTime}</div>}
+                  </td>
                   <td><span className="chip">{item.platform}</span></td>
                   <td><div style={{ maxWidth: "220px", fontWeight: 500 }}>{item.caption}</div></td>
                   <td>{item.hashtags.map(h => <span key={h} className="chip" style={{ fontSize: "0.75rem" }}>{h}</span>)}</td>
@@ -1397,7 +1444,7 @@ function ContentTablePage() {
             </div>
 
             <form onSubmit={handleSaveEdit}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", marginBottom: "1rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1.25rem", marginBottom: "1rem" }}>
                 <div className="form-group">
                   <label className="form-label">Upload / Scheduled Date</label>
                   <input 
@@ -1409,26 +1456,24 @@ function ContentTablePage() {
                   />
                 </div>
                 <div className="form-group">
+                  <label className="form-label">Upload Time</label>
+                  <input 
+                    type="time" 
+                    className="form-input" 
+                    value={editingContent.uploadTime} 
+                    onChange={e => setEditingContent({ ...editingContent, uploadTime: e.target.value })} 
+                  />
+                </div>
+                <div className="form-group">
                   <label className="form-label">Platform</label>
                   <select 
                     className="form-select" 
                     value={editingContent.platform} 
                     onChange={e => setEditingContent({ ...editingContent, platform: e.target.value })}
                   >
-                    {activeAccount.platforms && activeAccount.platforms.length > 0 ? (
-                      activeAccount.platforms.map(p => (
-                        <option key={p.id} value={p.name}>{p.name}</option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="Instagram">Instagram</option>
-                        <option value="YouTube">YouTube</option>
-                        <option value="TikTok">TikTok</option>
-                        <option value="X (Twitter)">X (Twitter)</option>
-                        <option value="Facebook">Facebook</option>
-                        <option value="Threads">Threads</option>
-                      </>
-                    )}
+                    {availablePlatforms.map(pName => (
+                      <option key={pName} value={pName}>{pName}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -2365,61 +2410,25 @@ function SubjectAnalyticsPage() {
                 <span style={{ color: "var(--text-muted)" }}>Avg ER %:</span>
                 <strong style={{ color: "var(--accent-primary)" }}>{s.avgEr}%</strong>
               </div>
+              {s.topPost && (
+                <div style={{ marginTop: "0.5rem", paddingTop: "0.5rem", borderTop: "1px solid var(--border-color)" }}>
+                  <span style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>Top Post:</span>
+                  <div style={{ fontSize: "0.82rem", fontStyle: "italic", color: "var(--text-subtle)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: "0.2rem" }}>
+                    "{s.topPost.caption}"
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ))}
+
+        {sortedSubjects.length === 0 && (
+          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem 1.5rem", color: "var(--text-muted)" }}>
+            No subject records found matching your filter criteria.
+          </div>
+        )}
       </div>
 
-      <div className="table-container">
-        <table className="custom-table">
-          <thead>
-            <tr>
-              <th>Featured Person / Subject</th>
-              <th>Contents Featured</th>
-              <th>Total Views (Impressions)</th>
-              <th>Total Reach</th>
-              <th>Total Engagement</th>
-              <th>Avg Engagement Rate %</th>
-              <th>Top Performing Post Caption</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedSubjects.map(s => (
-              <tr key={s.name}>
-                <td>
-                  <span className="chip chip-subject" style={{ fontSize: "0.85rem", padding: "0.3rem 0.75rem" }}>
-                    👤 {s.name}
-                  </span>
-                </td>
-                <td style={{ fontWeight: 600 }}>{s.contentCount} contents</td>
-                <td style={{ fontWeight: 700, color: "var(--accent-cyan)" }}>
-                  {s.impressions.toLocaleString()}
-                </td>
-                <td>{s.reach.toLocaleString()}</td>
-                <td style={{ color: "var(--accent-emerald)", fontWeight: 600 }}>
-                  {s.engagement.toLocaleString()}
-                </td>
-                <td style={{ fontWeight: 700, color: "var(--accent-primary)" }}>
-                  {s.avgEr}%
-                </td>
-                <td style={{ maxWidth: "240px" }}>
-                  <div style={{ fontSize: "0.85rem", fontStyle: "italic", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    "{s.topPost ? s.topPost.caption : 'N/A'}"
-                  </div>
-                </td>
-              </tr>
-            ))}
-
-            {sortedSubjects.length === 0 && (
-              <tr>
-                <td colSpan="7" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
-                  No subject records found matching your filter criteria.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
 
       {sortedSubjects.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem", marginTop: "1.25rem" }}>
