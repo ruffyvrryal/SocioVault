@@ -465,7 +465,8 @@ function VaultProvider({ children }) {
   };
 
   // ── Subject Photo Action ──
-  const updateSubjectPhoto = async (subjectName, photoUrl) => {
+  // photoData can be a plain URL string (legacy) or { url, zoom, offsetX, offsetY }
+  const updateSubjectPhoto = async (subjectName, photoData) => {
     if (!activeAccount) return;
     const ownerUid = getOwnerUidForAccount(activeAccount.id);
     const ref = getRefForUid(ownerUid).collection('accounts').doc(activeAccount.id);
@@ -473,8 +474,8 @@ function VaultProvider({ children }) {
     const currentMap = activeAccount.subjectPhotos || {};
     const updatedPhotos = { ...currentMap };
 
-    if (photoUrl) {
-      updatedPhotos[subjectName] = photoUrl;
+    if (photoData) {
+      updatedPhotos[subjectName] = photoData;
     } else {
       delete updatedPhotos[subjectName];
     }
@@ -2609,14 +2610,23 @@ function SubjectAnalyticsPage() {
 
   React.useEffect(() => { setCurrentPage(1); }, [searchSubject, sortBy, sortOrder]);
 
+  // Helper to extract url/zoom/offset from stored photo data (supports legacy string or new object format)
+  const getPhotoData = (stored) => {
+    if (!stored) return { url: "", zoom: 1, offsetX: 0, offsetY: 0 };
+    if (typeof stored === "string") return { url: stored, zoom: 1, offsetX: 0, offsetY: 0 };
+    return { url: stored.url || "", zoom: stored.zoom || 1, offsetX: stored.offsetX || 0, offsetY: stored.offsetY || 0 };
+  };
+
   const openPhotoModal = (subjectName) => {
-    const existing = subjectPhotos[subjectName] || "";
+    const stored = subjectPhotos[subjectName] || null;
+    const { url, zoom, offsetX, offsetY } = getPhotoData(stored);
     setPhotoModal({ subjectName });
-    setPhotoUrl(existing);
-    setPhotoPreview(existing);
-    setCropZoom(1);
-    setCropOffsetX(0);
-    setCropOffsetY(0);
+    setPhotoUrl(url);
+    setPhotoPreview(url);
+    // ✅ Restore saved adjustment values so they're never lost on reopen
+    setCropZoom(zoom);
+    setCropOffsetX(offsetX);
+    setCropOffsetY(offsetY);
   };
 
   const handleFileUpload = (e) => {
@@ -2627,6 +2637,7 @@ function SubjectAnalyticsPage() {
     reader.onload = (ev) => {
       setPhotoPreview(ev.target.result);
       setPhotoUrl(ev.target.result);
+      // Reset adjustments only when a brand-new file is chosen
       setCropZoom(1);
       setCropOffsetX(0);
       setCropOffsetY(0);
@@ -2638,58 +2649,16 @@ function SubjectAnalyticsPage() {
     if (!photoModal || !photoPreview) return;
     setPhotoSaving(true);
 
-    let finalDataUrl = photoPreview;
+    // ✅ Save the raw URL + adjustment values as an object — no baking needed.
+    // This preserves adjustments so they can be edited again later.
+    const photoData = {
+      url: photoPreview,
+      zoom: cropZoom,
+      offsetX: cropOffsetX,
+      offsetY: cropOffsetY
+    };
 
-    // Only crop via canvas if the user manually adjusted Zoom or Position sliders!
-    const isAdjusted = cropZoom !== 1 || cropOffsetX !== 0 || cropOffsetY !== 0;
-
-    if (isAdjusted) {
-      try {
-        finalDataUrl = await new Promise((resolve) => {
-          const img = new Image();
-          img.crossOrigin = "Anonymous";
-          img.onload = () => {
-            try {
-              const canvas = document.createElement("canvas");
-              const size = 300;
-              canvas.width = size;
-              canvas.height = size;
-              const ctx = canvas.getContext("2d");
-
-              ctx.beginPath();
-              ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
-              ctx.closePath();
-              ctx.clip();
-
-              const imgAspect = img.width / img.height;
-              let drawW, drawH;
-              if (imgAspect > 1) {
-                drawH = size * cropZoom;
-                drawW = size * imgAspect * cropZoom;
-              } else {
-                drawW = size * cropZoom;
-                drawH = (size / imgAspect) * cropZoom;
-              }
-
-              const drawX = (size - drawW) / 2 + (cropOffsetX * (size / 160));
-              const drawY = (size - drawH) / 2 + (cropOffsetY * (size / 160));
-
-              ctx.drawImage(img, drawX, drawY, drawW, drawH);
-              resolve(canvas.toDataURL("image/jpeg", 0.9));
-            } catch (err) {
-              console.warn("Canvas crop failed, saving original image:", err);
-              resolve(photoPreview);
-            }
-          };
-          img.onerror = () => resolve(photoPreview);
-          img.src = photoPreview;
-        });
-      } catch (err) {
-        finalDataUrl = photoPreview;
-      }
-    }
-
-    await updateSubjectPhoto(photoModal.subjectName, finalDataUrl);
+    await updateSubjectPhoto(photoModal.subjectName, photoData);
     setPhotoSaving(false);
     setPhotoModal(null);
     setPhotoUrl(""); setPhotoPreview("");
@@ -2816,7 +2785,8 @@ function SubjectAnalyticsPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1.25rem", marginBottom: "2rem" }}>
         {paginatedSubjects.map(s => {
-          const photo = subjectPhotos[s.name] || subjectPhotos[s.name.replace(/\./g, '_')];
+          const storedPhoto = subjectPhotos[s.name] || subjectPhotos[s.name.replace(/\./g, '_')];
+          const { url: photoSrc, zoom: pZoom, offsetX: pOffX, offsetY: pOffY } = getPhotoData(storedPhoto);
 
           return (
             <div key={s.name} className="glass-card" style={{ borderLeft: "4px solid var(--accent-cyan)" }}>
@@ -2827,12 +2797,18 @@ function SubjectAnalyticsPage() {
                   title={canEdit ? "Click to set photo" : ""}
                   style={{ position: "relative", flexShrink: 0, cursor: canEdit ? "pointer" : "default" }}
                 >
-                  {photo ? (
-                    <img
-                      src={photo}
-                      alt={s.name}
-                      style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover", border: "2px solid var(--accent-cyan)" }}
-                    />
+                  {photoSrc ? (
+                    <div style={{ width: "48px", height: "48px", borderRadius: "50%", overflow: "hidden", border: "2px solid var(--accent-cyan)", flexShrink: 0 }}>
+                      <img
+                        src={photoSrc}
+                        alt={s.name}
+                        style={{
+                          width: "100%", height: "100%", objectFit: "cover",
+                          transform: `scale(${pZoom}) translate(${pOffX}px, ${pOffY}px)`,
+                          transformOrigin: "center center"
+                        }}
+                      />
+                    </div>
                   ) : (
                     <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-emerald))", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: "1.2rem" }}>
                       {s.name.charAt(0)}
@@ -3046,6 +3022,7 @@ function SubjectAnalyticsPage() {
                 onChange={e => {
                   setPhotoUrl(e.target.value);
                   setPhotoPreview(e.target.value);
+                  // Reset adjustments only when a brand-new URL is entered
                   setCropZoom(1); setCropOffsetX(0); setCropOffsetY(0);
                 }}
               />
@@ -3063,7 +3040,7 @@ function SubjectAnalyticsPage() {
             </div>
 
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1.25rem", flexWrap: "wrap" }}>
-              {subjectPhotos[photoModal.subjectName] && (
+              {getPhotoData(subjectPhotos[photoModal.subjectName]).url && (
                 <button type="button" className="btn btn-danger" onClick={handleRemovePhoto} disabled={photoSaving}>
                   🗑 Remove Photo
                 </button>
