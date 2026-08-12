@@ -281,6 +281,7 @@ a {
 .navbar-brand span {
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-cyan));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
