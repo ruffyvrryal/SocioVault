@@ -469,8 +469,22 @@ function VaultProvider({ children }) {
     if (!activeAccount) return;
     const ownerUid = getOwnerUidForAccount(activeAccount.id);
     const ref = getRefForUid(ownerUid).collection('accounts').doc(activeAccount.id);
-    const fieldKey = "subjectPhotos." + subjectName.replace(/\./g, '_');
-    await ref.update({ [fieldKey]: photoUrl });
+
+    const currentMap = activeAccount.subjectPhotos || {};
+    const updatedPhotos = { ...currentMap };
+
+    if (photoUrl) {
+      updatedPhotos[subjectName] = photoUrl;
+    } else {
+      delete updatedPhotos[subjectName];
+    }
+
+    // Update local state immediately so card previews change instantly
+    setOwnAccounts(prev => prev.map(a => a.id === activeAccount.id ? { ...a, subjectPhotos: updatedPhotos } : a));
+    setSharedAccounts(prev => prev.map(a => a.id === activeAccount.id ? { ...a, subjectPhotos: updatedPhotos } : a));
+
+    // Save map to Firestore
+    await ref.update({ subjectPhotos: updatedPhotos });
   };
 
   return (
@@ -2505,49 +2519,53 @@ function SubjectAnalyticsPage() {
 
     let finalDataUrl = photoPreview;
 
-    // Use offscreen canvas to bake zoom/crop adjustments into a high-res 300x300 circular crop
-    try {
-      finalDataUrl = await new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = "Anonymous";
-        img.onload = () => {
-          try {
-            const canvas = document.createElement("canvas");
-            const size = 300;
-            canvas.width = size;
-            canvas.height = size;
-            const ctx = canvas.getContext("2d");
+    // Only crop via canvas if the user manually adjusted Zoom or Position sliders!
+    const isAdjusted = cropZoom !== 1 || cropOffsetX !== 0 || cropOffsetY !== 0;
 
-            ctx.beginPath();
-            ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
-            ctx.closePath();
-            ctx.clip();
+    if (isAdjusted) {
+      try {
+        finalDataUrl = await new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = "Anonymous";
+          img.onload = () => {
+            try {
+              const canvas = document.createElement("canvas");
+              const size = 300;
+              canvas.width = size;
+              canvas.height = size;
+              const ctx = canvas.getContext("2d");
 
-            const imgAspect = img.width / img.height;
-            let drawW, drawH;
-            if (imgAspect > 1) {
-              drawH = size * cropZoom;
-              drawW = size * imgAspect * cropZoom;
-            } else {
-              drawW = size * cropZoom;
-              drawH = (size / imgAspect) * cropZoom;
+              ctx.beginPath();
+              ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+              ctx.closePath();
+              ctx.clip();
+
+              const imgAspect = img.width / img.height;
+              let drawW, drawH;
+              if (imgAspect > 1) {
+                drawH = size * cropZoom;
+                drawW = size * imgAspect * cropZoom;
+              } else {
+                drawW = size * cropZoom;
+                drawH = (size / imgAspect) * cropZoom;
+              }
+
+              const drawX = (size - drawW) / 2 + (cropOffsetX * (size / 160));
+              const drawY = (size - drawH) / 2 + (cropOffsetY * (size / 160));
+
+              ctx.drawImage(img, drawX, drawY, drawW, drawH);
+              resolve(canvas.toDataURL("image/jpeg", 0.9));
+            } catch (err) {
+              console.warn("Canvas crop failed, saving original image:", err);
+              resolve(photoPreview);
             }
-
-            const drawX = (size - drawW) / 2 + (cropOffsetX * (size / 160));
-            const drawY = (size - drawH) / 2 + (cropOffsetY * (size / 160));
-
-            ctx.drawImage(img, drawX, drawY, drawW, drawH);
-            resolve(canvas.toDataURL("image/jpeg", 0.85));
-          } catch (err) {
-            console.warn("Canvas crop failed, saving original image:", err);
-            resolve(photoPreview);
-          }
-        };
-        img.onerror = () => resolve(photoPreview);
-        img.src = photoPreview;
-      });
-    } catch (err) {
-      finalDataUrl = photoPreview;
+          };
+          img.onerror = () => resolve(photoPreview);
+          img.src = photoPreview;
+        });
+      } catch (err) {
+        finalDataUrl = photoPreview;
+      }
     }
 
     await updateSubjectPhoto(photoModal.subjectName, finalDataUrl);
@@ -2676,32 +2694,35 @@ function SubjectAnalyticsPage() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1.25rem", marginBottom: "2rem" }}>
-        {paginatedSubjects.map(s => (
-          <div key={s.name} className="glass-card" style={{ borderLeft: "4px solid var(--accent-cyan)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-              {/* Clickable avatar circle */}
-              <div
-                onClick={() => canEdit && openPhotoModal(s.name)}
-                title={canEdit ? "Click to set photo" : ""}
-                style={{ position: "relative", flexShrink: 0, cursor: canEdit ? "pointer" : "default" }}
-              >
-                {subjectPhotos[s.name] ? (
-                  <img
-                    src={subjectPhotos[s.name]}
-                    alt={s.name}
-                    style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover", border: "2px solid var(--accent-cyan)" }}
-                  />
-                ) : (
-                  <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-emerald))", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: "1.2rem" }}>
-                    {s.name.charAt(0)}
-                  </div>
-                )}
-                {canEdit && (
-                  <div style={{ position: "absolute", bottom: 0, right: 0, width: "16px", height: "16px", borderRadius: "50%", background: "var(--accent-primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", color: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
-                    ✏️
-                  </div>
-                )}
-              </div>
+        {paginatedSubjects.map(s => {
+          const photo = subjectPhotos[s.name] || subjectPhotos[s.name.replace(/\./g, '_')];
+
+          return (
+            <div key={s.name} className="glass-card" style={{ borderLeft: "4px solid var(--accent-cyan)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+                {/* Clickable avatar circle */}
+                <div
+                  onClick={() => canEdit && openPhotoModal(s.name)}
+                  title={canEdit ? "Click to set photo" : ""}
+                  style={{ position: "relative", flexShrink: 0, cursor: canEdit ? "pointer" : "default" }}
+                >
+                  {photo ? (
+                    <img
+                      src={photo}
+                      alt={s.name}
+                      style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover", border: "2px solid var(--accent-cyan)" }}
+                    />
+                  ) : (
+                    <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-emerald))", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: "1.2rem" }}>
+                      {s.name.charAt(0)}
+                    </div>
+                  )}
+                  {canEdit && (
+                    <div style={{ position: "absolute", bottom: 0, right: 0, width: "16px", height: "16px", borderRadius: "50%", background: "var(--accent-primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", color: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
+                      ✏️
+                    </div>
+                  )}
+                </div>
               <div>
                 <h3 style={{ fontSize: "1.15rem", fontWeight: 700 }}>{s.name}</h3>
                 <span className="chip chip-subject" style={{ fontSize: "0.75rem" }}>
