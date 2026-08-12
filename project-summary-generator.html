@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SocialVault – Project Summary Generator</title>
+  <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      color: #f1f5f9;
+    }
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      padding: 3rem 2.5rem;
+      max-width: 520px; width: 100%;
+      text-align: center;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+    }
+    .logo {
+      width: 72px; height: 72px; border-radius: 20px;
+      background: linear-gradient(135deg, #8B5CF6, #06B6D4);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1.5rem;
+      font-size: 2rem;
+      box-shadow: 0 10px 30px rgba(139,92,246,0.35);
+    }
+    h1 { font-size: 1.75rem; font-weight: 800; margin-bottom: 0.5rem; }
+    .sub { color: #94a3b8; font-size: 0.95rem; margin-bottom: 2rem; line-height: 1.6; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.6rem;
+      background: linear-gradient(135deg, #059669, #10B981);
+      color: #fff; font-weight: 700; font-size: 1rem;
+      padding: 0.85rem 2rem; border-radius: 12px; border: none;
+      cursor: pointer; width: 100%;
+      justify-content: center;
+      box-shadow: 0 8px 20px rgba(16,185,129,0.35);
+      transition: all 0.2s;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(16,185,129,0.45); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .status {
+      margin-top: 1.25rem; font-size: 0.9rem; color: #94a3b8;
+      min-height: 1.5rem;
+    }
+    .status.success { color: #10B981; font-weight: 600; }
+    .status.error { color: #F87171; font-weight: 600; }
+    .checklist {
+      text-align: left; margin-top: 1.5rem;
+      background: rgba(0,0,0,0.2); border-radius: 12px; padding: 1.25rem 1.5rem;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .checklist p { font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+    .checklist ul { list-style: none; display: flex; flex-direction: column; gap: 0.4rem; }
+    .checklist li { font-size: 0.88rem; color: #cbd5e1; display: flex; align-items: center; gap: 0.5rem; }
+    .checklist li::before { content: "✓"; color: #10B981; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">📊</div>
+    <h1>SocialVault Pro</h1>
+    <p class="sub">
+      Click the button below to generate and download the complete<br>
+      <strong>Project Summary, Goals & Future Plans</strong> as a <code>.docx</code> file.
+    </p>
+
+    <button class="btn" id="generateBtn" onclick="generate()">
+      ⬇ Generate &amp; Download Project Summary DOCX
+    </button>
+
+    <div class="status" id="status"></div>
+
+    <div class="checklist">
+      <p>Report includes</p>
+      <ul>
+        <li>Project overview &amp; vision</li>
+        <li>Technology stack</li>
+        <li>All implemented features (with details)</li>
+        <li>App architecture &amp; file structure</li>
+        <li>User roles &amp; permissions system</li>
+        <li>Future roadmap &amp; planned features</li>
+        <li>Development timeline summary</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    async function generate() {
+      const btn = document.getElementById("generateBtn");
+      const status = document.getElementById("status");
+
+      btn.disabled = true;
+      btn.textContent = "⏳ Building your DOCX file…";
+      status.className = "status";
+      status.textContent = "Compiling project data…";
+
+      try {
+        if (!window.docx) throw new Error("docx.js library not loaded. Please check your internet connection.");
+
+        const {
+          Document, Paragraph, TextRun, Table, TableRow, TableCell,
+          Packer, HeadingLevel, AlignmentType, WidthType, BorderStyle,
+          UnderlineType
+        } = window.docx;
+
+        const generatedAt = new Date().toLocaleString();
+
+        const border = {
+          top:    { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+          bottom: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+          left:   { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+          right:  { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+          insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+          insideVertical:   { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+        };
+
+        const hrow = (cells) => new TableRow({
+          children: cells.map(t => new TableCell({
+            borders: border,
+            shading: { fill: "1E293B" },
+            children: [new Paragraph({ children: [new TextRun({ text: t, bold: true, size: 19, color: "F1F5F9" })] })]
+          }))
+        });
+
+        const drow = (cells, altShade = false) => new TableRow({
+          children: cells.map(t => new TableCell({
+            borders: border,
+            shading: altShade ? { fill: "F8FAFC" } : undefined,
+            children: [new Paragraph({ children: [new TextRun({ text: t, size: 19, color: "1E293B" })] })]
+          }))
+        });
+
+        // ── helpers ──────────────────────────────────────────────────────────
+        const H1 = (text) => new Paragraph({
+          children: [new TextRun({ text, bold: true, size: 56, color: "1E293B" })],
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 0, after: 200 }
+        });
+        const H2 = (text) => new Paragraph({
+          children: [new TextRun({ text, bold: true, size: 36, color: "3730A3" })],
+          heading: HeadingLevel.HEADING_2,
+          spacing: { before: 400, after: 120 },
+          border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "6366F1", space: 6 } }
+        });
+        const H3 = (text) => new Paragraph({
+          children: [new TextRun({ text, bold: true, size: 26, color: "1D4ED8" })],
+          heading: HeadingLevel.HEADING_3,
+          spacing: { before: 240, after: 80 }
+        });
+        const Body = (text, { color = "374151", size = 22, bold = false, italic = false } = {}) =>
+          new Paragraph({ children: [new TextRun({ text, size, color, bold, italic })], spacing: { after: 80 } });
+        const Bullet = (text, { color = "374151", indent = false } = {}) =>
+          new Paragraph({
+            children: [new TextRun({ text: (indent ? "      • " : "   • ") + text, size: 21, color })],
+            spacing: { after: 60 }
+          });
+        const Spacer = (n = 1) => new Paragraph({ text: " ".repeat(n), spacing: { after: 60 * n } });
+        const Divider = () => new Paragraph({
+          border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "E2E8F0", space: 4 } },
+          spacing: { after: 200 }
+        });
+        const KV = (key, value, keyColor = "2B6CB0", valColor = "111827") =>
+          new Paragraph({
+            children: [
+              new TextRun({ text: key + ": ", bold: true, size: 22, color: keyColor }),
+              new TextRun({ text: value, size: 22, color: valColor })
+            ],
+            spacing: { after: 80 }
+          });
+
+        // ── document content ─────────────────────────────────────────────────
+        const children = [
+
+          // ═══ COVER ════════════════════════════════════════════════
+          Spacer(2),
+          H1("SocialVault Pro"),
+          new Paragraph({
+            children: [new TextRun({ text: "Social Media Account Vault · Content Analytics Platform", size: 28, color: "6366F1", bold: true })],
+            alignment: AlignmentType.CENTER, spacing: { after: 80 }
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "Project Summary · Goals · Future Roadmap", size: 24, color: "64748B", italic: true })],
+            alignment: AlignmentType.CENTER, spacing: { after: 80 }
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: `Document generated: ${generatedAt}`, size: 20, color: "94A3B8" })],
+            alignment: AlignmentType.CENTER, spacing: { after: 300 }
+          }),
+          Divider(),
+
+          // ═══ 1. PROJECT OVERVIEW ══════════════════════════════════
+          H2("1. Project Overview"),
+          Body("SocialVault Pro is a browser-based, multi-user social media management and analytics platform designed for content creators, social media managers, and digital marketing teams. It provides a unified workspace to track content performance, analyze growth trends, and collaborate across multiple social media accounts — all without needing any paid third-party analytics tool."),
+          Spacer(),
+          Body("The platform was conceived and built entirely as a client-side Single-Page Application (SPA), meaning it runs fully in the browser with zero backend infrastructure costs, making it completely free to run for personal or small-team use.", { italic: true, color: "4B5563" }),
+          Spacer(),
+          KV("Project Name", "SocialVault Pro"),
+          KV("Project Type", "Browser-based Social Media Analytics SPA"),
+          KV("Target Users", "Content creators, social media managers, marketing teams"),
+          KV("Core Philosophy", "Free, zero-backend, offline-capable, multi-account analytics"),
+          KV("Started", "August 2026"),
+          KV("Project Directory", "C:\\Users\\AXIOO\\Pictures\\Sociavault"),
+          KV("Local Dev URL", "http://localhost:5173/"),
+          Spacer(),
+
+          // ═══ 2. GOALS ════════════════════════════════════════════
+          H2("2. Project Goals"),
+          H3("2.1 Primary Goals"),
+          Bullet("Provide a single unified platform to manage multiple social media accounts without switching between native apps"),
+          Bullet("Track content performance (impressions, reach, engagement, ER%) with structured data tables"),
+          Bullet("Deliver rich analytics: all-time, monthly, and weekly growth line charts"),
+          Bullet("Analyze hashtag performance to identify which tags drive the most reach and engagement"),
+          Bullet("Understand subject/person performance to see which featured individuals perform best"),
+          Bullet("Enable secure multi-user vault sharing with role-based permissions (Owner / Editor / Viewer)"),
+          Bullet("Ensure the platform works well on both desktop and mobile screens"),
+          Spacer(),
+          H3("2.2 Design Goals"),
+          Bullet("Premium dark-mode glassmorphism aesthetic that feels professional and modern"),
+          Bullet("Smooth micro-animations and interactive hover effects to make the UI feel alive"),
+          Bullet("No external backend dependency — everything persists in the browser's localStorage"),
+          Bullet("Modular page-based routing so each feature has its own dedicated focused view"),
+          Spacer(),
+
+          // ═══ 3. TECH STACK ════════════════════════════════════════
+          H2("3. Technology Stack"),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              hrow(["Layer", "Technology", "Purpose"]),
+              drow(["UI Framework", "React 18 (CDN, UMD build)", "Component-based SPA rendering"], false),
+              drow(["Transpilation", "Babel Standalone (CDN)", "JSX → JS in-browser compilation"], true),
+              drow(["Charts", "Chart.js 4.4 (CDN)", "Interactive line growth diagrams"], false),
+              drow(["Icons", "Lucide Icons (CDN)", "SVG icon system throughout UI"], true),
+              drow(["DOCX Export", "docx.js 8.5 (CDN)", "Browser-side .docx report generation"], false),
+              drow(["Styling", "Vanilla CSS with CSS Variables", "Glassmorphism design system"], true),
+              drow(["Data Persistence", "Browser localStorage", "Zero-backend data storage"], false),
+              drow(["Fonts", "Google Fonts (Inter + Outfit)", "Premium typography"], true),
+              drow(["Dev Server", "PowerShell HttpListener (server.ps1)", "Local static file server on :5173"], false),
+            ]
+          }),
+          Spacer(),
+
+          // ═══ 4. FEATURES ═════════════════════════════════════════
+          H2("4. Implemented Features"),
+
+          H3("4.1 Authentication & User System"),
+          Bullet("Google Sign-In simulation (email + display name based sessions)"),
+          Bullet("Demo quick-login buttons for Owner, Editor, and Viewer roles"),
+          Bullet("Custom email/name sign-in form for any user"),
+          Bullet("Session persistence via localStorage — stays logged in on refresh"),
+          Bullet("Per-user isolated vault access — users only see vaults they own or are invited to"),
+          Spacer(),
+
+          H3("4.2 Account Vault Hub"),
+          Bullet("Create unlimited social media account workspaces (vaults)"),
+          Bullet("Each vault is fully isolated — separate content, platforms, and collaborators"),
+          Bullet("Vault cards show: platform list, content count, total views, and user role badge"),
+          Bullet("Delete vaults (owner only) with cascade deletion of all associated content"),
+          Bullet("Switch between vaults instantly via a dropdown in the navbar"),
+          Spacer(),
+
+          H3("4.3 Account Center"),
+          Bullet("Displays all connected platform channels for the active account"),
+          Bullet("Summary stats: Total Audience, Total Content Items, Total Impressions"),
+          Bullet("Add platform channels: Instagram, YouTube, TikTok, X (Twitter), LinkedIn, Threads"),
+          Bullet("Each platform card shows: handle, follower count, channel link"),
+          Bullet("Remove platform channels (editor/owner only)"),
+          Spacer(),
+
+          H3("4.4 Content Log Table"),
+          Bullet("Full CRUD: Add, Edit, Delete content entries"),
+          Bullet("Per-content fields: Upload Date, Platform, Caption, Hashtags (chips), Subjects (multi-person chips), Impressions, Reach, Likes, Comments, Shares, Saves, Status"),
+          Bullet("Engagement Rate (ER%) auto-calculated per row"),
+          Bullet("Status pills: Uploaded, Scheduled, Privated, Deleted"),
+          Bullet("Search filter: by caption, hashtag, or subject name"),
+          Bullet("Platform and status filter dropdowns"),
+          Bullet("Pagination: 10 content items per page with Previous/Next/Page number controls"),
+          Bullet("Inline edit modal: full field editing with save/cancel"),
+          Spacer(),
+
+          H3("4.5 Add Content Page"),
+          Bullet("Dedicated form page for logging new content entries"),
+          Bullet("Multi-subject tagging: add multiple people featured in the content"),
+          Bullet("Hashtag input: space or comma-separated, auto-prefixed with #"),
+          Bullet("All numeric metric fields: Impressions, Reach, Likes, Comments, Shares, Saves"),
+          Bullet("Status selector (Uploaded / Scheduled / Privated / Deleted)"),
+          Bullet("Redirects to Content Table after successful save"),
+          Spacer(),
+
+          H3("4.6 Timeframe Analytics (Line Growth Diagrams)"),
+          Bullet("Three timeframe modes: All-Time, Monthly (12-month line), Weekly (4-week line)"),
+          Bullet("Summary stat cards: Total Impressions, Reach, Engagement, ER%"),
+          Bullet("Monthly mode: interactive line chart across Jan–Dec for the selected year"),
+          Bullet("Weekly mode: interactive line chart for Week 1–4 of the selected month & year"),
+          Bullet("Three data series on all charts: Impressions, Reach, Total Engagement"),
+          Bullet("Month and Year selector dropdowns for monthly/weekly modes"),
+          Bullet("#1 Top Performing Post highlight card at the bottom — shows full details of the best post by impressions for the active timeframe selection"),
+          Spacer(),
+
+          H3("4.7 Hashtag Studio Analytics"),
+          Bullet("Aggregates all hashtags used across all content entries for the active account"),
+          Bullet("Metrics per hashtag: Content Count, Total Impressions (Viewers), Total Reach, Total Engagement, Average ER%"),
+          Bullet("Clean sortable data table view"),
+          Spacer(),
+
+          H3("4.8 Subject Performance Studio"),
+          Bullet("Tracks performance metrics per featured person/subject across all content"),
+          Bullet("Cards view + table view for each subject"),
+          Bullet("Per-subject metrics: Contents Featured, Total Impressions, Reach, Engagement, ER%"),
+          Bullet("Shows Top Performing Post caption per subject"),
+          Bullet("Multi-attribute sorting: Impressions, Alphabet (A-Z/Z-A), Contents Featured, Reach, Engagement, ER%"),
+          Bullet("Sort direction toggle: High→Low or Low→High"),
+          Bullet("Search filter by subject name"),
+          Bullet("Pagination: 25 subjects per page"),
+          Spacer(),
+
+          H3("4.9 DOCX Analytics Report Export"),
+          Bullet("Export button on Timeframe Analytics page"),
+          Bullet("Choose export scope: All-Time, Monthly, or Weekly"),
+          Bullet("Generated .docx includes: Summary Metrics, Top Performing Post, Content Log Table, Hashtag Performance Table, Subject Performance Table"),
+          Bullet("Auto-named files: e.g. SocialVault_Report_AccountName_Monthly_August_2026.docx"),
+          Bullet("100% browser-side — no server or API needed"),
+          Spacer(),
+
+          H3("4.10 Vault Sharing & Collaboration"),
+          Bullet("Generate a shareable vault link with a unique vault token"),
+          Bullet("Invite collaborators by email with Editor or Viewer role"),
+          Bullet("Owner can remove collaborators at any time"),
+          Bullet("Role-based permissions enforced across all pages:"),
+          Bullet("Owner: full access — add/remove platforms, content, collaborators", { indent: true }),
+          Bullet("Editor: can add/edit/delete content and platforms", { indent: true }),
+          Bullet("Viewer: read-only access across all vault pages", { indent: true }),
+          Bullet("Role badge displayed in navbar and vault card"),
+          Spacer(),
+
+          // ═══ 5. ARCHITECTURE ══════════════════════════════════════
+          H2("5. App Architecture"),
+          H3("5.1 File Structure"),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              hrow(["File", "Purpose"]),
+              drow(["index.html", "HTML entry point. Loads all CDN scripts + CSS + bundle.js"], false),
+              drow(["src/styles.css", "Complete design system: CSS variables, glassmorphism cards, animations, responsive layout"], true),
+              drow(["src/bundle.js", "All React components, contexts, utility functions, and page logic in a single compiled Babel file"], false),
+              drow(["server.ps1", "PowerShell static HTTP server (HttpListener) serving files on localhost:5173"], true),
+              drow(["project-summary-generator.html", "Standalone DOCX project summary generator (this file)"], false),
+            ]
+          }),
+          Spacer(),
+
+          H3("5.2 Component & Context Architecture"),
+          Bullet("AuthContext — manages current user session, login, logout"),
+          Bullet("VaultContext — manages accounts, contents, active account, active page, collaborators, permissions"),
+          Bullet("LoginPage — Google sign-in UI and email-based demo auth"),
+          Bullet("AccountVaultPage — vault hub with multi-account cards"),
+          Bullet("Navbar — top navigation with account switcher, page tabs, user avatar"),
+          Bullet("AccountCenterPage — platform channel management"),
+          Bullet("AddContentPage — content creation form"),
+          Bullet("ContentTablePage — filtered, paginated content data table with CRUD"),
+          Bullet("TimeframeAnalyticsPage — line charts, stats, top post, DOCX export"),
+          Bullet("HashtagAnalyticsPage — hashtag aggregation table"),
+          Bullet("SubjectAnalyticsPage — subject cards + table + sort + pagination"),
+          Bullet("CollaboratorsPage — invite/remove collaborators, share link"),
+          Bullet("generateDocxReport() — async utility function for DOCX generation"),
+          Spacer(),
+
+          H3("5.3 Data Persistence (localStorage)"),
+          Bullet("smh_user → current logged-in user object"),
+          Bullet("smh_accounts → all account vaults and their platforms/collaborators"),
+          Bullet("smh_active_account → ID of the currently selected vault"),
+          Bullet("smh_contents → all content log entries across all vaults"),
+          Spacer(),
+
+          // ═══ 6. FUTURE ROADMAP ═══════════════════════════════════
+          H2("6. Future Roadmap & Planned Features"),
+
+          H3("🔐 Authentication & Security"),
+          Bullet("Real Firebase / Supabase Google OAuth integration for true multi-device sync"),
+          Bullet("Secure server-side session tokens instead of localStorage-only sessions"),
+          Bullet("Vault password protection for extra-sensitive accounts"),
+          Spacer(),
+
+          H3("📊 Analytics Enhancements"),
+          Bullet("Platform breakdown charts — pie/donut chart per platform performance share"),
+          Bullet("Best posting time heatmap — day-of-week × hour engagement matrix"),
+          Bullet("Trending vs. declining content detection with automatic alerts"),
+          Bullet("Platform comparison mode — side-by-side metrics across Instagram vs YouTube, etc."),
+          Bullet("Audience growth tracking — follower count history over time"),
+          Spacer(),
+
+          H3("📁 Content Management Improvements"),
+          Bullet("Thumbnail/media upload — attach a preview image to each content entry"),
+          Bullet("Content scheduling calendar — calendar view showing scheduled posts"),
+          Bullet("Bulk import from CSV — import a spreadsheet of content data at once"),
+          Bullet("Content duplicate/clone — quickly copy an existing entry as a template"),
+          Bullet("Content tagging/categories beyond hashtags — custom content labels"),
+          Spacer(),
+
+          H3("📤 Export & Reporting"),
+          Bullet("CSV export for content table data"),
+          Bullet("PDF export alternative to DOCX"),
+          Bullet("Scheduled weekly/monthly email reports (requires backend integration)"),
+          Bullet("Custom branded report templates with logo upload"),
+          Spacer(),
+
+          H3("👥 Collaboration & Sharing"),
+          Bullet("In-app notifications when collaborators make changes"),
+          Bullet("Activity log / audit trail per vault"),
+          Bullet("Read-only public shareable analytics page (no login required for viewers)"),
+          Bullet("Comment threads on individual content entries"),
+          Spacer(),
+
+          H3("🔌 Integrations"),
+          Bullet("Instagram Basic Display API — auto-import post metrics"),
+          Bullet("YouTube Data API — sync video analytics automatically"),
+          Bullet("TikTok API integration when available"),
+          Bullet("Google Analytics / UTM tracking integration"),
+          Spacer(),
+
+          H3("🎨 UI/UX Polish"),
+          Bullet("Dark/Light mode toggle"),
+          Bullet("Custom accent color themes per account vault"),
+          Bullet("Drag-and-drop content reordering in tables"),
+          Bullet("Mobile PWA (Progressive Web App) installation support"),
+          Spacer(),
+
+          // ═══ 7. DEVELOPMENT TIMELINE ══════════════════════════════
+          H2("7. Development Timeline Summary"),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              hrow(["Phase", "Feature", "Status"]),
+              drow(["Phase 1", "Project setup, design system, login page", "✅ Complete"], false),
+              drow(["Phase 1", "Account Vault Hub multi-account management", "✅ Complete"], true),
+              drow(["Phase 1", "Account Center + platform channel management", "✅ Complete"], false),
+              drow(["Phase 2", "Add Content form + Content Table with CRUD", "✅ Complete"], true),
+              drow(["Phase 2", "Status pills, hashtag chips, multi-subject tagging", "✅ Complete"], false),
+              drow(["Phase 2", "Content Table pagination (10/page)", "✅ Complete"], true),
+              drow(["Phase 3", "Timeframe Analytics (All-Time, Monthly, Weekly)", "✅ Complete"], false),
+              drow(["Phase 3", "Monthly & Weekly line growth charts (Chart.js)", "✅ Complete"], true),
+              drow(["Phase 3", "#1 Top Performing Post highlight card", "✅ Complete"], false),
+              drow(["Phase 4", "Hashtag Studio analytics table", "✅ Complete"], true),
+              drow(["Phase 4", "Subject Performance Studio with sorting (6 options) + pagination (25/page)", "✅ Complete"], false),
+              drow(["Phase 5", "Vault sharing link + Collaborators (Editor/Viewer) + role enforcement", "✅ Complete"], true),
+              drow(["Phase 6", "DOCX Analytics Report Export (All-Time / Monthly / Weekly)", "✅ Complete"], false),
+              drow(["Phase 6", "DOCX Project Summary generator (this file)", "✅ Complete"], true),
+              drow(["Phase 7+", "Real backend, API integrations, PWA, PDF export...", "🔮 Planned"], false),
+            ]
+          }),
+          Spacer(2),
+
+          // ═══ FOOTER ══════════════════════════════════════════════
+          Divider(),
+          new Paragraph({
+            children: [new TextRun({ text: "SocialVault Pro — Project Summary Document", size: 19, color: "94A3B8", italic: true })],
+            alignment: AlignmentType.CENTER, spacing: { after: 60 }
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: `Generated on ${generatedAt} · http://localhost:5173/`, size: 18, color: "CBD5E1" })],
+            alignment: AlignmentType.CENTER
+          }),
+        ];
+
+        const doc = new Document({ sections: [{ properties: {}, children }] });
+
+        status.textContent = "Packing document…";
+        const blob = await window.docx.Packer.toBlob(doc);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `SocialVault_Pro_Project_Summary_${new Date().toISOString().split("T")[0]}.docx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        status.className = "status success";
+        status.textContent = "✅ Download started! Check your browser's Downloads folder.";
+        btn.textContent = "✅ DOCX Downloaded Successfully";
+        btn.style.background = "linear-gradient(135deg, #1D4ED8, #6366F1)";
+        btn.disabled = false;
+
+      } catch (err) {
+        console.error(err);
+        status.className = "status error";
+        status.textContent = "❌ Error: " + err.message;
+        btn.textContent = "⬇ Try Again";
+        btn.disabled = false;
+      }
+    }
+
+    window.addEventListener("load", () => {
+      if (window.docx) {
+        document.getElementById("status").textContent = "✓ docx.js library ready. Click the button to generate.";
+        document.getElementById("status").style.color = "#10B981";
+      } else {
+        document.getElementById("status").textContent = "⚠ Loading docx.js library… please wait.";
+      }
+    });
+  </script>
+</body>
+</html>
