@@ -465,14 +465,13 @@ function VaultProvider({ children }) {
   };
 
   // ── Subject Photo Action ──
-  // photoData can be a plain URL string (legacy) or { url, zoom, offsetX, offsetY }
   const updateSubjectPhoto = async (subjectName, photoData) => {
     if (!activeAccount) return;
     const ownerUid = getOwnerUidForAccount(activeAccount.id);
     const ref = getRefForUid(ownerUid).collection('accounts').doc(activeAccount.id);
 
-    const currentMap = activeAccount.subjectPhotos || {};
-    const updatedPhotos = { ...currentMap };
+    const currentPhotos = activeAccount.subjectPhotos || {};
+    const updatedPhotos = { ...currentPhotos };
 
     if (photoData) {
       updatedPhotos[subjectName] = photoData;
@@ -2581,10 +2580,19 @@ function HashtagAnalyticsPage() {
   );
 }
 
+function getSubjectPhotoData(subjectPhotos, subjectName) {
+  if (!subjectPhotos || !subjectName) return { url: "", zoom: 1, offsetX: 0, offsetY: 0 };
+  const raw = subjectPhotos[subjectName] || subjectPhotos[subjectName.replace(/\./g, '_')];
+  if (!raw) return { url: "", zoom: 1, offsetX: 0, offsetY: 0 };
+  if (typeof raw === "string") return { url: raw, zoom: 1, offsetX: 0, offsetY: 0 };
+  return {
+    url: raw.url || "",
+    zoom: raw.zoom ?? 1,
+    offsetX: raw.offsetX ?? 0,
+    offsetY: raw.offsetY ?? 0
+  };
+}
 
-// ----------------------------------------------------------------------
-// SUBJECT PERFORMANCE STUDIO (WITH SORTING & 25 PER PAGE PAGINATION)
-// ----------------------------------------------------------------------
 function SubjectAnalyticsPage() {
   const { activeAccount, contents, updateSubjectPhoto, canEdit } = React.useContext(VaultContext);
   const [searchSubject, setSearchSubject] = React.useState("");
@@ -2593,8 +2601,7 @@ function SubjectAnalyticsPage() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 25;
 
-  // Photo upload & crop modal state
-  const [photoModal, setPhotoModal] = React.useState(null); // { subjectName }
+  const [photoModal, setPhotoModal] = React.useState(null);
   const [photoUrl, setPhotoUrl] = React.useState("");
   const [photoPreview, setPhotoPreview] = React.useState("");
   const [cropZoom, setCropZoom] = React.useState(1);
@@ -2610,37 +2617,56 @@ function SubjectAnalyticsPage() {
 
   React.useEffect(() => { setCurrentPage(1); }, [searchSubject, sortBy, sortOrder]);
 
-  // Helper to extract url/zoom/offset from stored photo data (supports legacy string or new object format)
-  const getPhotoData = (stored) => {
-    if (!stored) return { url: "", zoom: 1, offsetX: 0, offsetY: 0 };
-    if (typeof stored === "string") return { url: stored, zoom: 1, offsetX: 0, offsetY: 0 };
-    return { url: stored.url || "", zoom: stored.zoom || 1, offsetX: stored.offsetX || 0, offsetY: stored.offsetY || 0 };
-  };
-
   const openPhotoModal = (subjectName) => {
-    const stored = subjectPhotos[subjectName] || null;
-    const { url, zoom, offsetX, offsetY } = getPhotoData(stored);
+    const photo = getSubjectPhotoData(subjectPhotos, subjectName);
     setPhotoModal({ subjectName });
-    setPhotoUrl(url);
-    setPhotoPreview(url);
-    // ✅ Restore saved adjustment values so they're never lost on reopen
-    setCropZoom(zoom);
-    setCropOffsetX(offsetX);
-    setCropOffsetY(offsetY);
+    setPhotoUrl(photo.url.startsWith("data:") ? "" : photo.url);
+    setPhotoPreview(photo.url);
+    setCropZoom(photo.zoom);
+    setCropOffsetX(photo.offsetX);
+    setCropOffsetY(photo.offsetY);
   };
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert("Image file must be under 2MB."); return; }
+    if (file.size > 10 * 1024 * 1024) { alert("Image file must be under 10MB."); return; }
+
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setPhotoPreview(ev.target.result);
-      setPhotoUrl(ev.target.result);
-      // Reset adjustments only when a brand-new file is chosen
-      setCropZoom(1);
-      setCropOffsetX(0);
-      setCropOffsetY(0);
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 600;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+
+        setPhotoPreview(compressedDataUrl);
+        setPhotoUrl("");
+        setCropZoom(1);
+        setCropOffsetX(0);
+        setCropOffsetY(0);
+      };
+      img.onerror = () => {
+        setPhotoPreview(ev.target.result);
+        setPhotoUrl("");
+        setCropZoom(1); setCropOffsetX(0); setCropOffsetY(0);
+      };
+      img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
   };
@@ -2649,16 +2675,13 @@ function SubjectAnalyticsPage() {
     if (!photoModal || !photoPreview) return;
     setPhotoSaving(true);
 
-    // ✅ Save the raw URL + adjustment values as an object — no baking needed.
-    // This preserves adjustments so they can be edited again later.
-    const photoData = {
+    await updateSubjectPhoto(photoModal.subjectName, {
       url: photoPreview,
       zoom: cropZoom,
       offsetX: cropOffsetX,
       offsetY: cropOffsetY
-    };
+    });
 
-    await updateSubjectPhoto(photoModal.subjectName, photoData);
     setPhotoSaving(false);
     setPhotoModal(null);
     setPhotoUrl(""); setPhotoPreview("");
@@ -2668,7 +2691,7 @@ function SubjectAnalyticsPage() {
   const handleRemovePhoto = async () => {
     if (!photoModal) return;
     setPhotoSaving(true);
-    await updateSubjectPhoto(photoModal.subjectName, "");
+    await updateSubjectPhoto(photoModal.subjectName, null);
     setPhotoSaving(false);
     setPhotoModal(null);
     setPhotoUrl(""); setPhotoPreview("");
@@ -2677,38 +2700,24 @@ function SubjectAnalyticsPage() {
 
   const subjectStats = React.useMemo(() => {
     const map = {};
-
     accountContents.forEach(item => {
       if (!item.subjects || !Array.isArray(item.subjects)) return;
-
       const engagement = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
-
       item.subjects.forEach(sub => {
         const name = sub.trim();
         if (!name) return;
-
         if (!map[name]) {
-          map[name] = {
-            name,
-            contentCount: 0,
-            impressions: 0,
-            reach: 0,
-            engagement: 0,
-            topPost: null
-          };
+          map[name] = { name, contentCount: 0, impressions: 0, reach: 0, engagement: 0, topPost: null };
         }
-
         map[name].contentCount += 1;
         map[name].impressions += item.impressions || 0;
         map[name].reach += item.reach || 0;
         map[name].engagement += engagement;
-
         if (!map[name].topPost || (item.impressions || 0) > (map[name].topPost.impressions || 0)) {
           map[name].topPost = item;
         }
       });
     });
-
     return Object.values(map).map(s => ({
       ...s,
       avgEr: s.reach > 0 ? ((s.engagement / s.reach) * 100).toFixed(2) : "0.00"
@@ -2716,14 +2725,12 @@ function SubjectAnalyticsPage() {
   }, [accountContents]);
 
   const sortedSubjects = React.useMemo(() => {
-    return subjectStats.filter(s => s.name.toLowerCase().includes(searchSubject.toLowerCase()))
+    return subjectStats
+      .filter(s => s.name.toLowerCase().includes(searchSubject.toLowerCase()))
       .sort((a, b) => {
         let valA, valB;
-
         if (sortBy === "alphabet") {
-          valA = a.name.toLowerCase();
-          valB = b.name.toLowerCase();
-          return sortOrder === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+          return sortOrder === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
         } else if (sortBy === "contentCount") {
           valA = a.contentCount; valB = b.contentCount;
         } else if (sortBy === "reach") {
@@ -2735,7 +2742,6 @@ function SubjectAnalyticsPage() {
         } else {
           valA = a.impressions; valB = b.impressions;
         }
-
         return sortOrder === "asc" ? valA - valB : valB - valA;
       });
   }, [subjectStats, searchSubject, sortBy, sortOrder]);
@@ -2785,26 +2791,24 @@ function SubjectAnalyticsPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1.25rem", marginBottom: "2rem" }}>
         {paginatedSubjects.map(s => {
-          const storedPhoto = subjectPhotos[s.name] || subjectPhotos[s.name.replace(/\./g, '_')];
-          const { url: photoSrc, zoom: pZoom, offsetX: pOffX, offsetY: pOffY } = getPhotoData(storedPhoto);
+          const photo = getSubjectPhotoData(subjectPhotos, s.name);
 
           return (
             <div key={s.name} className="glass-card" style={{ borderLeft: "4px solid var(--accent-cyan)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-                {/* Clickable avatar circle */}
                 <div
                   onClick={() => canEdit && openPhotoModal(s.name)}
                   title={canEdit ? "Click to set photo" : ""}
                   style={{ position: "relative", flexShrink: 0, cursor: canEdit ? "pointer" : "default" }}
                 >
-                  {photoSrc ? (
-                    <div style={{ width: "48px", height: "48px", borderRadius: "50%", overflow: "hidden", border: "2px solid var(--accent-cyan)", flexShrink: 0 }}>
+                  {photo.url ? (
+                    <div style={{ width: "48px", height: "48px", borderRadius: "50%", overflow: "hidden", border: "2px solid var(--accent-cyan)", position: "relative" }}>
                       <img
-                        src={photoSrc}
+                        src={photo.url}
                         alt={s.name}
                         style={{
                           width: "100%", height: "100%", objectFit: "cover",
-                          transform: `scale(${pZoom}) translate(${pOffX}px, ${pOffY}px)`,
+                          transform: `scale(${photo.zoom}) translate(${photo.offsetX}%, ${photo.offsetY}%)`,
                           transformOrigin: "center center"
                         }}
                       />
@@ -2820,59 +2824,40 @@ function SubjectAnalyticsPage() {
                     </div>
                   )}
                 </div>
-              <div>
-                <h3 style={{ fontSize: "1.15rem", fontWeight: 700 }}>{s.name}</h3>
-                <span className="chip chip-subject" style={{ fontSize: "0.75rem" }}>
-                  Featured in {s.contentCount} posts
-                </span>
-              </div>
-            </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.88rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-muted)" }}>Total Views:</span>
-                <strong style={{ color: "var(--accent-cyan)" }}>{s.impressions.toLocaleString()}</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-muted)" }}>Total Reach:</span>
-                <strong>{s.reach.toLocaleString()}</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-muted)" }}>Total Engagement:</span>
-                <strong style={{ color: "var(--accent-emerald)" }}>{s.engagement.toLocaleString()}</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-muted)" }}>Avg ER %:</span>
-                <strong style={{ color: "var(--accent-primary)" }}>{s.avgEr}%</strong>
-              </div>
-              {s.topPost && (
-                <div style={{ marginTop: "0.5rem", paddingTop: "0.5rem", borderTop: "1px solid var(--border-color)" }}>
-                  <span style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>Top Post:</span>
-                  <div style={{ fontSize: "0.82rem", fontStyle: "italic", color: "var(--text-subtle)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: "0.2rem" }}>
-                    "{s.topPost.caption}"
-                  </div>
+                <div>
+                  <h3 style={{ fontSize: "1.15rem", fontWeight: 700 }}>{s.name}</h3>
+                  <span className="chip chip-subject" style={{ fontSize: "0.75rem" }}>
+                    Featured in {s.contentCount} posts
+                  </span>
                 </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
+              </div>
 
-        {sortedSubjects.length === 0 && (
-          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem 1.5rem", color: "var(--text-muted)" }}>
-            No subject records found matching your filter criteria.
-          </div>
-        )}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.88rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-muted)" }}>Total Views:</span>
+                  <strong style={{ color: "var(--accent-cyan)" }}>{s.impressions.toLocaleString()}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-muted)" }}>Total Reach:</span>
+                  <strong>{s.reach.toLocaleString()}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-muted)" }}>Avg Engagement Rate:</span>
+                  <strong style={{ color: "var(--accent-emerald)" }}>{s.avgEr}%</strong>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-
-      {sortedSubjects.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem", marginTop: "1.25rem" }}>
-          <div style={{ fontSize: "0.88rem", color: "var(--text-muted)" }}>
-            Showing <strong>{startIndex + 1}</strong> – <strong>{Math.min(startIndex + itemsPerPage, sortedSubjects.length)}</strong> of <strong>{sortedSubjects.length}</strong> subjects
-          </div>
-
-          <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+      {totalPages > 1 && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
+          <span style={{ fontSize: "0.88rem", color: "var(--text-muted)" }}>
+            Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, sortedSubjects.length)} of {sortedSubjects.length} subjects
+          </span>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               className="btn btn-secondary"
@@ -2881,18 +2866,9 @@ function SubjectAnalyticsPage() {
             >
               Previous
             </button>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`btn ${currentPage === page ? "btn-primary" : "btn-secondary"}`}
-                style={{ minWidth: "36px", padding: "0.4rem 0.6rem" }}
-              >
-                {page}
-              </button>
-            ))}
-
+            <span style={{ padding: "0.4rem 0.8rem", fontSize: "0.88rem", color: "var(--text-main)", fontWeight: 600 }}>
+              Page {currentPage} of {totalPages}
+            </span>
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               className="btn btn-secondary"
@@ -2905,7 +2881,6 @@ function SubjectAnalyticsPage() {
         </div>
       )}
 
-      {/* Subject Photo Upload & Crop Modal */}
       {photoModal && (
         <div className="modal-overlay" onClick={() => { setPhotoModal(null); setPhotoUrl(""); setPhotoPreview(""); }}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: "480px" }}>
@@ -2916,7 +2891,6 @@ function SubjectAnalyticsPage() {
               </button>
             </div>
 
-            {/* Circular Crop Viewport */}
             <div style={{ textAlign: "center", marginBottom: "1rem" }}>
               <div style={{
                 width: "160px", height: "160px", borderRadius: "50%",
@@ -2932,7 +2906,7 @@ function SubjectAnalyticsPage() {
                     alt="Crop Preview"
                     style={{
                       width: "100%", height: "100%", objectFit: "cover",
-                      transform: `scale(${cropZoom}) translate(${cropOffsetX}px, ${cropOffsetY}px)`,
+                      transform: `scale(${cropZoom}) translate(${cropOffsetX}%, ${cropOffsetY}%)`,
                       transformOrigin: "center center",
                       transition: "transform 0.05s ease-out"
                     }}
@@ -2944,19 +2918,14 @@ function SubjectAnalyticsPage() {
                   </div>
                 )}
               </div>
-              <p style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                {photoPreview ? "Target Circle Crop Preview" : "No photo loaded"}
-              </p>
             </div>
 
-            {/* Image Adjustment / Crop Sliders */}
             {photoPreview && (
               <div style={{ background: "rgba(255,255,255,0.03)", padding: "0.85rem 1rem", borderRadius: "12px", border: "1px solid var(--border-color)", marginBottom: "1rem" }}>
                 <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--accent-cyan)", marginBottom: "0.6rem" }}>
                   ✂️ Crop & Position Controls
                 </div>
 
-                {/* Zoom Slider */}
                 <div style={{ marginBottom: "0.5rem" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: "0.2rem" }}>
                     <span>🔍 Zoom (Scale):</span>
@@ -2970,28 +2939,26 @@ function SubjectAnalyticsPage() {
                   />
                 </div>
 
-                {/* Horizontal Shift */}
                 <div style={{ marginBottom: "0.5rem" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: "0.2rem" }}>
                     <span>↔️ Horizontal Position (X):</span>
-                    <strong style={{ color: "#fff" }}>{cropOffsetX}px</strong>
+                    <strong style={{ color: "#fff" }}>{cropOffsetX > 0 ? `+${cropOffsetX}%` : `${cropOffsetX}%`}</strong>
                   </div>
                   <input
-                    type="range" min="-100" max="100" step="1"
+                    type="range" min="-50" max="50" step="1"
                     value={cropOffsetX}
                     onChange={e => setCropOffsetX(parseInt(e.target.value))}
                     style={{ width: "100%", accentColor: "var(--accent-cyan)", cursor: "pointer" }}
                   />
                 </div>
 
-                {/* Vertical Shift */}
                 <div style={{ marginBottom: "0.5rem" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: "0.2rem" }}>
                     <span>↕️ Vertical Position (Y):</span>
-                    <strong style={{ color: "#fff" }}>{cropOffsetY}px</strong>
+                    <strong style={{ color: "#fff" }}>{cropOffsetY > 0 ? `+${cropOffsetY}%` : `${cropOffsetY}%`}</strong>
                   </div>
                   <input
-                    type="range" min="-100" max="100" step="1"
+                    type="range" min="-50" max="50" step="1"
                     value={cropOffsetY}
                     onChange={e => setCropOffsetY(parseInt(e.target.value))}
                     style={{ width: "100%", accentColor: "var(--accent-cyan)", cursor: "pointer" }}
@@ -3011,7 +2978,6 @@ function SubjectAnalyticsPage() {
               </div>
             )}
 
-            {/* URL Input */}
             <div className="form-group">
               <label className="form-label">Photo Link (URL)</label>
               <input
@@ -3020,9 +2986,9 @@ function SubjectAnalyticsPage() {
                 placeholder="https://example.com/photo.jpg"
                 value={photoUrl.startsWith("data:") ? "" : photoUrl}
                 onChange={e => {
-                  setPhotoUrl(e.target.value);
-                  setPhotoPreview(e.target.value);
-                  // Reset adjustments only when a brand-new URL is entered
+                  const val = e.target.value;
+                  setPhotoUrl(val);
+                  setPhotoPreview(val);
                   setCropZoom(1); setCropOffsetX(0); setCropOffsetY(0);
                 }}
               />
@@ -3030,31 +2996,28 @@ function SubjectAnalyticsPage() {
 
             <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "0.82rem", margin: "0.35rem 0" }}>— or —</div>
 
-            {/* File Upload */}
             <div className="form-group">
-              <label className="form-label">Upload Image File (max 2MB)</label>
-              <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} style={{ display: "none" }} />
+              <label className="form-label">Upload Image File (max 10MB)</label>
               <button type="button" className="btn btn-secondary" style={{ width: "100%" }} onClick={() => fileInputRef.current && fileInputRef.current.click()}>
                 📁 Choose Image File from Device
               </button>
             </div>
 
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1.25rem", flexWrap: "wrap" }}>
-              {getPhotoData(subjectPhotos[photoModal.subjectName]).url && (
+              {getSubjectPhotoData(subjectPhotos, photoModal.subjectName).url && (
                 <button type="button" className="btn btn-danger" onClick={handleRemovePhoto} disabled={photoSaving}>
                   🗑 Remove Photo
                 </button>
               )}
               <button type="button" onClick={() => { setPhotoModal(null); setPhotoUrl(""); setPhotoPreview(""); }} className="btn btn-secondary">Cancel</button>
               <button type="button" onClick={handleSavePhoto} className="btn btn-primary" disabled={photoSaving || !photoPreview}>
-                {photoSaving ? "Saving..." : "💾 Crop & Save Photo"}
+                {photoSaving ? "Saving..." : "💾 Save Photo & Adjustments"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Hidden file input reference holder */}
       <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} style={{ display: "none" }} />
 
     </div>
