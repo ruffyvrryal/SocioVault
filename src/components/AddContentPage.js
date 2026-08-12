@@ -110,11 +110,11 @@ window.AddContentPage = function() {
                 {activeAccount.platforms.map(p => (
                   <option key={p.id} value={p.name}>{p.name} ({p.handle})</option>
                 ))}
-                <option value="Instagram">Instagram</option>
-                <option value="YouTube">YouTube</option>
                 <option value="TikTok">TikTok</option>
+                <option value="Instagram">Instagram</option>
+                <option value="Facebook">Facebook</option>
                 <option value="X (Twitter)">X (Twitter)</option>
-                <option value="LinkedIn">LinkedIn</option>
+                <option value="YouTube">YouTube</option>
                 <option value="Threads">Threads</option>
               </select>
             </div>

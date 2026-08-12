@@ -33,7 +33,7 @@ window.INITIAL_DATA = {
       description: "Dedicated hardware, AI, and gadget review hub",
       platforms: [
         { id: "p5", name: "YouTube", handle: "ApexGadgetReviews", followers: 620000, url: "https://youtube.com" },
-        { id: "p6", name: "LinkedIn", handle: "Apex Tech Media", followers: 42000, url: "https://linkedin.com" }
+        { id: "p6", name: "Facebook", handle: "Apex Tech Media", followers: 42000, url: "https://facebook.com" }
       ],
       collaborators: [],
       shareToken: "vlt_token_apex_88"
@@ -783,7 +783,7 @@ function AccountCenterPage() {
   const { activeAccount, addPlatform, removePlatform, contents, canEdit, setActivePage } = React.useContext(VaultContext);
 
   const [showAddModal, setShowAddModal] = React.useState(false);
-  const [platformName, setPlatformName] = React.useState("Instagram");
+  const [platformName, setPlatformName] = React.useState("TikTok");
   const [handle, setHandle] = React.useState("");
   const [followers, setFollowers] = React.useState("");
   const [url, setUrl] = React.useState("");
@@ -915,11 +915,11 @@ function AccountCenterPage() {
               <div className="form-group">
                 <label className="form-label">Platform</label>
                 <select className="form-select" value={platformName} onChange={e => setPlatformName(e.target.value)}>
-                  <option value="Instagram">Instagram</option>
-                  <option value="YouTube">YouTube</option>
                   <option value="TikTok">TikTok</option>
+                  <option value="Instagram">Instagram</option>
+                  <option value="Facebook">Facebook</option>
                   <option value="X (Twitter)">X (Twitter)</option>
-                  <option value="LinkedIn">LinkedIn</option>
+                  <option value="YouTube">YouTube</option>
                   <option value="Threads">Threads</option>
                 </select>
               </div>

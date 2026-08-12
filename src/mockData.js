@@ -31,7 +31,7 @@ window.INITIAL_DATA = {
       description: "Dedicated hardware, AI, and gadget review hub",
       platforms: [
         { id: "p5", name: "YouTube", handle: "ApexGadgetReviews", followers: 620000, url: "https://youtube.com" },
-        { id: "p6", name: "LinkedIn", handle: "Apex Tech Media", followers: 42000, url: "https://linkedin.com" }
+        { id: "p6", name: "Facebook", handle: "Apex Tech Media", followers: 42000, url: "https://facebook.com" }
       ],
       collaborators: [],
       shareToken: "vlt_token_apex_88"

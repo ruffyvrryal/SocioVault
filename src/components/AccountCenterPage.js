@@ -46,7 +46,7 @@ window.AccountCenterPage = function() {
       case "x (twitter)":
       case "x":
       case "twitter": return "twitter";
-      case "linkedin": return "linkedin";
+      case "facebook": return "facebook";
       default: return "globe";
     }
   };
@@ -186,11 +186,11 @@ window.AccountCenterPage = function() {
               <div className="form-group">
                 <label className="form-label">Platform Type</label>
                 <select className="form-select" value={platformName} onChange={e => setPlatformName(e.target.value)}>
-                  <option value="Instagram">Instagram</option>
-                  <option value="YouTube">YouTube</option>
                   <option value="TikTok">TikTok</option>
+                  <option value="Instagram">Instagram</option>
+                  <option value="Facebook">Facebook</option>
                   <option value="X (Twitter)">X (Twitter)</option>
-                  <option value="LinkedIn">LinkedIn</option>
+                  <option value="YouTube">YouTube</option>
                   <option value="Threads">Threads</option>
                 </select>
               </div>
