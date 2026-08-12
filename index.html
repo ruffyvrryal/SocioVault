@@ -28,6 +28,27 @@
 <body>
   <div id="root"></div>
 
+  <!-- Firebase SDK (compat version - no npm needed) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <!-- Firebase Initialization -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyC0_Njbt-Vpt0auUc5QCV2rCT_4HolmdTU",
+      authDomain: "sociavault-7b803.firebaseapp.com",
+      projectId: "sociavault-7b803",
+      storageBucket: "sociavault-7b803.firebasestorage.app",
+      messagingSenderId: "240459340652",
+      appId: "1:240459340652:web:c47df4afdf2c567d6a7149",
+      measurementId: "G-SRL2ES00EE"
+    };
+    firebase.initializeApp(firebaseConfig);
+    window.firebaseAuth = firebase.auth();
+    window.firebaseDb = firebase.firestore();
+  </script>
+
   <!-- Single Standalone Application Bundle -->
   <script type="text/babel" src="./src/bundle.js"></script>
 </body>

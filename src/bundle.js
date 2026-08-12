@@ -61,35 +61,44 @@ const AuthContext = React.createContext();
 const VaultContext = React.createContext();
 
 function AuthProvider({ children }) {
-  const [user, setUser] = React.useState(() => {
-    const saved = localStorage.getItem("smh_user");
-    return saved ? JSON.parse(saved) : window.INITIAL_DATA.currentUser;
-  });
+  const [user, setUser] = React.useState(null);
+  const [authLoading, setAuthLoading] = React.useState(true);
 
   React.useEffect(() => {
-    if (user) {
-      localStorage.setItem("smh_user", JSON.stringify(user));
-    } else {
-      localStorage.removeItem("smh_user");
-    }
-  }, [user]);
+    const auth = window.firebaseAuth;
+    const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
+      if (firebaseUser) {
+        setUser({
+          uid: firebaseUser.uid,
+          displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+          email: firebaseUser.email,
+          photoURL: firebaseUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(firebaseUser.email)}`
+        });
+      } else {
+        setUser(null);
+      }
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
-  const loginWithGoogle = (email = "alex.creator@gmail.com", name = "Alex Rivera") => {
-    const newUser = {
-      uid: "user_" + Math.random().toString(36).substr(2, 9),
-      displayName: name,
-      email: email,
-      photoURL: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`
-    };
-    setUser(newUser);
+  const loginWithGoogle = async () => {
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      await window.firebaseAuth.signInWithPopup(provider);
+    } catch (error) {
+      console.error('Google Sign-In error:', error);
+      alert('Sign-in failed. Please try again.');
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await window.firebaseAuth.signOut();
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, setUser, loginWithGoogle, logout, authLoading }}>
       {children}
     </AuthContext.Provider>
   );
@@ -98,37 +107,60 @@ function AuthProvider({ children }) {
 function VaultProvider({ children }) {
   const { user } = React.useContext(AuthContext);
 
-  const [accounts, setAccounts] = React.useState(() => {
-    const saved = localStorage.getItem("smh_accounts");
-    return saved ? JSON.parse(saved) : window.INITIAL_DATA.accounts;
-  });
-
-  const [activeAccountId, setActiveAccountId] = React.useState(() => {
-    return localStorage.getItem("smh_active_account") || "acc_01";
-  });
-
+  const [accounts, setAccounts] = React.useState([]);
+  const [contents, setContents] = React.useState([]);
+  const [activeAccountIdState, setActiveAccountIdState] = React.useState(null);
   const [activePage, setActivePage] = React.useState("account-center");
+  const [dataLoading, setDataLoading] = React.useState(true);
 
-  const [contents, setContents] = React.useState(() => {
-    const saved = localStorage.getItem("smh_contents");
-    return saved ? JSON.parse(saved) : window.INITIAL_DATA.contents;
-  });
+  // Helper to get current user's Firestore reference
+  const getUserRef = () => window.firebaseDb.collection('users').doc(user.uid);
 
+  // Listen to Firestore in real-time when user logs in
   React.useEffect(() => {
-    localStorage.setItem("smh_accounts", JSON.stringify(accounts));
-  }, [accounts]);
-
-  React.useEffect(() => {
-    if (activeAccountId) {
-      localStorage.setItem("smh_active_account", activeAccountId);
-    } else {
-      localStorage.removeItem("smh_active_account");
+    if (!user) {
+      setAccounts([]);
+      setContents([]);
+      setDataLoading(false);
+      return;
     }
-  }, [activeAccountId]);
 
-  React.useEffect(() => {
-    localStorage.setItem("smh_contents", JSON.stringify(contents));
-  }, [contents]);
+    setDataLoading(true);
+    const userRef = window.firebaseDb.collection('users').doc(user.uid);
+
+    // Real-time listener for accounts
+    const unsubAccounts = userRef.collection('accounts').onSnapshot(snap => {
+      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setAccounts(data);
+      setDataLoading(false);
+    });
+
+    // Real-time listener for contents
+    const unsubContents = userRef.collection('contents').orderBy('uploadDate', 'desc').onSnapshot(snap => {
+      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setContents(data);
+    });
+
+    // Restore last active account from localStorage (just a UX preference)
+    const savedActive = localStorage.getItem('smh_active_account_' + user.uid);
+    if (savedActive) setActiveAccountIdState(savedActive);
+
+    return () => {
+      unsubAccounts();
+      unsubContents();
+    };
+  }, [user]);
+
+  const activeAccountId = activeAccountIdState;
+
+  const setActiveAccountId = (id) => {
+    setActiveAccountIdState(id);
+    if (user && id) {
+      localStorage.setItem('smh_active_account_' + user.uid, id);
+    } else if (user) {
+      localStorage.removeItem('smh_active_account_' + user.uid);
+    }
+  };
 
   const activeAccount = React.useMemo(() => {
     return accounts.find(a => a.id === activeAccountId) || null;
@@ -137,7 +169,7 @@ function VaultProvider({ children }) {
   const getUserRole = React.useCallback((account) => {
     if (!user || !account) return "viewer";
     if (account.ownerEmail === user.email) return "owner";
-    const collab = account.collaborators.find(c => c.email === user.email);
+    const collab = (account.collaborators || []).find(c => c.email === user.email);
     if (collab) return collab.role;
     return "viewer";
   }, [user]);
@@ -149,10 +181,10 @@ function VaultProvider({ children }) {
   const canEdit = activeUserRole === "owner" || activeUserRole === "editor";
   const isOwner = activeUserRole === "owner";
 
-  const addAccount = (name, description) => {
+  // ── Account Actions (Firestore) ──
+  const addAccount = async (name, description) => {
     if (!user) return;
     const newAcc = {
-      id: "acc_" + Math.random().toString(36).substr(2, 9),
       name: name || "New Media Account",
       ownerEmail: user.email,
       description: description || "Social media account workspace",
@@ -162,95 +194,86 @@ function VaultProvider({ children }) {
       collaborators: [],
       shareToken: "vlt_token_" + Math.random().toString(36).substr(2, 8)
     };
-    setAccounts(prev => [...prev, newAcc]);
-    setActiveAccountId(newAcc.id);
+    const docRef = await getUserRef().collection('accounts').add(newAcc);
+    setActiveAccountId(docRef.id);
     setActivePage("account-center");
   };
 
-  const removeAccount = (accountId) => {
-    setAccounts(prev => prev.filter(a => a.id !== accountId));
-    setContents(prev => prev.filter(c => c.accountId !== accountId));
-    if (activeAccountId === accountId) {
-      setActiveAccountId(null);
+  const removeAccount = async (accountId) => {
+    await getUserRef().collection('accounts').doc(accountId).delete();
+    // Delete related contents
+    const contentSnap = await getUserRef().collection('contents').where('accountId', '==', accountId).get();
+    const batch = window.firebaseDb.batch();
+    contentSnap.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    if (activeAccountId === accountId) setActiveAccountId(null);
+  };
+
+  // ── Platform Actions (Firestore) ──
+  const addPlatform = async (accountId, platformData) => {
+    const ref = getUserRef().collection('accounts').doc(accountId);
+    const snap = await ref.get();
+    if (snap.exists) {
+      const current = snap.data();
+      await ref.update({ platforms: [...(current.platforms || []), { id: "p_" + Date.now(), ...platformData }] });
     }
   };
 
-  const addPlatform = (accountId, platformData) => {
-    setAccounts(prev => prev.map(acc => {
-      if (acc.id === accountId) {
-        return {
-          ...acc,
-          platforms: [...acc.platforms, { id: "p_" + Date.now(), ...platformData }]
-        };
-      }
-      return acc;
-    }));
+  const removePlatform = async (accountId, platformId) => {
+    const ref = getUserRef().collection('accounts').doc(accountId);
+    const snap = await ref.get();
+    if (snap.exists) {
+      const current = snap.data();
+      await ref.update({ platforms: (current.platforms || []).filter(p => p.id !== platformId) });
+    }
   };
 
-  const removePlatform = (accountId, platformId) => {
-    setAccounts(prev => prev.map(acc => {
-      if (acc.id === accountId) {
-        return {
-          ...acc,
-          platforms: acc.platforms.filter(p => p.id !== platformId)
-        };
-      }
-      return acc;
-    }));
-  };
-
-  const addContent = (contentData) => {
-    const newItem = {
-      id: "cnt_" + Math.random().toString(36).substr(2, 9),
+  // ── Content Actions (Firestore) ──
+  const addContent = async (contentData) => {
+    await getUserRef().collection('contents').add({
       accountId: activeAccountId,
       ...contentData
-    };
-    setContents(prev => [newItem, ...prev]);
+    });
   };
 
-  const updateContent = (contentId, updatedData) => {
-    setContents(prev => prev.map(item => item.id === contentId ? { ...item, ...updatedData } : item));
+  const updateContent = async (contentId, updatedData) => {
+    await getUserRef().collection('contents').doc(contentId).update(updatedData);
   };
 
-  const deleteContent = (contentId) => {
-    setContents(prev => prev.filter(item => item.id !== contentId));
+  const deleteContent = async (contentId) => {
+    await getUserRef().collection('contents').doc(contentId).delete();
   };
 
-  const addCollaborator = (accountId, email, role) => {
-    setAccounts(prev => prev.map(acc => {
-      if (acc.id === accountId) {
-        if (acc.collaborators.some(c => c.email === email)) return acc;
-        return {
-          ...acc,
-          collaborators: [...acc.collaborators, { email, role, joinedAt: new Date().toISOString().split("T")[0] }]
-        };
-      }
-      return acc;
-    }));
+  // ── Collaborator Actions (Firestore) ──
+  const addCollaborator = async (accountId, email, role) => {
+    const ref = getUserRef().collection('accounts').doc(accountId);
+    const snap = await ref.get();
+    if (snap.exists) {
+      const current = snap.data();
+      const collabs = current.collaborators || [];
+      if (collabs.some(c => c.email === email)) return;
+      await ref.update({ collaborators: [...collabs, { email, role, joinedAt: new Date().toISOString().split("T")[0] }] });
+    }
   };
 
-  const updateCollaboratorRole = (accountId, email, newRole) => {
-    setAccounts(prev => prev.map(acc => {
-      if (acc.id === accountId) {
-        return {
-          ...acc,
-          collaborators: acc.collaborators.map(c => c.email === email ? { ...c, role: newRole } : c)
-        };
-      }
-      return acc;
-    }));
+  const updateCollaboratorRole = async (accountId, email, newRole) => {
+    const ref = getUserRef().collection('accounts').doc(accountId);
+    const snap = await ref.get();
+    if (snap.exists) {
+      const current = snap.data();
+      const collabs = (current.collaborators || []).map(c => c.email === email ? { ...c, role: newRole } : c);
+      await ref.update({ collaborators: collabs });
+    }
   };
 
-  const removeCollaborator = (accountId, email) => {
-    setAccounts(prev => prev.map(acc => {
-      if (acc.id === accountId) {
-        return {
-          ...acc,
-          collaborators: acc.collaborators.filter(c => c.email !== email)
-        };
-      }
-      return acc;
-    }));
+  const removeCollaborator = async (accountId, email) => {
+    const ref = getUserRef().collection('accounts').doc(accountId);
+    const snap = await ref.get();
+    if (snap.exists) {
+      const current = snap.data();
+      const collabs = (current.collaborators || []).filter(c => c.email !== email);
+      await ref.update({ collaborators: collabs });
+    }
   };
 
   return (
@@ -265,6 +288,7 @@ function VaultProvider({ children }) {
       activeUserRole,
       canEdit,
       isOwner,
+      dataLoading,
       addAccount,
       removeAccount,
       addPlatform,
@@ -285,13 +309,12 @@ function VaultProvider({ children }) {
 // 3. COMPONENTS
 function LoginPage() {
   const { loginWithGoogle } = React.useContext(AuthContext);
-  const [emailInput, setEmailInput] = React.useState("");
-  const [nameInput, setNameInput] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
 
-  const handleCustomLogin = (e) => {
-    e.preventDefault();
-    if (!emailInput) return;
-    loginWithGoogle(emailInput, nameInput || emailInput.split("@")[0]);
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    await loginWithGoogle();
+    setLoading(false);
   };
 
   return (
@@ -314,60 +337,35 @@ function LoginPage() {
         </p>
 
         <button 
-          onClick={() => loginWithGoogle("alex.creator@gmail.com", "Alex Rivera")}
+          onClick={handleGoogleLogin}
+          disabled={loading}
           className="btn" 
           style={{
             width: "100%", padding: "0.85rem", background: "#ffffff", color: "#1f2937",
             fontWeight: 600, fontSize: "0.95rem", borderRadius: "var(--radius-sm)",
             display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)", cursor: "pointer", marginBottom: "1.5rem"
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)", cursor: loading ? "not-allowed" : "pointer", marginBottom: "1.5rem",
+            opacity: loading ? 0.7 : 1
           }}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.24v3.15C3.26 21.3 7.37 24 12 24z"/>
-            <path fill="#FBBC05" d="M5.28 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.61H1.24C.45 8.18 0 10.03 0 12s.45 3.82 1.24 5.39l4.04-3.15z"/>
-            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.26 2.7 1.24 6.61l4.04 3.15c.95-2.85 3.6-4.96 6.72-4.96z"/>
-          </svg>
-          Sign in with Google Account
+          {loading ? (
+            <span>Signing in...</span>
+          ) : (
+            <>
+              <svg width="20" height="20" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.24v3.15C3.26 21.3 7.37 24 12 24z"/>
+                <path fill="#FBBC05" d="M5.28 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.61H1.24C.45 8.18 0 10.03 0 12s.45 3.82 1.24 5.39l4.04-3.15z"/>
+                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.26 2.7 1.24 6.61l4.04 3.15c.95-2.85 3.6-4.96 6.72-4.96z"/>
+              </svg>
+              Sign in with Google
+            </>
+          )}
         </button>
 
-        <div style={{ display: "flex", alignItems: "center", margin: "1.5rem 0", color: "var(--text-subtle)", fontSize: "0.85rem" }}>
-          <div style={{ flex: 1, height: "1px", background: "var(--border-color)" }}></div>
-          <span style={{ padding: "0 0.75rem" }}>OR SIGN IN WITH EMAIL</span>
-          <div style={{ flex: 1, height: "1px", background: "var(--border-color)" }}></div>
-        </div>
-
-        <form onSubmit={handleCustomLogin}>
-          <div className="form-group" style={{ textAlign: "left" }}>
-            <label className="form-label">Full Name</label>
-            <input type="text" className="form-input" placeholder="e.g. Alex Rivera" value={nameInput} onChange={(e) => setNameInput(e.target.value)} />
-          </div>
-          <div className="form-group" style={{ textAlign: "left" }}>
-            <label className="form-label">Email Address</label>
-            <input type="email" className="form-input" placeholder="alex@example.com" required value={emailInput} onChange={(e) => setEmailInput(e.target.value)} />
-          </div>
-          <button type="submit" className="btn btn-primary" style={{ width: "100%", padding: "0.75rem", marginTop: "0.5rem" }}>
-            Sign In / Register
-          </button>
-        </form>
-
-        <div style={{ marginTop: "2rem", paddingTop: "1.5rem", borderTop: "1px solid var(--border-color)", textAlign: "left" }}>
-          <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: 600, marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            ⚡ Fast Demo Sign-In Options:
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-            <button onClick={() => loginWithGoogle("alex.creator@gmail.com", "Alex Rivera (Owner)")} className="btn btn-secondary" style={{ justifyContent: "flex-start", fontSize: "0.85rem" }}>
-              👑 Sign in as <strong>Alex Creator (Vault Owner)</strong>
-            </button>
-            <button onClick={() => loginWithGoogle("sarah.editor@gmail.com", "Sarah Jenkins (Editor)")} className="btn btn-secondary" style={{ justifyContent: "flex-start", fontSize: "0.85rem" }}>
-              ✏️ Sign in as <strong>Sarah Jenkins (Collaborator Editor)</strong>
-            </button>
-            <button onClick={() => loginWithGoogle("sponsor.client@gmail.com", "Client Sponsor (Viewer)")} className="btn btn-secondary" style={{ justifyContent: "flex-start", fontSize: "0.85rem" }}>
-              👁️ Sign in as <strong>Sponsor Client (Read-Only Viewer)</strong>
-            </button>
-          </div>
-        </div>
+        <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginTop: "1rem" }}>
+          🔒 Your data is securely stored in the cloud and synced across all your devices.
+        </p>
       </div>
     </div>
   );
