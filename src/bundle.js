@@ -1125,6 +1125,7 @@ function AddContentPage() {
     return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   });
   const [platform, setPlatform] = React.useState("Instagram");
+  const [contentType, setContentType] = React.useState("Reels / Short Video");
   const [caption, setCaption] = React.useState("");
   const [hashtagsInput, setHashtagsInput] = React.useState("");
   const [subjectInput, setSubjectInput] = React.useState("");
@@ -1166,6 +1167,7 @@ function AddContentPage() {
       uploadDate,
       uploadTime: uploadTime || "12:00",
       platform,
+      contentType,
       caption,
       hashtags: hashtagsArray,
       subjects: subjectsList,
@@ -1190,9 +1192,9 @@ function AddContentPage() {
       </div>
       <div className="glass-card" style={{ maxWidth: "800px", margin: "0 auto" }}>
         <form onSubmit={handleSubmit}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1.25rem", marginBottom: "1rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
             <div className="form-group">
-              <label className="form-label">Upload / Scheduled Date</label>
+              <label className="form-label">Upload Date</label>
               <input type="date" className="form-input" required value={uploadDate} onChange={e => setUploadDate(e.target.value)} />
             </div>
             <div className="form-group">
@@ -1205,6 +1207,17 @@ function AddContentPage() {
                 {availablePlatforms.map(pName => (
                   <option key={pName} value={pName}>{pName}</option>
                 ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Content Type</label>
+              <select className="form-select" value={contentType} onChange={e => setContentType(e.target.value)}>
+                <option value="Reels / Short Video">🎬 Reels / Short Video</option>
+                <option value="Feed Post / Image">🖼️ Feed Post / Image</option>
+                <option value="Carousel">📸 Carousel</option>
+                <option value="Story">⏱️ Story</option>
+                <option value="Long Video">📹 Long Video</option>
+                <option value="Text / Article">📝 Text / Article</option>
               </select>
             </div>
           </div>
@@ -1357,6 +1370,7 @@ function ContentTablePage() {
       uploadDate: item.uploadDate || new Date().toISOString().split("T")[0],
       uploadTime: item.uploadTime || "12:00",
       platform: item.platform || "Instagram",
+      contentType: item.contentType || "Reels / Short Video",
       caption: item.caption || "",
       hashtagsInput: (item.hashtags || []).join(" "),
       subjectInput: "",
@@ -1407,6 +1421,7 @@ function ContentTablePage() {
       uploadDate: editingContent.uploadDate,
       uploadTime: editingContent.uploadTime || "12:00",
       platform: editingContent.platform,
+      contentType: editingContent.contentType,
       caption: editingContent.caption,
       hashtags: hashtagsArray,
       subjects: editingContent.subjectsList,
@@ -1470,6 +1485,7 @@ function ContentTablePage() {
             <tr>
               <th>Upload Date & Time</th>
               <th>Platform</th>
+              <th>Type</th>
               <th>Caption</th>
               <th>Hashtags</th>
               <th>Subjects</th>
@@ -1496,6 +1512,7 @@ function ContentTablePage() {
                     {item.uploadTime && <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>at {item.uploadTime}</div>}
                   </td>
                   <td><span className="chip">{item.platform}</span></td>
+                  <td><span className="chip" style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.06)" }}>{item.contentType || "Feed Post / Image"}</span></td>
                   <td><div style={{ maxWidth: "220px", fontWeight: 500 }}>{item.caption}</div></td>
                   <td>{item.hashtags.map(h => <span key={h} className="chip" style={{ fontSize: "0.75rem" }}>{h}</span>)}</td>
                   <td>{item.subjects.map(s => <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}>👤 {s}</span>)}</td>
@@ -1519,7 +1536,7 @@ function ContentTablePage() {
 
             {filteredContents.length === 0 && (
               <tr>
-                <td colSpan="14" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
+                <td colSpan="15" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
                   No content records match your filter criteria.
                 </td>
               </tr>
@@ -1584,9 +1601,9 @@ function ContentTablePage() {
             </div>
 
             <form onSubmit={handleSaveEdit}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1.25rem", marginBottom: "1rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
                 <div className="form-group">
-                  <label className="form-label">Upload / Scheduled Date</label>
+                  <label className="form-label">Upload Date</label>
                   <input 
                     type="date" 
                     className="form-input" 
@@ -1614,6 +1631,21 @@ function ContentTablePage() {
                     {availablePlatforms.map(pName => (
                       <option key={pName} value={pName}>{pName}</option>
                     ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Content Type</label>
+                  <select 
+                    className="form-select" 
+                    value={editingContent.contentType} 
+                    onChange={e => setEditingContent({ ...editingContent, contentType: e.target.value })}
+                  >
+                    <option value="Reels / Short Video">🎬 Reels / Short Video</option>
+                    <option value="Feed Post / Image">🖼️ Feed Post / Image</option>
+                    <option value="Carousel">📸 Carousel</option>
+                    <option value="Story">⏱️ Story</option>
+                    <option value="Long Video">📹 Long Video</option>
+                    <option value="Text / Article">📝 Text / Article</option>
                   </select>
                 </div>
               </div>
@@ -1863,39 +1895,45 @@ async function generateDocxReport({ accountName, timeframeLabel, contents, accou
               })
             ]
           }),
-          new Paragraph({ text: "", spacing: { after: 200 } }),
 
-          // ---- HASHTAG TABLE ----
-          new Paragraph({ children: [new TextRun({ text: "4. Hashtag Performance", ...sectionStyle })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }),
+          new Paragraph({ text: "", spacing: { after: 400 } }),
+
+          // ---- HASHTAG ANALYTICS TABLE ----
+          new Paragraph({ children: [new TextRun({ text: "3. Top 10 Performing Hashtags", ...sectionStyle })], heading: HeadingLevel.HEADING_1 }),
+          new Paragraph({ text: "", spacing: { after: 150 } }),
+
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
             rows: [
-              makeHeaderRow(["Hashtag", "Posts Used", "Total Impressions", "Total Reach", "Total Engagement", "Avg ER %"]),
-              ...hashtagRows.map(h => makeDataRow([
-                String(h.tag),
-                String(h.count),
-                h.impressions.toLocaleString(),
-                h.reach.toLocaleString(),
-                h.engagement.toLocaleString(),
-                h.reach > 0 ? ((h.engagement / h.reach) * 100).toFixed(2) + "%" : "0.00%"
+              makeHeaderRow(["Hashtag", "Post Count", "Total Impressions", "Total Reach", "Total Engagement", "Avg ER %"]),
+              ...sortedTags.map(t => makeDataRow([
+                t.tag,
+                String(t.count),
+                t.impressions.toLocaleString(),
+                t.reach.toLocaleString(),
+                t.engagement.toLocaleString(),
+                `${t.avgEr}%`
               ]))
             ]
           }),
-          new Paragraph({ text: "", spacing: { after: 200 } }),
 
-          // ---- SUBJECT TABLE ----
-          new Paragraph({ children: [new TextRun({ text: "5. Subject Performance", ...sectionStyle })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }),
+          new Paragraph({ text: "", spacing: { after: 400 } }),
+
+          // ---- SUBJECT ANALYTICS TABLE ----
+          new Paragraph({ children: [new TextRun({ text: "4. Featured Subject Performance Studio", ...sectionStyle })], heading: HeadingLevel.HEADING_1 }),
+          new Paragraph({ text: "", spacing: { after: 150 } }),
+
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
             rows: [
-              makeHeaderRow(["Subject / Person", "Contents Featured", "Total Impressions", "Total Reach", "Total Engagement", "Avg ER %"]),
-              ...subjectRows.map(s => makeDataRow([
-                String(s.name),
+              makeHeaderRow(["Subject Name", "Posts Featured", "Total Views", "Total Reach", "Total Engagement", "Avg ER %"]),
+              ...sortedSubjects.map(s => makeDataRow([
+                s.name,
                 String(s.count),
                 s.impressions.toLocaleString(),
                 s.reach.toLocaleString(),
                 s.engagement.toLocaleString(),
-                s.reach > 0 ? ((s.engagement / s.reach) * 100).toFixed(2) + "%" : "0.00%"
+                `${s.avgEr}%`
               ]))
             ]
           }),
@@ -1924,7 +1962,7 @@ async function generateDocxReport({ accountName, timeframeLabel, contents, accou
   }
 }
 
-// TIMEFRAME ANALYTICS PAGE (WITH TOP PERFORMING POST HIGHLIGHT BOX)
+// TIMEFRAME ANALYTICS PAGE (WITH TOP PERFORMING POST HIGHLIGHT BOX & CONTENT TYPE BREAKDOWN)
 function TimeframeAnalyticsPage() {
   const { activeAccount, contents } = React.useContext(VaultContext);
   const [timeframe, setTimeframe] = React.useState("monthly");
@@ -1966,6 +2004,39 @@ function TimeframeAnalyticsPage() {
   const totalReach = timeframeFilteredContents.reduce((sum, c) => sum + (c.reach || 0), 0);
   const totalEngagement = timeframeFilteredContents.reduce((sum, c) => sum + (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0), 0);
   const erRate = totalReach > 0 ? ((totalEngagement / totalReach) * 100).toFixed(2) : "0.00";
+
+  const contentTypeStats = React.useMemo(() => {
+    const defaultTypes = [
+      { type: "Reels / Short Video", icon: "🎬", color: "var(--accent-cyan)" },
+      { type: "Feed Post / Image", icon: "🖼️", color: "var(--accent-primary)" },
+      { type: "Carousel", icon: "📸", color: "var(--accent-emerald)" },
+      { type: "Story", icon: "⏱️", color: "var(--accent-amber)" },
+      { type: "Long Video", icon: "📹", color: "#EC4899" },
+      { type: "Text / Article", icon: "📝", color: "#6366F1" }
+    ];
+
+    const map = {};
+    defaultTypes.forEach(t => {
+      map[t.type] = { ...t, count: 0, impressions: 0, reach: 0, engagement: 0 };
+    });
+
+    timeframeFilteredContents.forEach(item => {
+      const type = item.contentType || "Feed Post / Image";
+      if (!map[type]) {
+        map[type] = { type, icon: "📌", color: "var(--accent-cyan)", count: 0, impressions: 0, reach: 0, engagement: 0 };
+      }
+      const eng = (Number(item.likes) || 0) + (Number(item.comments) || 0) + (Number(item.shares) || 0) + (Number(item.saves) || 0);
+      map[type].count += 1;
+      map[type].impressions += Number(item.impressions) || 0;
+      map[type].reach += Number(item.reach) || 0;
+      map[type].engagement += eng;
+    });
+
+    return Object.values(map).map(s => ({
+      ...s,
+      avgEr: s.reach > 0 ? ((s.engagement / s.reach) * 100).toFixed(2) : "0.00"
+    }));
+  }, [timeframeFilteredContents]);
 
   React.useEffect(() => {
     if (!lineChartRef.current || !window.Chart) return;
@@ -2215,6 +2286,55 @@ function TimeframeAnalyticsPage() {
             No post content found for this selected timeframe section.
           </div>
         )}
+      </div>
+
+      {/* CONTENT TYPE PERFORMANCE & BREAKDOWN CARDS */}
+      <div style={{ marginTop: "2rem" }}>
+        <div style={{ marginBottom: "1rem" }}>
+          <h2 style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "0.25rem" }}>
+            📊 Content Type Performance Breakdown ({timeframe === "all" ? "All-Time" : timeframe === "monthly" ? `Monthly: ${currentMonthName} ${selectedYear}` : `Weekly: ${currentMonthName} ${selectedYear}`})
+          </h2>
+          <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+            Aggregated post count, total views (impressions), reach, and engagement rate per content format
+          </p>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1.25rem" }}>
+          {contentTypeStats.map(stat => (
+            <div key={stat.type} className="glass-card" style={{ borderLeft: `4px solid ${stat.color}`, position: "relative" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.85rem" }}>
+                <div style={{ width: "38px", height: "38px", borderRadius: "10px", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem" }}>
+                  {stat.icon}
+                </div>
+                <div>
+                  <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0 }}>{stat.type}</h3>
+                  <span className="chip" style={{ fontSize: "0.75rem", padding: "0.15rem 0.5rem" }}>
+                    {stat.count} {stat.count === 1 ? "post" : "posts"}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.88rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-muted)" }}>Total Impressions:</span>
+                  <strong style={{ color: stat.color }}>{stat.impressions.toLocaleString()}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-muted)" }}>Total Reach:</span>
+                  <strong>{stat.reach.toLocaleString()}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-muted)" }}>Total Engagement:</span>
+                  <strong>{stat.engagement.toLocaleString()}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "0.4rem", borderTop: "1px solid var(--border-color)" }}>
+                  <span style={{ color: "var(--text-muted)" }}>Avg Engagement Rate:</span>
+                  <strong style={{ color: "var(--accent-primary)", fontSize: "0.98rem" }}>{stat.avgEr}%</strong>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* EXPORT MODAL */}
