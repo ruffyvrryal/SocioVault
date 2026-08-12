@@ -2757,8 +2757,9 @@ function SubjectAnalyticsPage() {
                 </div>
               )}
             </div>
-          );
-        })}
+          </div>
+        );
+      })}
 
         {sortedSubjects.length === 0 && (
           <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem 1.5rem", color: "var(--text-muted)" }}>
