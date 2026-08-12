@@ -141,9 +141,12 @@ function VaultProvider({ children }) {
       setContents(data);
     });
 
-    // Restore last active account from localStorage (just a UX preference)
-    const savedActive = localStorage.getItem('smh_active_account_' + user.uid);
-    if (savedActive) setActiveAccountIdState(savedActive);
+    // Restore last active account from Firestore user profile
+    userRef.get().then(doc => {
+      if (doc.exists && doc.data().activeAccountId) {
+        setActiveAccountIdState(doc.data().activeAccountId);
+      }
+    });
 
     return () => {
       unsubAccounts();
@@ -155,10 +158,12 @@ function VaultProvider({ children }) {
 
   const setActiveAccountId = (id) => {
     setActiveAccountIdState(id);
-    if (user && id) {
-      localStorage.setItem('smh_active_account_' + user.uid, id);
-    } else if (user) {
-      localStorage.removeItem('smh_active_account_' + user.uid);
+    if (user) {
+      // Save active account preference to Firestore user profile
+      window.firebaseDb.collection('users').doc(user.uid).set(
+        { activeAccountId: id || null },
+        { merge: true }
+      );
     }
   };
 
@@ -2002,8 +2007,8 @@ function CollaboratorsPage() {
 
 // 4. MAIN APP CONTROLLER
 function AppContent() {
-  const { user } = React.useContext(AuthContext);
-  const { activeAccountId, activePage } = React.useContext(VaultContext);
+  const { user, authLoading } = React.useContext(AuthContext);
+  const { activeAccountId, activePage, dataLoading } = React.useContext(VaultContext);
 
   React.useEffect(() => {
     if (window.lucide) {
@@ -2011,7 +2016,46 @@ function AppContent() {
     }
   });
 
+  // Show spinner while Firebase checks if user is logged in
+  if (authLoading) {
+    return (
+      <div style={{
+        minHeight: "100vh", display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center", gap: "1rem"
+      }}>
+        <div style={{
+          width: "48px", height: "48px", borderRadius: "50%",
+          border: "3px solid var(--border-color)",
+          borderTopColor: "var(--accent-primary)",
+          animation: "spin 0.8s linear infinite"
+        }} />
+        <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>Loading SociaVault...</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
   if (!user) return <LoginPage />;
+
+  // Show spinner while Firestore loads cloud data
+  if (dataLoading) {
+    return (
+      <div style={{
+        minHeight: "100vh", display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center", gap: "1rem"
+      }}>
+        <div style={{
+          width: "48px", height: "48px", borderRadius: "50%",
+          border: "3px solid var(--border-color)",
+          borderTopColor: "var(--accent-cyan)",
+          animation: "spin 0.8s linear infinite"
+        }} />
+        <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>Syncing your cloud data...</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
   if (!activeAccountId || activePage === "account-vault") {
     return <div><Navbar /><AccountVaultPage /></div>;
   }
