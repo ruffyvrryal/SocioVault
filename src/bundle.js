@@ -864,10 +864,41 @@ function AccountCenterPage() {
                   </button>
                 )}
               </div>
+              {p.url && p.url !== "#" && (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: "0.4rem",
+                  fontSize: "0.78rem", color: "var(--text-muted)",
+                  background: "rgba(255,255,255,0.04)", borderRadius: "8px",
+                  padding: "0.4rem 0.6rem", marginBottom: "0.75rem",
+                  overflow: "hidden"
+                }}>
+                  <i data-lucide="link" style={{ width: "12px", height: "12px", flexShrink: 0, color: "var(--accent-cyan)" }}></i>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.url}</span>
+                </div>
+              )}
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "0.85rem", borderTop: "1px solid var(--border-color)", fontSize: "0.85rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "0.85rem", borderTop: "1px solid var(--border-color)", fontSize: "0.85rem" }}>
               <div>Followers: <strong style={{ color: "#fff" }}>{p.followers > 1000 ? (p.followers / 1000).toFixed(1) + "k" : p.followers}</strong></div>
-              <a href={p.url} target="_blank" rel="noopener noreferrer">View Channel</a>
+              {p.url && p.url !== "#" ? (
+                <a
+                  href={p.url.startsWith("http") ? p.url : "https://" + p.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "flex", alignItems: "center", gap: "0.35rem",
+                    color: "var(--accent-cyan)", fontSize: "0.82rem", fontWeight: 600,
+                    textDecoration: "none"
+                  }}
+                >
+                  <i data-lucide="external-link" style={{ width: "13px", height: "13px" }}></i>
+                  View Channel
+                </a>
+              ) : (
+                <span style={{ color: "var(--text-subtle)", fontSize: "0.82rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                  <i data-lucide="link-2-off" style={{ width: "13px", height: "13px" }}></i>
+                  No link added
+                </span>
+              )}
             </div>
           </div>
         ))}
@@ -897,8 +928,22 @@ function AccountCenterPage() {
                 <input type="text" className="form-input" placeholder="@handle" required value={handle} onChange={e => setHandle(e.target.value)} />
               </div>
               <div className="form-group">
-                <label className="form-label">Followers</label>
+              <div className="form-group">
+                <label className="form-label">Followers Count</label>
                 <input type="number" className="form-input" placeholder="10000" value={followers} onChange={e => setFollowers(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Channel / Profile URL</label>
+                <input
+                  type="url"
+                  className="form-input"
+                  placeholder="https://instagram.com/yourhandle"
+                  value={url}
+                  onChange={e => setUrl(e.target.value)}
+                />
+                <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
+                  Paste the full link to your profile/channel so "View Channel" works.
+                </p>
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
                 <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary">Cancel</button>
