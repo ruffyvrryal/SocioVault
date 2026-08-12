@@ -643,7 +643,7 @@ function AccountVaultPage() {
         </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.5rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))", gap: "1.25rem" }}>
         {accessibleAccounts.map(acc => {
           const role = getUserRole(acc);
           const accContents = contents.filter(c => c.accountId === acc.id);
@@ -865,7 +865,7 @@ function AccountCenterPage() {
         Connected Platforms ({activeAccount.platforms.length})
       </h2>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1.25rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem" }}>
         {activeAccount.platforms.map(p => (
           <div key={p.id} className="glass-card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
             <div>
@@ -1025,7 +1025,7 @@ function AddContentPage() {
       </div>
       <div className="glass-card" style={{ maxWidth: "800px", margin: "0 auto" }}>
         <form onSubmit={handleSubmit}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
+          <div className="form-row-2col">
             <div className="form-group">
               <label className="form-label">Upload Date</label>
               <input type="date" className="form-input" required value={uploadDate} onChange={e => setUploadDate(e.target.value)} />
@@ -1063,7 +1063,7 @@ function AddContentPage() {
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "1rem", marginTop: "1rem" }}>
+          <div className="form-grid-metrics">
             <div className="form-group"><label className="form-label">Impressions</label><input type="number" className="form-input" value={impressions} onChange={e => setImpressions(e.target.value)} /></div>
             <div className="form-group"><label className="form-label">Reach</label><input type="number" className="form-input" value={reach} onChange={e => setReach(e.target.value)} /></div>
             <div className="form-group"><label className="form-label">Likes</label><input type="number" className="form-input" value={likes} onChange={e => setLikes(e.target.value)} /></div>
