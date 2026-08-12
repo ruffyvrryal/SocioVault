@@ -15,6 +15,7 @@ window.AddContentPage = function() {
   const [shares, setShares] = React.useState("");
   const [saves, setSaves] = React.useState("");
   const [status, setStatus] = React.useState("Uploaded");
+  const [contentType, setContentType] = React.useState("");
 
   if (!activeAccount) {
     return <div className="page-container"><p>No active account selected.</p></div>;
@@ -51,6 +52,7 @@ window.AddContentPage = function() {
     addContent({
       uploadDate,
       platform,
+      contentType,
       caption,
       hashtags: hashtagsArray.length > 0 ? hashtagsArray : ["#social"],
       subjects: subjectsList.length > 0 ? subjectsList : ["Self"],
@@ -117,6 +119,18 @@ window.AddContentPage = function() {
                 <option value="YouTube">YouTube</option>
                 <option value="Threads">Threads</option>
               </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Content Type</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. Reels, Carousel, Vlog..."
+                disabled={!canEdit}
+                value={contentType}
+                onChange={e => setContentType(e.target.value)}
+              />
             </div>
           </div>
 

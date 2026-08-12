@@ -1125,7 +1125,7 @@ function AddContentPage() {
     return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   });
   const [platform, setPlatform] = React.useState("Instagram");
-  const [contentType, setContentType] = React.useState("Reels / Short Video");
+  const [contentType, setContentType] = React.useState("");
   const [caption, setCaption] = React.useState("");
   const [hashtagsInput, setHashtagsInput] = React.useState("");
   const [subjectInput, setSubjectInput] = React.useState("");
@@ -1211,14 +1211,13 @@ function AddContentPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Content Type</label>
-              <select className="form-select" value={contentType} onChange={e => setContentType(e.target.value)}>
-                <option value="Reels / Short Video">🎬 Reels / Short Video</option>
-                <option value="Feed Post / Image">🖼️ Feed Post / Image</option>
-                <option value="Carousel">📸 Carousel</option>
-                <option value="Story">⏱️ Story</option>
-                <option value="Long Video">📹 Long Video</option>
-                <option value="Text / Article">📝 Text / Article</option>
-              </select>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. Reels, Carousel, Vlog..."
+                value={contentType}
+                onChange={e => setContentType(e.target.value)}
+              />
             </div>
           </div>
 
@@ -1370,7 +1369,7 @@ function ContentTablePage() {
       uploadDate: item.uploadDate || new Date().toISOString().split("T")[0],
       uploadTime: item.uploadTime || "12:00",
       platform: item.platform || "Instagram",
-      contentType: item.contentType || "Reels / Short Video",
+      contentType: item.contentType || "",
       caption: item.caption || "",
       hashtagsInput: (item.hashtags || []).join(" "),
       subjectInput: "",
@@ -1635,18 +1634,13 @@ function ContentTablePage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Content Type</label>
-                  <select 
-                    className="form-select" 
-                    value={editingContent.contentType} 
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Reels, Carousel, Vlog..."
+                    value={editingContent.contentType}
                     onChange={e => setEditingContent({ ...editingContent, contentType: e.target.value })}
-                  >
-                    <option value="Reels / Short Video">🎬 Reels / Short Video</option>
-                    <option value="Feed Post / Image">🖼️ Feed Post / Image</option>
-                    <option value="Carousel">📸 Carousel</option>
-                    <option value="Story">⏱️ Story</option>
-                    <option value="Long Video">📹 Long Video</option>
-                    <option value="Text / Article">📝 Text / Article</option>
-                  </select>
+                  />
                 </div>
               </div>
 
@@ -2006,24 +2000,29 @@ function TimeframeAnalyticsPage() {
   const erRate = totalReach > 0 ? ((totalEngagement / totalReach) * 100).toFixed(2) : "0.00";
 
   const contentTypeStats = React.useMemo(() => {
-    const defaultTypes = [
-      { type: "Reels / Short Video", icon: "🎬", color: "var(--accent-cyan)" },
-      { type: "Feed Post / Image", icon: "🖼️", color: "var(--accent-primary)" },
-      { type: "Carousel", icon: "📸", color: "var(--accent-emerald)" },
-      { type: "Story", icon: "⏱️", color: "var(--accent-amber)" },
-      { type: "Long Video", icon: "📹", color: "#EC4899" },
-      { type: "Text / Article", icon: "📝", color: "#6366F1" }
+    // Dynamic color/icon palette for custom content types
+    const colorPalette = [
+      { icon: "🎬", color: "var(--accent-cyan)" },
+      { icon: "🖼️", color: "var(--accent-primary)" },
+      { icon: "📸", color: "var(--accent-emerald)" },
+      { icon: "⏱️", color: "var(--accent-amber)" },
+      { icon: "📹", color: "#EC4899" },
+      { icon: "📝", color: "#6366F1" },
+      { icon: "📌", color: "#F97316" },
+      { icon: "🎙️", color: "#14B8A6" },
+      { icon: "🗂️", color: "#A855F7" },
+      { icon: "🌟", color: "#EAB308" }
     ];
 
     const map = {};
-    defaultTypes.forEach(t => {
-      map[t.type] = { ...t, count: 0, impressions: 0, reach: 0, engagement: 0 };
-    });
+    let colorIndex = 0;
 
     timeframeFilteredContents.forEach(item => {
-      const type = item.contentType || "Feed Post / Image";
+      const type = (item.contentType || "").trim() || "Uncategorized";
       if (!map[type]) {
-        map[type] = { type, icon: "📌", color: "var(--accent-cyan)", count: 0, impressions: 0, reach: 0, engagement: 0 };
+        const palette = colorPalette[colorIndex % colorPalette.length];
+        colorIndex++;
+        map[type] = { type, icon: palette.icon, color: palette.color, count: 0, impressions: 0, reach: 0, engagement: 0 };
       }
       const eng = (Number(item.likes) || 0) + (Number(item.comments) || 0) + (Number(item.shares) || 0) + (Number(item.saves) || 0);
       map[type].count += 1;
@@ -2032,10 +2031,12 @@ function TimeframeAnalyticsPage() {
       map[type].engagement += eng;
     });
 
-    return Object.values(map).map(s => ({
-      ...s,
-      avgEr: s.reach > 0 ? ((s.engagement / s.reach) * 100).toFixed(2) : "0.00"
-    }));
+    return Object.values(map)
+      .sort((a, b) => b.impressions - a.impressions)
+      .map(s => ({
+        ...s,
+        avgEr: s.reach > 0 ? ((s.engagement / s.reach) * 100).toFixed(2) : "0.00"
+      }));
   }, [timeframeFilteredContents]);
 
   React.useEffect(() => {
