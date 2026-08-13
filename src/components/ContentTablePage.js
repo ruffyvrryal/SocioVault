@@ -241,7 +241,7 @@ window.ContentTablePage = function() {
                   </td>
                   {canEdit && (
                     <td>
-                      <div style={{ display: "flex", gap: "0.35rem" }}>
+                      <div style={{ display: "flex", gap: "0.75rem" }}>
                         <button 
                           onClick={() => handleOpenEdit(item)} 
                           className="btn btn-secondary btn-icon"

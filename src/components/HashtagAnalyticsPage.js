@@ -174,24 +174,33 @@ window.HashtagAnalyticsPage = function() {
 
       {/* Hashtags Performance Data Table */}
       <div className="table-container">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", gap: "1rem", flexWrap: "wrap" }}>
-          <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0 }}>Hashtag Performance Table</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", gap: "1.5rem", flexWrap: "wrap" }}>
+          <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0, minWidth: "200px" }}>Hashtag Performance Table</h2>
           
           {/* Sort Dropdown */}
-          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-            <label style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-muted)" }}>Sort by:</label>
+          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", minWidth: "auto" }}>
+            <label style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-muted)", whiteSpace: "nowrap" }}>Sort by:</label>
             <select 
               className="form-select"
               value={hashtagSortBy}
               onChange={(e) => setHashtagSortBy(e.target.value)}
               style={{ 
-                padding: "0.5rem 0.75rem", 
-                fontSize: "0.85rem",
-                background: "var(--bg-tertiary)",
-                border: "1px solid var(--border-color)",
-                borderRadius: "8px",
+                padding: "0.65rem 1rem", 
+                fontSize: "0.9rem",
+                fontWeight: 500,
+                background: "linear-gradient(135deg, var(--bg-tertiary) 0%, rgba(59, 130, 246, 0.05) 100%)",
+                border: "1.5px solid var(--accent-cyan)",
+                borderRadius: "10px",
                 color: "var(--text-primary)",
-                cursor: "pointer"
+                cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(6, 182, 212, 0.1)",
+                transition: "all 0.2s ease",
+                appearance: "none",
+                backgroundImage: "url(\"data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgb(6, 182, 212)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e\")",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 0.75rem center",
+                backgroundSize: "1.2em 1.2em",
+                paddingRight: "2.5rem"
               }}
             >
               <option value="impressions">Total Impressions</option>
