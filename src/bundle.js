@@ -1087,6 +1087,37 @@ function AccountCenterPage() {
   const totalViews = accountContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
   const totalFollowers = activeAccount.platforms.reduce((sum, p) => sum + (Number(p.followers) || 0), 0);
 
+  // Calculate monthly impression trend for health status
+  const getHealthStatus = React.useMemo(() => {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    
+    // Get impressions from current month
+    const currentMonthImpressions = accountContents
+      .filter(c => c.uploadDate && c.uploadDate.startsWith(currentMonth))
+      .reduce((sum, c) => sum + (c.impressions || 0), 0);
+
+    // Get average impressions from last 3 months for trend analysis
+    const monthlyImpressions = [];
+    for (let i = 0; i < 3; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const monthImp = accountContents
+        .filter(c => c.uploadDate && c.uploadDate.startsWith(monthStr))
+        .reduce((sum, c) => sum + (c.impressions || 0), 0);
+      monthlyImpressions.push(monthImp);
+    }
+
+    // Determine status based on current month impressions
+    if (currentMonthImpressions === 0) {
+      return { status: "red", label: "No Activity", color: "#F43F5E" };
+    } else if (currentMonthImpressions > 100) {
+      return { status: "green", label: "Healthy", color: "#10B981" };
+    } else {
+      return { status: "yellow", label: "Low Activity", color: "#F59E0B" };
+    }
+  }, [accountContents]);
+
   const handleAddPlatform = (e) => {
     e.preventDefault();
     if (!handle.trim()) return;
@@ -1103,7 +1134,23 @@ function AccountCenterPage() {
     <div className="page-container">
       <div className="page-header">
         <div>
-          <h1 className="page-title">{activeAccount.name} - Account Center</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <h1 className="page-title">{activeAccount.name} - Account Center</h1>
+            <div
+              style={{
+                width: "16px",
+                height: "16px",
+                borderRadius: "50%",
+                backgroundColor: getHealthStatus.color,
+                boxShadow: `0 0 12px ${getHealthStatus.color}`,
+                border: `2px solid ${getHealthStatus.color}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+              title={`Health Status: ${getHealthStatus.label}`}
+            />
+          </div>
           <p className="page-subtitle">{activeAccount.description} • Managed platforms & channel credentials</p>
         </div>
         <div style={{ display: "flex", gap: "0.75rem" }}>
