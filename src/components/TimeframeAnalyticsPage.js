@@ -2,6 +2,11 @@
 window.TimeframeAnalyticsPage = function() {
   const { activeAccount, contents } = React.useContext(window.VaultContext);
   const [timeframe, setTimeframe] = React.useState("all"); // 'all', 'monthly', 'weekly'
+  const [selectedPlatform, setSelectedPlatform] = React.useState("All");
+  const [selectedMonth, setSelectedMonth] = React.useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
   const chartRef = React.useRef(null);
   const chartInstanceRef = React.useRef(null);
 
@@ -13,12 +18,21 @@ window.TimeframeAnalyticsPage = function() {
     return contents.filter(c => c.accountId === activeAccount.id);
   }, [contents, activeAccount.id]);
 
-  // Filter contents by timeframe
+  // Get all unique platforms
+  const allPlatforms = React.useMemo(() => {
+    const platforms = [...new Set(accountContents.map(c => c.platform))];
+    return platforms.filter(Boolean).sort();
+  }, [accountContents]);
+
+  // Filter contents by timeframe and platform
   const filteredContents = React.useMemo(() => {
     const now = new Date();
     return accountContents.filter(item => {
       if (!item.uploadDate) return true;
       const itemDate = new Date(item.uploadDate);
+
+      // Platform filter
+      if (selectedPlatform !== "All" && item.platform !== selectedPlatform) return false;
 
       if (timeframe === "weekly") {
         const diffDays = (now - itemDate) / (1000 * 3600 * 24);
@@ -26,12 +40,13 @@ window.TimeframeAnalyticsPage = function() {
       }
 
       if (timeframe === "monthly") {
-        return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
+        const [year, month] = selectedMonth.split('-');
+        return itemDate.getMonth() === parseInt(month) - 1 && itemDate.getFullYear() === parseInt(year);
       }
 
       return true; // all-time
     });
-  }, [accountContents, timeframe]);
+  }, [accountContents, timeframe, selectedPlatform, selectedMonth]);
 
   // Compute Aggregates
   const totalImpressions = filteredContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
@@ -59,16 +74,22 @@ window.TimeframeAnalyticsPage = function() {
     });
 
     chartInstanceRef.current = new window.Chart(ctx, {
-      type: 'bar',
+      type: 'line',
       data: {
         labels: platforms.length > 0 ? platforms : ['No Data'],
         datasets: [{
           label: 'Total Impressions (Views)',
           data: platformImpressions.length > 0 ? platformImpressions : [0],
-          backgroundColor: 'rgba(139, 92, 246, 0.65)',
-          borderColor: '#8B5CF6',
-          borderWidth: 1,
-          borderRadius: 8
+          borderColor: '#06B6D4',
+          backgroundColor: 'rgba(6, 182, 212, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: '#06B6D4',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7
         }]
       },
       options: {
@@ -121,6 +142,37 @@ window.TimeframeAnalyticsPage = function() {
             Past 7 Days
           </button>
         </div>
+
+        {/* Platform Filter */}
+        <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginTop: "1rem", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <label style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-muted)" }}>Platform:</label>
+            <select 
+              className="form-select"
+              value={selectedPlatform}
+              onChange={e => setSelectedPlatform(e.target.value)}
+              style={{ width: "auto" }}
+            >
+              <option value="All">All Platforms</option>
+              {allPlatforms.map(platform => (
+                <option key={platform} value={platform}>{platform}</option>
+              ))}
+            </select>
+          </div>
+
+          {timeframe === "monthly" && (
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <label style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-muted)" }}>Month & Year:</label>
+              <input 
+                type="month"
+                value={selectedMonth}
+                onChange={e => setSelectedMonth(e.target.value)}
+                className="form-input"
+                style={{ width: "auto" }}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* KPI Cards Grid */}
@@ -162,7 +214,7 @@ window.TimeframeAnalyticsPage = function() {
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem", marginTop: "1.5rem" }}>
         <div className="glass-card" style={{ height: "350px", display: "flex", flexDirection: "column" }}>
           <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1rem" }}>
-            Impressions Performance by Platform ({timeframe.toUpperCase()})
+            Impressions by Platform {selectedPlatform !== "All" ? `(${selectedPlatform})` : ""} {timeframe === "monthly" ? `- ${selectedMonth}` : ""}
           </h3>
           <div style={{ flex: 1, position: "relative" }}>
             <canvas ref={chartRef}></canvas>
