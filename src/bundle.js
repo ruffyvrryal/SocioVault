@@ -2443,6 +2443,8 @@ window.HashtagAnalyticsPage = function() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
 };
 
 
