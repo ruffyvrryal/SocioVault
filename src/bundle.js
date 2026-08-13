@@ -2742,6 +2742,148 @@ window.TimeframeAnalyticsPage = function() {
             </div>
           );
         })()}
+
+        {/* Top Performing Post by Platform Section */}
+        <div style={{ marginTop: "2.5rem" }}>
+          <h2 style={{ fontSize: "1.25rem", fontWeight: 800, marginBottom: "1.25rem", color: "var(--text-main)" }}>
+            🏆 Top Performing Post by Platform
+          </h2>
+
+          {(() => {
+            // Get top post per platform for the selected timeframe
+            const topPostsByPlatform = React.useMemo(() => {
+              const platformMap = {};
+              
+              filteredContents.forEach(item => {
+                const platform = item.platform || "Unknown";
+                if (!platformMap[platform]) {
+                  platformMap[platform] = item;
+                } else {
+                  // Compare by impressions
+                  if ((item.impressions || 0) > (platformMap[platform].impressions || 0)) {
+                    platformMap[platform] = item;
+                  }
+                }
+              });
+
+              // Convert to array and sort by impressions
+              return Object.values(platformMap).sort((a, b) => (b.impressions || 0) - (a.impressions || 0));
+            }, [filteredContents]);
+
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.25rem" }}>
+                {topPostsByPlatform.length > 0 ? (
+                  topPostsByPlatform.map((post, idx) => {
+                    const engagement = (post.likes || 0) + (post.comments || 0) + (post.shares || 0) + (post.saves || 0);
+                    const er = post.reach > 0 ? ((engagement / post.reach) * 100).toFixed(2) : "0.00";
+                    const caption = String(post.caption || "").substring(0, 100);
+                    const captionTrunc = caption.length > 100 ? caption.substring(0, 97) + "..." : caption;
+
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          background: "linear-gradient(135deg, rgba(6, 182, 212, 0.05), rgba(59, 130, 246, 0.05))",
+                          border: "1px solid rgba(6, 182, 212, 0.2)",
+                          borderRadius: "12px",
+                          padding: "1.25rem",
+                          backdropFilter: "blur(10px)",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "1rem"
+                        }}
+                      >
+                        {/* Platform Badge */}
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                            <div style={{
+                              width: "40px", height: "40px", borderRadius: "8px",
+                              background: idx === 0 ? "linear-gradient(135deg, var(--accent-cyan), var(--accent-primary))" : "rgba(59, 130, 246, 0.2)",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: "1.25rem", fontWeight: 700,
+                              color: idx === 0 ? "#fff" : "var(--accent-primary)"
+                            }}>
+                              {idx + 1}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--text-main)" }}>{post.platform}</div>
+                              <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Posted {post.uploadDate || "N/A"}</div>
+                            </div>
+                          </div>
+                          {idx === 0 && (
+                            <div style={{
+                              padding: "0.4rem 0.8rem", background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-primary))",
+                              borderRadius: "6px", fontSize: "0.7rem", fontWeight: 700, color: "#fff"
+                            }}>
+                              TOP
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Caption */}
+                        <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                          "{captionTrunc}"
+                        </div>
+
+                        {/* Stats Grid */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                          <div>
+                            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.3rem", fontWeight: 600 }}>Impressions</div>
+                            <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--accent-cyan)" }}>
+                              {(post.impressions || 0).toLocaleString()}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.3rem", fontWeight: 600 }}>Reach</div>
+                            <div style={{ fontSize: "1.1rem", fontWeight: 800 }}>
+                              {(post.reach || 0).toLocaleString()}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.3rem", fontWeight: 600 }}>Engagement</div>
+                            <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--accent-emerald)" }}>
+                              {engagement.toLocaleString()}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.3rem", fontWeight: 600 }}>ER Rate</div>
+                            <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--accent-primary)" }}>
+                              {er}%
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Detailed Breakdown */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "0.5rem", fontSize: "0.75rem", paddingTop: "0.5rem" }}>
+                          <div style={{ textAlign: "center", padding: "0.5rem", background: "rgba(255, 255, 255, 0.05)", borderRadius: "6px" }}>
+                            <div style={{ color: "var(--text-muted)" }}>Likes</div>
+                            <div style={{ fontWeight: 700, marginTop: "0.2rem" }}>{(post.likes || 0).toLocaleString()}</div>
+                          </div>
+                          <div style={{ textAlign: "center", padding: "0.5rem", background: "rgba(255, 255, 255, 0.05)", borderRadius: "6px" }}>
+                            <div style={{ color: "var(--text-muted)" }}>Comments</div>
+                            <div style={{ fontWeight: 700, marginTop: "0.2rem" }}>{(post.comments || 0).toLocaleString()}</div>
+                          </div>
+                          <div style={{ textAlign: "center", padding: "0.5rem", background: "rgba(255, 255, 255, 0.05)", borderRadius: "6px" }}>
+                            <div style={{ color: "var(--text-muted)" }}>Shares</div>
+                            <div style={{ fontWeight: 700, marginTop: "0.2rem" }}>{(post.shares || 0).toLocaleString()}</div>
+                          </div>
+                          <div style={{ textAlign: "center", padding: "0.5rem", background: "rgba(255, 255, 255, 0.05)", borderRadius: "6px" }}>
+                            <div style={{ color: "var(--text-muted)" }}>Saves</div>
+                            <div style={{ fontWeight: 700, marginTop: "0.2rem" }}>{(post.saves || 0).toLocaleString()}</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
+                    No posts available for the selected timeframe and filters
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
       </div>
     </div>
   );
