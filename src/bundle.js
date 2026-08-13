@@ -2477,7 +2477,6 @@ window.TimeframeAnalyticsPage = function() {
 };
 
 
-};
 
 
 window.HashtagAnalyticsPage = function() {
