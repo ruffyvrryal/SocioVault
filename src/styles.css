@@ -614,3 +614,26 @@ a {
     font-size: 0.8rem;
   }
 }
+
+
+/* Select Dropdown Option Styling - Fix for white popup */
+select option {
+  background-color: #111827;
+  color: #F9FAFB;
+  padding: 8px 12px;
+}
+
+select option:hover {
+  background: linear-gradient(#3B82F6, #3B82F6);
+  color: #F9FAFB;
+}
+
+select option:checked {
+  background: linear-gradient(#06B6D4, #06B6D4);
+  color: #F9FAFB;
+}
+
+/* Firefox specific */
+select {
+  color-scheme: dark;
+}

@@ -21,6 +21,7 @@ window.Navbar = function() {
     { id: "timeframe-analytics", label: "Timeframe Analytics", icon: "line-chart" },
     { id: "hashtag-analytics", label: "Hashtag Studio", icon: "hash" },
     { id: "subject-analytics", label: "Subject Analytics", icon: "users" },
+    { id: "report-summary", label: "Report Summary", icon: "file-text" },
     { id: "collaborators", label: "Collaborators", icon: "share-2" }
   ];
 
