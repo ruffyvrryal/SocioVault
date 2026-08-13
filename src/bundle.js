@@ -2787,8 +2787,8 @@ function SubjectAnalyticsPage() {
                 </div>
               </div>
             </div>
-          );
-        })}
+          )
+        ))}
       </div>
 
       {totalPages > 1 && (
