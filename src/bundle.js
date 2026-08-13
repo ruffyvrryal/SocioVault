@@ -2256,11 +2256,146 @@ window.TimeframeAnalyticsPage = function() {
     <div className="page-container">
       <div className="page-header">
         <div>
-          <h1 className="page-title">{activeAccount.name} - Analytics & Growth Diagrams</h1>
-          <p className="page-subtitle">Interactive line diagrams tracking monthly and weekly performance growth</p>
+          <h1 className="page-title">{activeAccount.name} - Timeframe Analytics</h1>
+          <p className="page-subtitle">Aggregated impressions, reach, total engagement, and engagement rate %</p>
         </div>
 
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
+        {/* Timeframe Selector Tabs */}
+        <div style={{ display: "flex", gap: "0.4rem", background: "rgba(15, 23, 42, 0.8)", padding: "0.3rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+          <button 
+            onClick={() => setTimeframe("all")} 
+            className={`btn ${timeframe === "all" ? "btn-primary" : "btn-secondary"}`}
+            style={{ padding: "0.45rem 1rem", fontSize: "0.85rem" }}
+          >
+            All-Time
+          </button>
+          <button 
+            onClick={() => setTimeframe("monthly")} 
+            className={`btn ${timeframe === "monthly" ? "btn-primary" : "btn-secondary"}`}
+            style={{ padding: "0.45rem 1rem", fontSize: "0.85rem" }}
+          >
+            This Month
+          </button>
+          <button 
+            onClick={() => setTimeframe("weekly")} 
+            className={`btn ${timeframe === "weekly" ? "btn-primary" : "btn-secondary"}`}
+            style={{ padding: "0.45rem 1rem", fontSize: "0.85rem" }}
+          >
+            Past 7 Days
+          </button>
+        </div>
+
+        {/* Platform Filter */}
+        <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginTop: "1rem", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <label style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-muted)" }}>Platform:</label>
+            <select 
+              className="form-select"
+              value={selectedPlatform}
+              onChange={e => setSelectedPlatform(e.target.value)}
+              style={{ width: "auto" }}
+            >
+              <option value="All">All Platforms</option>
+              {allPlatforms.map(platform => (
+                <option key={platform} value={platform}>{platform}</option>
+              ))}
+            </select>
+          </div>
+
+          {timeframe === "monthly" && (
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <label style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-muted)" }}>Month & Year:</label>
+              <input 
+                type="month"
+                value={selectedMonth}
+                onChange={e => setSelectedMonth(e.target.value)}
+                className="form-input"
+                style={{ width: "auto" }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* KPI Cards Grid */}
+      <div className="stats-grid">
+        <div className="glass-card stat-card">
+          <span className="stat-label">Total Impressions (Views)</span>
+          <span className="stat-value" style={{ color: "var(--accent-cyan)" }}>
+            {totalImpressions.toLocaleString()}
+          </span>
+          <span className="stat-change positive">From {filteredContents.length} contents</span>
+        </div>
+
+        <div className="glass-card stat-card">
+          <span className="stat-label">Total Reach (Unique Viewers)</span>
+          <span className="stat-value">
+            {totalReach.toLocaleString()}
+          </span>
+          <span className="stat-change positive">Unique audience</span>
+        </div>
+
+        <div className="glass-card stat-card">
+          <span className="stat-label">Total Engagement</span>
+          <span className="stat-value" style={{ color: "var(--accent-emerald)" }}>
+            {totalEngagement.toLocaleString()}
+          </span>
+          <span className="stat-change positive">Likes + Comments + Shares + Saves</span>
+        </div>
+
+        <div className="glass-card stat-card">
+          <span className="stat-label">Engagement Rate (ER %)</span>
+          <span className="stat-value" style={{ color: "var(--accent-primary)" }}>
+            {erRate}%
+          </span>
+          <span className="stat-change positive">(Total Engagement / Reach) × 100</span>
+        </div>
+      </div>
+
+      {/* Analytics Breakdown & Chart */}
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem", marginTop: "1.5rem" }}>
+        <div className="glass-card" style={{ height: "350px", display: "flex", flexDirection: "column" }}>
+          <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1rem" }}>
+            {timeframe === "monthly" ? `Daily Impressions - ${new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}` : `Impressions by Platform ${selectedPlatform !== "All" ? `(${selectedPlatform})` : ""}`}
+          </h3>
+          <div style={{ flex: 1, position: "relative" }}>
+            <canvas ref={chartRef}></canvas>
+          </div>
+        </div>
+
+        {/* Engagement Details Breakdown */}
+        <div className="glass-card">
+          <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1.25rem" }}>Engagement Metrics</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            
+            <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>❤️ Likes</span>
+              <strong style={{ fontSize: "0.95rem" }}>{totalLikes.toLocaleString()}</strong>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>💬 Comments</span>
+              <strong style={{ fontSize: "0.95rem" }}>{totalComments.toLocaleString()}</strong>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>🔁 Shares</span>
+              <strong style={{ fontSize: "0.95rem" }}>{totalShares.toLocaleString()}</strong>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>📌 Saves</span>
+              <strong style={{ fontSize: "0.95rem" }}>{totalSaves.toLocaleString()}</strong>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+function HashtagAnalyticsPage()
           <div style={{ display: "flex", gap: "0.4rem", background: "rgba(15, 23, 42, 0.8)", padding: "0.3rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
             <button onClick={() => setTimeframe("all")} className={`btn ${timeframe === "all" ? "btn-primary" : "btn-secondary"}`} style={{ padding: "0.45rem 1rem", fontSize: "0.85rem" }}>All-Time</button>
             <button onClick={() => setTimeframe("monthly")} className={`btn ${timeframe === "monthly" ? "btn-primary" : "btn-secondary"}`} style={{ padding: "0.45rem 1rem", fontSize: "0.85rem" }}>This Month</button>
