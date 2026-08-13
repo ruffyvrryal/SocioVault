@@ -2348,359 +2348,104 @@ window.TimeframeAnalyticsPage = function() {
   );
 };
 
-function HashtagAnalyticsPage()
-          <div style={{ display: "flex", gap: "0.4rem", background: "rgba(15, 23, 42, 0.8)", padding: "0.3rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
-            <button onClick={() => setTimeframe("all")} className={`btn ${timeframe === "all" ? "btn-primary" : "btn-secondary"}`} style={{ padding: "0.45rem 1rem", fontSize: "0.85rem" }}>All-Time</button>
-            <button onClick={() => setTimeframe("monthly")} className={`btn ${timeframe === "monthly" ? "btn-primary" : "btn-secondary"}`} style={{ padding: "0.45rem 1rem", fontSize: "0.85rem" }}>This Month</button>
-            <button onClick={() => setTimeframe("weekly")} className={`btn ${timeframe === "weekly" ? "btn-primary" : "btn-secondary"}`} style={{ padding: "0.45rem 1rem", fontSize: "0.85rem" }}>Past 7 Days</button>
-          </div>
-          <button
-            onClick={() => setShowExportModal(true)}
-            className="btn"
-            style={{
-              background: "linear-gradient(135deg, #059669, #10B981)",
-              color: "#fff", fontWeight: 700, fontSize: "0.88rem",
-              display: "flex", alignItems: "center", gap: "0.5rem",
-              padding: "0.5rem 1.1rem", boxShadow: "0 4px 14px rgba(16,185,129,0.3)"
-            }}
-          >
-            <i data-lucide="file-down" style={{ width: "17px", height: "17px" }}></i>
-            Export DOCX Report
-          </button>
-        </div>
+window.HashtagAnalyticsPage = function() {
+  const { activeAccount, contents } = React.useContext(window.VaultContext);
+  const [searchHashtag, setSearchHashtag] = React.useState("");
+
+  if (!activeAccount) {
+    return <div className="page-container"><p>No active account selected.</p></div>;
+  }
+
+  const accountContents = React.useMemo(() => {
+    return contents.filter(c => c.accountId === activeAccount.id);
+  }, [contents, activeAccount.id]);
+
+  // Aggregate stats per Hashtag
+  const hashtagStats = React.useMemo(() => {
+    const map = {};
+
+    accountContents.forEach(item => {
+      if (!item.hashtags || !Array.isArray(item.hashtags)) return;
+
+      const engagement = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
+
+      item.hashtags.forEach(tag => {
+        const cleanTag = tag.trim().toLowerCase();
+        if (!cleanTag) return;
+
+        if (!map[cleanTag]) {
+          map[cleanTag] = {
+            tag: cleanTag.startsWith("#") ? cleanTag : "#" + cleanTag,
+            contentCount: 0,
+            impressions: 0,
+            reach: 0,
+            engagement: 0,
+            erSum: 0
+          };
+        }
+
+        map[cleanTag].contentCount += 1;
+        map[cleanTag].impressions += item.impressions || 0;
+        map[cleanTag].reach += item.reach || 0;
+        map[cleanTag].engagement += engagement;
+      });
+    });
+
+    return Object.values(map).map(h => ({
+      ...h,
+      avgEr: h.reach > 0 ? ((h.engagement / h.reach) * 100).toFixed(2) : "0.00"
+    })).sort((a, b) => b.impressions - a.impressions);
+  }, [accountContents]);
+
+  const filteredHashtags = React.useMemo(() => {
+    return hashtagStats.filter(h => h.tag.toLowerCase().includes(searchHashtag.toLowerCase()));
+  }, [hashtagStats, searchHashtag]);
+
+  return (
+    <div className="page-container">
+      <div className="page-header">
+        <h1 className="page-title">{activeAccount.name} - Hashtag Studio</h1>
+        <p className="page-subtitle">Track performance of every hashtag across your content</p>
       </div>
 
-      <div className="stats-grid">
-        <div className="glass-card stat-card"><span className="stat-label">Total Impressions</span><span className="stat-value" style={{ color: "var(--accent-cyan)" }}>{totalImpressions.toLocaleString()}</span></div>
-        <div className="glass-card stat-card"><span className="stat-label">Total Reach</span><span className="stat-value">{totalReach.toLocaleString()}</span></div>
-        <div className="glass-card stat-card"><span className="stat-label">Total Engagement</span><span className="stat-value" style={{ color: "var(--accent-emerald)" }}>{totalEngagement.toLocaleString()}</span></div>
-        <div className="glass-card stat-card"><span className="stat-label">Engagement Rate (ER %)</span><span className="stat-value" style={{ color: "var(--accent-primary)" }}>{erRate}%</span></div>
-      </div>
-
-      {timeframe === "weekly" && (
-        <div className="glass-card" style={{ marginBottom: "1.5rem", padding: "1rem", display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
-          <span style={{ fontWeight: "600", fontSize: "0.95rem" }}>📅 Select Month & Year for Weekly Breakdown:</span>
-          <select className="form-select" style={{ width: "auto" }} value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))}>
-            {monthOptions.map(m => (
-              <option key={m.value} value={m.value}>{m.label}</option>
+      {/* Hashtags Performance Data Table */}
+      <div className="table-container">
+        <table className="custom-table">
+          <thead>
+            <tr>
+              <th>Hashtag</th>
+              <th>Content Count</th>
+              <th>Total Impressions (Viewers)</th>
+              <th>Total Reach</th>
+              <th>Total Engagement</th>
+              <th>Avg Engagement Rate %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredHashtags.map(h => (
+              <tr key={h.tag}>
+                <td><span className="chip" style={{ background: "rgba(139, 92, 246, 0.15)", color: "var(--accent-primary)", border: "1px solid rgba(139, 92, 246, 0.3)", fontSize: "0.85rem", padding: "0.3rem 0.75rem" }}>{h.tag}</span></td>
+                <td style={{ fontWeight: 600 }}>{h.contentCount} contents</td>
+                <td style={{ fontWeight: 700, color: "var(--accent-cyan)" }}>{h.impressions.toLocaleString()}</td>
+                <td>{h.reach.toLocaleString()}</td>
+                <td style={{ color: "var(--accent-emerald)", fontWeight: 600 }}>{h.engagement.toLocaleString()}</td>
+                <td style={{ fontWeight: 700, color: "var(--accent-primary)" }}>{h.avgEr}%</td>
+              </tr>
             ))}
-          </select>
-          <select className="form-select" style={{ width: "auto" }} value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}>
-            <option value={2026}>2026</option>
-            <option value={2025}>2025</option>
-          </select>
-          <select className="form-select" style={{ width: "auto" }} value={selectedPlatform} onChange={e => setSelectedPlatform(e.target.value)}>
-            <option value="All">All Platforms</option>
-            {allPlatforms.map(p => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        </div>
-      )}
 
-      {timeframe === "monthly" && (
-        <div className="glass-card" style={{ marginBottom: "1.5rem", padding: "1rem", display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
-          <span style={{ fontWeight: "600", fontSize: "0.95rem" }}>📅 Select Year for Monthly Growth:</span>
-          <select className="form-select" style={{ width: "auto" }} value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}>
-            <option value={2026}>2026</option>
-            <option value={2025}>2025</option>
-          </select>
-          <select className="form-select" style={{ width: "auto" }} value={selectedPlatform} onChange={e => setSelectedPlatform(e.target.value)}>
-            <option value="All">All Platforms</option>
-            {allPlatforms.map(p => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {timeframe === "all" && (
-        <div className="glass-card" style={{ marginBottom: "1.5rem", padding: "1rem", display: "flex", alignItems: "center", gap: "1rem" }}>
-          <span style={{ fontWeight: "600", fontSize: "0.95rem" }}>🎯 Filter by Platform:</span>
-          <select className="form-select" style={{ width: "auto" }} value={selectedPlatform} onChange={e => setSelectedPlatform(e.target.value)}>
-            <option value="All">All Platforms</option>
-            {allPlatforms.map(p => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      <div className="glass-card" style={{ height: "400px", display: "flex", flexDirection: "column", marginBottom: "2rem" }}>
-        <h3 style={{ fontSize: "1.15rem", fontWeight: 700, marginBottom: "1rem" }}>
-          📈 {timeframe === "weekly" ? `Weekly Growth Line Diagram (${currentMonthName} ${selectedYear})` : timeframe === "monthly" ? `Monthly Growth Line Diagram (${selectedYear})` : `All-Time Growth Line Diagram (${selectedYear})`}
-        </h3>
-        <div style={{ flex: 1, position: "relative" }}>
-          <canvas ref={lineChartRef}></canvas>
-        </div>
-      </div>
-
-      {/* TOP PERFORMING POST HIGHLIGHT BOX (AT BOTTOM OF PAGE) */}
-      <div className="glass-card" style={{ border: "2px solid var(--accent-amber)", background: "rgba(245, 158, 11, 0.04)" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <div style={{
-              width: "40px", height: "40px", borderRadius: "10px",
-              background: "rgba(245, 158, 11, 0.2)", color: "var(--accent-amber)",
-              display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.3rem"
-            }}>
-              🏆
-            </div>
-            <div>
-              <h3 style={{ fontSize: "1.2rem", fontWeight: 800 }}>
-                #1 Top Performing Post ({timeframe === "all" ? "All-Time" : timeframe === "monthly" ? `Monthly: ${currentMonthName} ${selectedYear}` : `Weekly: ${currentMonthName} ${selectedYear}`})
-              </h3>
-              <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                Highest impression post recorded for this selected section
-              </p>
-            </div>
-          </div>
-
-          {topPost && (
-            <span className="badge badge-uploaded" style={{ padding: "0.4rem 0.8rem", fontSize: "0.85rem" }}>
-              🌟 {topPost.impressions.toLocaleString()} Views
-            </span>
-          )}
-        </div>
-
-        {topPost ? (
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.75rem", flexWrap: "wrap" }}>
-              <span className="chip" style={{ background: "rgba(255,255,255,0.1)", color: "#fff", fontWeight: 700 }}>{topPost.platform}</span>
-              <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>Uploaded: <strong>{topPost.uploadDate}</strong></span>
-              
-              <div style={{ display: "flex", gap: "0.3rem" }}>
-                {topPost.subjects.map(s => (
-                  <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}>👤 {s}</span>
-                ))}
-              </div>
-            </div>
-
-            <p style={{ fontSize: "1.05rem", fontWeight: 600, color: "var(--text-main)", marginBottom: "1rem", lineHeight: "1.4" }}>
-              "{topPost.caption}"
-            </p>
-
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginBottom: "1.25rem" }}>
-              {topPost.hashtags.map(h => (
-                <span key={h} className="chip" style={{ fontSize: "0.75rem" }}>{h}</span>
-              ))}
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--border-color)" }}>
-              <div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Impressions (Views)</div>
-                <div style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--accent-cyan)" }}>{topPost.impressions.toLocaleString()}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Reach</div>
-                <div style={{ fontSize: "1.2rem", fontWeight: 700 }}>{topPost.reach.toLocaleString()}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Likes</div>
-                <div style={{ fontSize: "1.2rem", fontWeight: 700 }}>{topPost.likes.toLocaleString()}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Comments</div>
-                <div style={{ fontSize: "1.2rem", fontWeight: 700 }}>{topPost.comments.toLocaleString()}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Shares</div>
-                <div style={{ fontSize: "1.2rem", fontWeight: 700 }}>{topPost.shares.toLocaleString()}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Saves</div>
-                <div style={{ fontSize: "1.2rem", fontWeight: 700 }}>{topPost.saves.toLocaleString()}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>ER %</div>
-                <div style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--accent-emerald)" }}>
-                  {topPost.reach > 0 ? (((topPost.likes + topPost.comments + topPost.shares + topPost.saves) / topPost.reach) * 100).toFixed(2) : "0.00"}%
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)" }}>
-            No post content found for this selected timeframe section.
-          </div>
-        )}
-      </div>
-
-      {/* CONTENT TYPE PERFORMANCE & BREAKDOWN CARDS */}
-      <div style={{ marginTop: "2rem" }}>
-        <div style={{ marginBottom: "1rem" }}>
-          <h2 style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "0.25rem" }}>
-            📊 Content Type Performance Breakdown ({timeframe === "all" ? "All-Time" : timeframe === "monthly" ? `Monthly: ${currentMonthName} ${selectedYear}` : `Weekly: ${currentMonthName} ${selectedYear}`})
-          </h2>
-          <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
-            Aggregated post count, total views (impressions), reach, and engagement rate per content format
-          </p>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1.25rem" }}>
-          {contentTypeStats.map(stat => (
-            <div key={stat.type} className="glass-card" style={{ borderLeft: `4px solid ${stat.color}`, position: "relative" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.85rem" }}>
-                <div style={{ width: "38px", height: "38px", borderRadius: "10px", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem" }}>
-                  {stat.icon}
-                </div>
-                <div>
-                  <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0 }}>{stat.type}</h3>
-                  <span className="chip" style={{ fontSize: "0.75rem", padding: "0.15rem 0.5rem" }}>
-                    {stat.count} {stat.count === 1 ? "post" : "posts"}
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.88rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-muted)" }}>Total Impressions:</span>
-                  <strong style={{ color: stat.color }}>{stat.impressions.toLocaleString()}</strong>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-muted)" }}>Total Reach:</span>
-                  <strong>{stat.reach.toLocaleString()}</strong>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-muted)" }}>Total Engagement:</span>
-                  <strong>{stat.engagement.toLocaleString()}</strong>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "0.4rem", borderTop: "1px solid var(--border-color)" }}>
-                  <span style={{ color: "var(--text-muted)" }}>Avg Engagement Rate:</span>
-                  <strong style={{ color: "var(--accent-primary)", fontSize: "0.98rem" }}>{stat.avgEr}%</strong>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* EXPORT MODAL */}
-      {showExportModal && (
-        <div className="modal-overlay" onClick={() => setShowExportModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: "480px" }}>
-            <div className="modal-header">
-              <h2 className="modal-title">📄 Export Analytics Report</h2>
-              <button onClick={() => setShowExportModal(false)} className="btn btn-secondary btn-icon">
-                <i data-lucide="x" style={{ width: "18px", height: "18px" }}></i>
-              </button>
-            </div>
-
-            <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
-              Choose a timeframe scope and download a full <strong style={{ color: "#fff" }}>.docx</strong> report containing summary metrics, content log, hashtag performance, and subject analytics.
-            </p>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1.5rem" }}>
-              {[
-                {
-                  label: "All-Time Report",
-                  desc: "Complete analytics across all recorded content",
-                  icon: "infinity",
-                  color: "var(--accent-cyan)",
-                  scope: "all",
-                  get timeframeLabel() { return "All-Time"; },
-                  get filterFn() { return () => true; }
-                },
-                {
-                  label: `Monthly Report — ${monthOptions.find(m => m.value === Number(selectedMonth))?.label || ""} ${selectedYear}`,
-                  desc: "Analytics for the currently selected month & year",
-                  icon: "calendar",
-                  color: "var(--accent-primary)",
-                  scope: "monthly",
-                  get timeframeLabel() { return `Monthly_${monthOptions.find(m => m.value === Number(selectedMonth))?.label}_${selectedYear}`; },
-                  get filterFn() {
-                    return (item) => {
-                      const d = new Date(item.uploadDate);
-                      return (d.getMonth() + 1) === Number(selectedMonth) && d.getFullYear() === Number(selectedYear);
-                    };
-                  }
-                },
-                {
-                  label: `Weekly Report — ${monthOptions.find(m => m.value === Number(selectedMonth))?.label || ""} ${selectedYear}`,
-                  desc: "Analytics for the selected month broken into weeks",
-                  icon: "calendar-days",
-                  color: "var(--accent-emerald)",
-                  scope: "weekly",
-                  get timeframeLabel() { return `Weekly_${monthOptions.find(m => m.value === Number(selectedMonth))?.label}_${selectedYear}`; },
-                  get filterFn() {
-                    return (item) => {
-                      const d = new Date(item.uploadDate);
-                      return (d.getMonth() + 1) === Number(selectedMonth) && d.getFullYear() === Number(selectedYear);
-                    };
-                  }
-                }
-              ].map(option => (
-                <button
-                  key={option.scope}
-                  disabled={isExporting}
-                  onClick={async () => {
-                    try {
-                      setIsExporting(true);
-                      const filtered = accountContents.filter(option.filterFn);
-                      await generateDocxReport({
-                        accountName: activeAccount.name,
-                        timeframeLabel: option.timeframeLabel,
-                        contents: contents,
-                        accountContents: filtered
-                      });
-                    } catch (err) {
-                      console.error("DOCX export error:", err);
-                      alert("DOCX export error: " + (err.message || err));
-                    } finally {
-                      setIsExporting(false);
-                      setShowExportModal(false);
-                    }
-                  }}
-                  style={{
-                    display: "flex", alignItems: "center", gap: "1rem",
-                    background: "rgba(255,255,255,0.04)",
-                    border: `1.5px solid ${option.color}33`,
-                    borderRadius: "var(--radius-sm)",
-                    padding: "1rem 1.25rem",
-                    cursor: isExporting ? "not-allowed" : "pointer",
-                    opacity: isExporting ? 0.6 : 1,
-                    transition: "all 0.2s",
-                    textAlign: "left",
-                    width: "100%"
-                  }}
-                  onMouseEnter={e => { if (!isExporting) e.currentTarget.style.borderColor = option.color; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = `${option.color}33`; }}
-                >
-                  <div style={{
-                    width: "40px", height: "40px", borderRadius: "10px",
-                    background: `${option.color}20`, color: option.color,
-                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
-                  }}>
-                    <i data-lucide={option.icon} style={{ width: "20px", height: "20px" }}></i>
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#fff", marginBottom: "0.2rem" }}>{option.label}</div>
-                    <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{option.desc}</div>
-                  </div>
-                  <div style={{ marginLeft: "auto", color: option.color, fontSize: "0.8rem", fontWeight: 600 }}>⬇ .docx</div>
-                </button>
-              ))}
-            </div>
-
-            {isExporting && (
-              <div style={{ textAlign: "center", padding: "0.75rem", color: "var(--accent-emerald)", fontWeight: 600 }}>
-                ⏳ Generating your DOCX report, please wait...
-              </div>
+            {filteredHashtags.length === 0 && (
+              <tr>
+                <td colSpan="6" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
+                  No hashtag records found
+                </td>
+              </tr>
             )}
-
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button onClick={() => setShowExportModal(false)} className="btn btn-secondary">Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-
+          </tbody>
+        </table>
+      </div>
     </div>
-  );
-}
+};
 
-function HashtagAnalyticsPage() {
-  const { activeAccount, contents } = React.useContext(VaultContext);
 
   if (!activeAccount) return <div className="page-container"><p>No active account selected.</p></div>;
 
