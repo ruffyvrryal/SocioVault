@@ -2117,53 +2117,6 @@ window.TimeframeAnalyticsPage = function() {
     };
   }, [filteredContents, timeframe, selectedMonth]);
 
-  if (!activeAccount) return <div className="page-container"><p>No active account selected.</p></div>;
-
-  const accountContents = React.useMemo(() => {
-    return contents.filter(c => c.accountId === activeAccount.id);
-  }, [contents, activeAccount.id]);
-
-  // Get all unique platforms
-  const allPlatforms = React.useMemo(() => {
-    const platforms = [...new Set(accountContents.map(c => c.platform))];
-    return platforms.filter(Boolean).sort();
-  }, [accountContents]);
-
-  // Filter contents by timeframe and platform
-  const filteredContents = React.useMemo(() => {
-    const now = new Date();
-    return accountContents.filter(item => {
-      if (!item.uploadDate) return true;
-      const itemDate = new Date(item.uploadDate);
-
-      // Platform filter
-      if (selectedPlatform !== "All" && item.platform !== selectedPlatform) return false;
-
-      if (timeframe === "weekly") {
-        const diffDays = (now - itemDate) / (1000 * 3600 * 24);
-        return diffDays <= 7 && diffDays >= 0;
-      }
-
-      if (timeframe === "monthly") {
-        const [year, month] = selectedMonth.split('-');
-        return itemDate.getMonth() === parseInt(month) - 1 && itemDate.getFullYear() === parseInt(year);
-      }
-
-      return true; // all-time
-    });
-  }, [accountContents, timeframe, selectedPlatform, selectedMonth]);
-
-  // Compute Aggregates
-  const totalImpressions = filteredContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
-  const totalReach = filteredContents.reduce((sum, c) => sum + (c.reach || 0), 0);
-  const totalLikes = filteredContents.reduce((sum, c) => sum + (c.likes || 0), 0);
-  const totalComments = filteredContents.reduce((sum, c) => sum + (c.comments || 0), 0);
-  const totalShares = filteredContents.reduce((sum, c) => sum + (c.shares || 0), 0);
-  const totalSaves = filteredContents.reduce((sum, c) => sum + (c.saves || 0), 0);
-  
-  const totalEngagement = totalLikes + totalComments + totalShares + totalSaves;
-  const erRate = totalReach > 0 ? ((totalEngagement / totalReach) * 100).toFixed(2) : "0.00";
-
   // Render Chart.js - Different data based on timeframe
   React.useEffect(() => {
     if (!chartRef.current || window.Chart === undefined) return;
