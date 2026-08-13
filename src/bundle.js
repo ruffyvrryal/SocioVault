@@ -2787,7 +2787,6 @@ function SubjectAnalyticsPage() {
                 </div>
               </div>
             </div>
-          )
         ))}
       </div>
 
