@@ -1969,9 +1969,153 @@ async function generateDocxReport({ accountName, timeframeLabel, contents, accou
 }
 
 // TIMEFRAME ANALYTICS PAGE (WITH TOP PERFORMING POST HIGHLIGHT BOX & CONTENT TYPE BREAKDOWN)
-function TimeframeAnalyticsPage() {
-  const { activeAccount, contents } = React.useContext(VaultContext);
-  const [timeframe, setTimeframe] = React.useState("monthly");
+window.TimeframeAnalyticsPage = function() {
+  const { activeAccount, contents } = React.useContext(window.VaultContext);
+  const [timeframe, setTimeframe] = React.useState("all"); // 'all', 'monthly', 'weekly'
+  const [selectedPlatform, setSelectedPlatform] = React.useState("All");
+  const [selectedMonth, setSelectedMonth] = React.useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const chartRef = React.useRef(null);
+  const chartInstanceRef = React.useRef(null);
+
+  if (!activeAccount) {
+    return <div className="page-container"><p>No active account selected.</p></div>;
+  }
+
+  const accountContents = React.useMemo(() => {
+    return contents.filter(c => c.accountId === activeAccount.id);
+  }, [contents, activeAccount.id]);
+
+  // Get all unique platforms
+  const allPlatforms = React.useMemo(() => {
+    const platforms = [...new Set(accountContents.map(c => c.platform))];
+    return platforms.filter(Boolean).sort();
+  }, [accountContents]);
+
+  // Filter contents by timeframe and platform
+  const filteredContents = React.useMemo(() => {
+    const now = new Date();
+    return accountContents.filter(item => {
+      if (!item.uploadDate) return true;
+      const itemDate = new Date(item.uploadDate);
+
+      // Platform filter
+      if (selectedPlatform !== "All" && item.platform !== selectedPlatform) return false;
+
+      if (timeframe === "weekly") {
+        const diffDays = (now - itemDate) / (1000 * 3600 * 24);
+        return diffDays <= 7 && diffDays >= 0;
+      }
+
+      if (timeframe === "monthly") {
+        const [year, month] = selectedMonth.split('-');
+        return itemDate.getMonth() === parseInt(month) - 1 && itemDate.getFullYear() === parseInt(year);
+      }
+
+      return true; // all-time
+    });
+  }, [accountContents, timeframe, selectedPlatform, selectedMonth]);
+
+  // Compute Aggregates
+  const totalImpressions = filteredContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
+  const totalReach = filteredContents.reduce((sum, c) => sum + (c.reach || 0), 0);
+  const totalLikes = filteredContents.reduce((sum, c) => sum + (c.likes || 0), 0);
+  const totalComments = filteredContents.reduce((sum, c) => sum + (c.comments || 0), 0);
+  const totalShares = filteredContents.reduce((sum, c) => sum + (c.shares || 0), 0);
+  const totalSaves = filteredContents.reduce((sum, c) => sum + (c.saves || 0), 0);
+  
+  const totalEngagement = totalLikes + totalComments + totalShares + totalSaves;
+  const erRate = totalReach > 0 ? ((totalEngagement / totalReach) * 100).toFixed(2) : "0.00";
+
+  // Render Chart.js - Different data based on timeframe
+  React.useEffect(() => {
+    if (!chartRef.current || window.Chart === undefined) return;
+
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.destroy();
+    }
+
+    const ctx = chartRef.current.getContext('2d');
+    let labels, impressionsData;
+    let chartTitle = "Impressions by Platform";
+
+    if (timeframe === "monthly") {
+      // Show daily data for the selected month
+      const [year, month] = selectedMonth.split('-');
+      const monthData = {};
+      
+      // Group contents by date
+      filteredContents.forEach(c => {
+        if (c.uploadDate) {
+          const dateObj = new Date(c.uploadDate);
+          if (dateObj.getMonth() === parseInt(month) - 1 && dateObj.getFullYear() === parseInt(year)) {
+            const dateStr = c.uploadDate;
+            monthData[dateStr] = (monthData[dateStr] || 0) + (c.impressions || 0);
+          }
+        }
+      });
+
+      // Sort dates and create arrays
+      const sortedDates = Object.keys(monthData).sort();
+      labels = sortedDates.length > 0 ? sortedDates.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : ['No Data'];
+      impressionsData = sortedDates.length > 0 ? sortedDates.map(d => monthData[d]) : [0];
+      chartTitle = `Daily Impressions - ${new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+    } else {
+      // Show by platform for all-time and weekly views
+      const platforms = [...new Set(filteredContents.map(c => c.platform))];
+      const platformImpressions = platforms.map(p => {
+        return filteredContents.filter(c => c.platform === p).reduce((sum, c) => sum + (c.impressions || 0), 0);
+      });
+      labels = platforms.length > 0 ? platforms : ['No Data'];
+      impressionsData = platformImpressions.length > 0 ? platformImpressions : [0];
+      chartTitle = `Impressions by Platform${selectedPlatform !== "All" ? ` (${selectedPlatform})` : ""}`;
+    }
+
+    chartInstanceRef.current = new window.Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Total Impressions (Views)',
+          data: impressionsData,
+          borderColor: '#06B6D4',
+          backgroundColor: 'rgba(6, 182, 212, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: '#06B6D4',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#9CA3AF' } },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return 'Impressions: ' + context.parsed.y.toLocaleString();
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#9CA3AF' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color: '#9CA3AF' }, grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true }
+        }
+      }
+    });
+
+    return () => {
+      if (chartInstanceRef.current) chartInstanceRef.current.destroy();
+    };
+  }, [filteredContents, timeframe, selectedMonth]);
   const [selectedYear, setSelectedYear] = React.useState(2026);
   const [selectedMonth, setSelectedMonth] = React.useState(8);
   const [selectedPlatform, setSelectedPlatform] = React.useState("All");
@@ -2161,8 +2305,8 @@ function TimeframeAnalyticsPage() {
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
           <div style={{ display: "flex", gap: "0.4rem", background: "rgba(15, 23, 42, 0.8)", padding: "0.3rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
             <button onClick={() => setTimeframe("all")} className={`btn ${timeframe === "all" ? "btn-primary" : "btn-secondary"}`} style={{ padding: "0.45rem 1rem", fontSize: "0.85rem" }}>All-Time</button>
-            <button onClick={() => setTimeframe("monthly")} className={`btn ${timeframe === "monthly" ? "btn-primary" : "btn-secondary"}`} style={{ padding: "0.45rem 1rem", fontSize: "0.85rem" }}>Monthly Line Diagram</button>
-            <button onClick={() => setTimeframe("weekly")} className={`btn ${timeframe === "weekly" ? "btn-primary" : "btn-secondary"}`} style={{ padding: "0.45rem 1rem", fontSize: "0.85rem" }}>Weekly Line Diagram</button>
+            <button onClick={() => setTimeframe("monthly")} className={`btn ${timeframe === "monthly" ? "btn-primary" : "btn-secondary"}`} style={{ padding: "0.45rem 1rem", fontSize: "0.85rem" }}>This Month</button>
+            <button onClick={() => setTimeframe("weekly")} className={`btn ${timeframe === "weekly" ? "btn-primary" : "btn-secondary"}`} style={{ padding: "0.45rem 1rem", fontSize: "0.85rem" }}>Past 7 Days</button>
           </div>
           <button
             onClick={() => setShowExportModal(true)}
@@ -2702,6 +2846,15 @@ function SubjectAnalyticsPage() {
       });
   }, [subjectStats, searchSubject, sortBy, sortOrder]);
 
+  // Calculate Top 3 Subjects by Average Views per Content
+  const top3Subjects = React.useMemo(() => {
+    const withAvgViews = subjectStats.map(s => ({
+      ...s,
+      avgViewsPerContent: s.contentCount > 0 ? (s.impressions / s.contentCount) : 0
+    }));
+    return withAvgViews.sort((a, b) => b.avgViewsPerContent - a.avgViewsPerContent).slice(0, 3);
+  }, [subjectStats]);
+
   const totalPages = Math.ceil(sortedSubjects.length / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedSubjects = sortedSubjects.slice(startIndex, startIndex + itemsPerPage);
@@ -2714,6 +2867,96 @@ function SubjectAnalyticsPage() {
           <p className="page-subtitle">Multi-attribute sorting & 25 per-page pagination for featured subjects</p>
         </div>
       </div>
+
+      {/* Top 3 Subjects Premium Cards */}
+      {top3Subjects.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem", marginBottom: "2.5rem" }}>
+          {top3Subjects.map((subject, index) => (
+            <div key={subject.name} style={{
+              background: index === 0 
+                ? "linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(59, 130, 246, 0.15))" 
+                : index === 1 
+                ? "linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(59, 130, 246, 0.15))"
+                : "linear-gradient(135deg, rgba(244, 63, 94, 0.15), rgba(249, 115, 22, 0.15))",
+              borderRadius: "var(--radius-md)",
+              border: index === 0 ? "2px solid rgba(34, 197, 94, 0.4)" : index === 1 ? "2px solid rgba(168, 85, 247, 0.4)" : "2px solid rgba(244, 63, 94, 0.4)",
+              padding: "1.75rem",
+              position: "relative",
+              overflow: "hidden",
+              backdropFilter: "blur(10px)"
+            }}>
+              {/* Badge */}
+              <div style={{
+                position: "absolute",
+                top: "-8px",
+                left: "15px",
+                background: index === 0 ? "linear-gradient(135deg, #22C55E, #3B82F6)" : index === 1 ? "linear-gradient(135deg, #A855F7, #3B82F6)" : "linear-gradient(135deg, #F43F5E, #F97316)",
+                color: "#fff",
+                padding: "0.35rem 0.75rem",
+                borderRadius: "var(--radius-sm)",
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                letterSpacing: "0.05em",
+                textTransform: "uppercase"
+              }}>
+                #{index + 1} Top Subject
+              </div>
+
+              {/* Avatar */}
+              <div style={{
+                width: "56px",
+                height: "56px",
+                borderRadius: "50%",
+                background: index === 0 ? "linear-gradient(135deg, #22C55E, #16A34A)" : index === 1 ? "linear-gradient(135deg, #A855F7, #7C3AED)" : "linear-gradient(135deg, #F43F5E, #DC2626)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 800,
+                color: "#fff",
+                fontSize: "1.5rem",
+                marginBottom: "1rem"
+              }}>
+                {subject.name.charAt(0).toUpperCase()}
+              </div>
+
+              {/* Name */}
+              <h3 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "0.5rem", color: "#fff" }}>
+                {subject.name}
+              </h3>
+
+              {/* Main Metric - Avg Views Per Content */}
+              <div style={{ marginBottom: "1.25rem" }}>
+                <div style={{ fontSize: "0.85rem", color: "rgba(255, 255, 255, 0.7)", marginBottom: "0.35rem", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
+                  Avg Views per Post
+                </div>
+                <div style={{ fontSize: "2rem", fontWeight: 800, background: index === 0 ? "linear-gradient(135deg, #22C55E, #3B82F6)" : index === 1 ? "linear-gradient(135deg, #A855F7, #3B82F6)" : "linear-gradient(135deg, #F43F5E, #F97316)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                  {subject.avgViewsPerContent.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                </div>
+              </div>
+
+              {/* Stats Row */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", paddingTop: "1rem", borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                <div>
+                  <div style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.6)", marginBottom: "0.25rem", textTransform: "uppercase" }}>
+                    Total Views
+                  </div>
+                  <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
+                    {(subject.impressions / 1000).toFixed(1)}K
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.6)", marginBottom: "0.25rem", textTransform: "uppercase" }}>
+                    Featured In
+                  </div>
+                  <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
+                    {subject.contentCount} posts
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="glass-card" style={{ marginBottom: "1.5rem", padding: "1rem" }}>
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>

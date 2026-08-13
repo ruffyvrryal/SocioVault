@@ -59,7 +59,7 @@ window.TimeframeAnalyticsPage = function() {
   const totalEngagement = totalLikes + totalComments + totalShares + totalSaves;
   const erRate = totalReach > 0 ? ((totalEngagement / totalReach) * 100).toFixed(2) : "0.00";
 
-  // Render Chart.js
+  // Render Chart.js - Different data based on timeframe
   React.useEffect(() => {
     if (!chartRef.current || window.Chart === undefined) return;
 
@@ -68,18 +68,48 @@ window.TimeframeAnalyticsPage = function() {
     }
 
     const ctx = chartRef.current.getContext('2d');
-    const platforms = [...new Set(filteredContents.map(c => c.platform))];
-    const platformImpressions = platforms.map(p => {
-      return filteredContents.filter(c => c.platform === p).reduce((sum, c) => sum + (c.impressions || 0), 0);
-    });
+    let labels, impressionsData;
+    let chartTitle = "Impressions by Platform";
+
+    if (timeframe === "monthly") {
+      // Show daily data for the selected month
+      const [year, month] = selectedMonth.split('-');
+      const monthData = {};
+      
+      // Group contents by date
+      filteredContents.forEach(c => {
+        if (c.uploadDate) {
+          const dateObj = new Date(c.uploadDate);
+          if (dateObj.getMonth() === parseInt(month) - 1 && dateObj.getFullYear() === parseInt(year)) {
+            const dateStr = c.uploadDate;
+            monthData[dateStr] = (monthData[dateStr] || 0) + (c.impressions || 0);
+          }
+        }
+      });
+
+      // Sort dates and create arrays
+      const sortedDates = Object.keys(monthData).sort();
+      labels = sortedDates.length > 0 ? sortedDates.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : ['No Data'];
+      impressionsData = sortedDates.length > 0 ? sortedDates.map(d => monthData[d]) : [0];
+      chartTitle = `Daily Impressions - ${new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+    } else {
+      // Show by platform for all-time and weekly views
+      const platforms = [...new Set(filteredContents.map(c => c.platform))];
+      const platformImpressions = platforms.map(p => {
+        return filteredContents.filter(c => c.platform === p).reduce((sum, c) => sum + (c.impressions || 0), 0);
+      });
+      labels = platforms.length > 0 ? platforms : ['No Data'];
+      impressionsData = platformImpressions.length > 0 ? platformImpressions : [0];
+      chartTitle = `Impressions by Platform${selectedPlatform !== "All" ? ` (${selectedPlatform})` : ""}`;
+    }
 
     chartInstanceRef.current = new window.Chart(ctx, {
       type: 'line',
       data: {
-        labels: platforms.length > 0 ? platforms : ['No Data'],
+        labels: labels,
         datasets: [{
           label: 'Total Impressions (Views)',
-          data: platformImpressions.length > 0 ? platformImpressions : [0],
+          data: impressionsData,
           borderColor: '#06B6D4',
           backgroundColor: 'rgba(6, 182, 212, 0.1)',
           borderWidth: 2,
@@ -96,11 +126,18 @@ window.TimeframeAnalyticsPage = function() {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { labels: { color: '#9CA3AF' } }
+          legend: { labels: { color: '#9CA3AF' } },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return 'Impressions: ' + context.parsed.y.toLocaleString();
+              }
+            }
+          }
         },
         scales: {
           x: { ticks: { color: '#9CA3AF' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-          y: { ticks: { color: '#9CA3AF' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+          y: { ticks: { color: '#9CA3AF' }, grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true }
         }
       }
     });
@@ -108,7 +145,7 @@ window.TimeframeAnalyticsPage = function() {
     return () => {
       if (chartInstanceRef.current) chartInstanceRef.current.destroy();
     };
-  }, [filteredContents]);
+  }, [filteredContents, timeframe, selectedMonth]);
 
   return (
     <div className="page-container">
@@ -214,7 +251,7 @@ window.TimeframeAnalyticsPage = function() {
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem", marginTop: "1.5rem" }}>
         <div className="glass-card" style={{ height: "350px", display: "flex", flexDirection: "column" }}>
           <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1rem" }}>
-            Impressions by Platform {selectedPlatform !== "All" ? `(${selectedPlatform})` : ""} {timeframe === "monthly" ? `- ${selectedMonth}` : ""}
+            {timeframe === "monthly" ? `Daily Impressions - ${new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}` : `Impressions by Platform ${selectedPlatform !== "All" ? `(${selectedPlatform})` : ""}`}
           </h3>
           <div style={{ flex: 1, position: "relative" }}>
             <canvas ref={chartRef}></canvas>

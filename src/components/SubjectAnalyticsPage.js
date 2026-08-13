@@ -80,6 +80,15 @@ window.SubjectAnalyticsPage = function() {
       });
   }, [subjectStats, searchSubject, sortBy, sortOrder]);
 
+  // Calculate Top 3 Subjects by Average Views per Content
+  const top3Subjects = React.useMemo(() => {
+    const withAvgViews = subjectStats.map(s => ({
+      ...s,
+      avgViewsPerContent: s.contentCount > 0 ? (s.impressions / s.contentCount) : 0
+    }));
+    return withAvgViews.sort((a, b) => b.avgViewsPerContent - a.avgViewsPerContent).slice(0, 3);
+  }, [subjectStats]);
+
   const totalPages = Math.ceil(sortedSubjects.length / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedSubjects = sortedSubjects.slice(startIndex, startIndex + itemsPerPage);
@@ -92,6 +101,96 @@ window.SubjectAnalyticsPage = function() {
           <p className="page-subtitle">Multi-attribute sorting & 25 per-page pagination for featured subjects</p>
         </div>
       </div>
+
+      {/* Top 3 Subjects Premium Cards */}
+      {top3Subjects.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem", marginBottom: "2.5rem" }}>
+          {top3Subjects.map((subject, index) => (
+            <div key={subject.name} style={{
+              background: index === 0 
+                ? "linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(59, 130, 246, 0.15))" 
+                : index === 1 
+                ? "linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(59, 130, 246, 0.15))"
+                : "linear-gradient(135deg, rgba(244, 63, 94, 0.15), rgba(249, 115, 22, 0.15))",
+              borderRadius: "var(--radius-md)",
+              border: index === 0 ? "2px solid rgba(34, 197, 94, 0.4)" : index === 1 ? "2px solid rgba(168, 85, 247, 0.4)" : "2px solid rgba(244, 63, 94, 0.4)",
+              padding: "1.75rem",
+              position: "relative",
+              overflow: "hidden",
+              backdropFilter: "blur(10px)"
+            }}>
+              {/* Badge */}
+              <div style={{
+                position: "absolute",
+                top: "-8px",
+                left: "15px",
+                background: index === 0 ? "linear-gradient(135deg, #22C55E, #3B82F6)" : index === 1 ? "linear-gradient(135deg, #A855F7, #3B82F6)" : "linear-gradient(135deg, #F43F5E, #F97316)",
+                color: "#fff",
+                padding: "0.35rem 0.75rem",
+                borderRadius: "var(--radius-sm)",
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                letterSpacing: "0.05em",
+                textTransform: "uppercase"
+              }}>
+                #{index + 1} Top Subject
+              </div>
+
+              {/* Avatar */}
+              <div style={{
+                width: "56px",
+                height: "56px",
+                borderRadius: "50%",
+                background: index === 0 ? "linear-gradient(135deg, #22C55E, #16A34A)" : index === 1 ? "linear-gradient(135deg, #A855F7, #7C3AED)" : "linear-gradient(135deg, #F43F5E, #DC2626)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 800,
+                color: "#fff",
+                fontSize: "1.5rem",
+                marginBottom: "1rem"
+              }}>
+                {subject.name.charAt(0).toUpperCase()}
+              </div>
+
+              {/* Name */}
+              <h3 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "0.5rem", color: "#fff" }}>
+                {subject.name}
+              </h3>
+
+              {/* Main Metric - Avg Views Per Content */}
+              <div style={{ marginBottom: "1.25rem" }}>
+                <div style={{ fontSize: "0.85rem", color: "rgba(255, 255, 255, 0.7)", marginBottom: "0.35rem", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
+                  Avg Views per Post
+                </div>
+                <div style={{ fontSize: "2rem", fontWeight: 800, background: index === 0 ? "linear-gradient(135deg, #22C55E, #3B82F6)" : index === 1 ? "linear-gradient(135deg, #A855F7, #3B82F6)" : "linear-gradient(135deg, #F43F5E, #F97316)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                  {subject.avgViewsPerContent.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                </div>
+              </div>
+
+              {/* Stats Row */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", paddingTop: "1rem", borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                <div>
+                  <div style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.6)", marginBottom: "0.25rem", textTransform: "uppercase" }}>
+                    Total Views
+                  </div>
+                  <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
+                    {(subject.impressions / 1000).toFixed(1)}K
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.6)", marginBottom: "0.25rem", textTransform: "uppercase" }}>
+                    Featured In
+                  </div>
+                  <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
+                    {subject.contentCount} posts
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Search and Sort Input */}
       <div className="glass-card" style={{ marginBottom: "1.5rem", padding: "1rem" }}>
