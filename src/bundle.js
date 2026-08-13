@@ -42,9 +42,9 @@ window.INITIAL_DATA = {
   contents: [
     { id: "cnt_01", accountId: "acc_01", uploadDate: "2026-08-10", uploadTime: "14:30", platform: "Instagram", caption: "Unboxing the futuristic AI Glasses with Sarah! Is this the replacement for smartphones?", hashtags: ["#tech", "#gadgets", "#aiglasses"], subjects: ["Alex", "Sarah"], impressions: 145000, reach: 122000, likes: 12400, comments: 980, shares: 1420, saves: 3100, status: "Uploaded" },
     { id: "cnt_02", accountId: "acc_01", uploadDate: "2026-08-08", uploadTime: "18:00", platform: "YouTube", caption: "Full Day in the Life of a Tech Creator feat. Jordan & Alex (Setup Tour 2026)", hashtags: ["#vlog", "#setuptour", "#tech"], subjects: ["Alex", "Jordan"], impressions: 380000, reach: 295000, likes: 28900, comments: 2450, shares: 3100, saves: 5400, status: "Uploaded" },
-    { id: "cnt_03", accountId: "acc_01", uploadDate: "2026-08-05", uploadTime: "11:15", platform: "TikTok", caption: "3 AI tools you need to try this week! 🚀 #ai #productivity #tech", hashtags: ["#ai", "#productivity", "#tech"], subjects: ["Alex"], impressions: 620000, reach: 540000, likes: 54000, comments: 3120, shares: 12400, saves: 18900, status: "Uploaded" },
+    { id: "cnt_03", accountId: "acc_01", uploadDate: "2026-08-05", uploadTime: "11:15", platform: "TikTok", caption: "3 AI tools you need to try this week! ≡ƒÜÇ #ai #productivity #tech", hashtags: ["#ai", "#productivity", "#tech"], subjects: ["Alex"], impressions: 620000, reach: 540000, likes: 54000, comments: 3120, shares: 12400, saves: 18900, status: "Uploaded" },
     { id: "cnt_04", accountId: "acc_01", uploadDate: "2026-08-15", uploadTime: "09:00", platform: "Instagram", caption: "Behind the scenes with Sarah on the new studio build podcast!", hashtags: ["#podcast", "#studio"], subjects: ["Sarah"], impressions: 85000, reach: 71000, likes: 7200, comments: 420, shares: 610, saves: 1100, status: "Scheduled" },
-    { id: "cnt_05", accountId: "acc_01", uploadDate: "2026-07-28", uploadTime: "16:45", platform: "X (Twitter)", caption: "Thread: Why 2026 is the turning point for wearable spatial computing. 🧵👇", hashtags: ["#tech", "#spatialcomputing"], subjects: ["Alex"], impressions: 92000, reach: 84000, likes: 4100, comments: 630, shares: 1890, saves: 2200, status: "Uploaded" },
+    { id: "cnt_05", accountId: "acc_01", uploadDate: "2026-07-28", uploadTime: "16:45", platform: "X (Twitter)", caption: "Thread: Why 2026 is the turning point for wearable spatial computing. ≡ƒº╡≡ƒæç", hashtags: ["#tech", "#spatialcomputing"], subjects: ["Alex"], impressions: 92000, reach: 84000, likes: 4100, comments: 630, shares: 1890, saves: 2200, status: "Uploaded" },
     { id: "cnt_06", accountId: "acc_01", uploadDate: "2026-07-20", uploadTime: "19:30", platform: "Instagram", caption: "Testing camera quality at sunset with Jordan #photography", hashtags: ["#photography", "#tech"], subjects: ["Jordan"], impressions: 110000, reach: 95000, likes: 9800, comments: 510, shares: 720, saves: 1400, status: "Uploaded" },
     { id: "cnt_07", accountId: "acc_01", uploadDate: "2026-07-12", uploadTime: "13:00", platform: "YouTube", caption: "Top 5 Mac Apps for Creators in 2026", hashtags: ["#mac", "#apps", "#productivity"], subjects: ["Alex"], impressions: 240000, reach: 210000, likes: 18500, comments: 1200, shares: 1900, saves: 4200, status: "Uploaded" },
     { id: "cnt_08", accountId: "acc_01", uploadDate: "2026-07-04", uploadTime: "15:20", platform: "TikTok", caption: "How to edit videos 2x faster with AI shortcodes!", hashtags: ["#editing", "#ai", "#tutorial"], subjects: ["Alex"], impressions: 450000, reach: 390000, likes: 41000, comments: 1950, shares: 8900, saves: 12500, status: "Uploaded" },
@@ -275,7 +275,7 @@ function VaultProvider({ children }) {
       });
     });
 
-    // Handle ?vaultToken in URL — automatically register shared vault into collaborator index
+    // Handle ?vaultToken in URL ΓÇö automatically register shared vault into collaborator index
     const params = new URLSearchParams(window.location.search);
     const vaultToken = params.get('vaultToken');
     if (vaultToken && user) {
@@ -346,7 +346,7 @@ function VaultProvider({ children }) {
   const canEdit = activeUserRole === "owner" || activeUserRole === "editor";
   const isOwner = activeUserRole === "owner";
 
-  // ── Account Actions (Firestore) ──
+  // ΓöÇΓöÇ Account Actions (Firestore) ΓöÇΓöÇ
   const addAccount = async (name, description) => {
     if (!user) return;
     const shareToken = "vlt_token_" + Math.random().toString(36).substr(2, 8);
@@ -385,7 +385,7 @@ function VaultProvider({ children }) {
     setSharedAccounts(prev => prev.map(a => a.id === accountId ? { ...a, ...updatedFields } : a));
   };
 
-  // ── Platform Actions (Firestore) ──
+  // ΓöÇΓöÇ Platform Actions (Firestore) ΓöÇΓöÇ
   const addPlatform = async (accountId, platformData) => {
     const ownerUid = getOwnerUidForAccount(accountId);
     const ref = getRefForUid(ownerUid).collection('accounts').doc(accountId);
@@ -404,7 +404,7 @@ function VaultProvider({ children }) {
     }
   };
 
-  // ── Content Actions (Firestore) ──
+  // ΓöÇΓöÇ Content Actions (Firestore) ΓöÇΓöÇ
   const addContent = async (contentData) => {
     const ownerUid = getOwnerUidForAccount(activeAccountId);
     await getRefForUid(ownerUid).collection('contents').add({ accountId: activeAccountId, ...contentData });
@@ -420,7 +420,7 @@ function VaultProvider({ children }) {
     await getRefForUid(ownerUid).collection('contents').doc(contentId).delete();
   };
 
-  // ── Collaborator Actions (Firestore) ──
+  // ΓöÇΓöÇ Collaborator Actions (Firestore) ΓöÇΓöÇ
   const addCollaborator = async (accountId, email, role) => {
     const cleanEmail = (email || "").toLowerCase().trim();
     if (!cleanEmail) return;
@@ -443,7 +443,7 @@ function VaultProvider({ children }) {
     if (!existingVaults.some(v => v.accountId === accountId)) {
       await indexRef.set({ vaults: [...existingVaults, { ownerUid, accountId, role, shareToken: current.shareToken, accountName: current.name }] }, { merge: true });
     }
-    alert(`✅ Access granted! ${cleanEmail} can now view and edit this vault in real time.`);
+    alert(`Γ£à Access granted! ${cleanEmail} can now view and edit this vault in real time.`);
   };
 
   const updateCollaboratorRole = async (accountId, email, newRole) => {
@@ -473,7 +473,7 @@ function VaultProvider({ children }) {
     }
   };
 
-  // ── Subject Photo Action ──
+  // ΓöÇΓöÇ Subject Photo Action ΓöÇΓöÇ
   const updateSubjectPhoto = async (subjectName, photoData) => {
     if (!activeAccount) return;
     const ownerUid = getOwnerUidForAccount(activeAccount.id);
@@ -650,6 +650,248 @@ function LoginPage() {
   );
 };
 
+function AccountVaultPage() {
+  const { user } = React.useContext(AuthContext);
+  const { accounts, setActiveAccountId, setActivePage, addAccount, removeAccount, editAccount, contents, getUserRole } = React.useContext(VaultContext);
+
+  // Add modal state
+  const [showAddModal, setShowAddModal] = React.useState(false);
+  const [accountName, setAccountName] = React.useState("");
+  const [accountDesc, setAccountDesc] = React.useState("");
+
+  // Edit modal state
+  const [editingAcc, setEditingAcc] = React.useState(null);
+  const [editName, setEditName] = React.useState("");
+  const [editDesc, setEditDesc] = React.useState("");
+  const [editPhoto, setEditPhoto] = React.useState("");
+  const [editPhotoMode, setEditPhotoMode] = React.useState("url");
+  const [editPhotoPreview, setEditPhotoPreview] = React.useState("");
+
+  const accessibleAccounts = React.useMemo(() => {
+    if (!user) return [];
+    return accounts
+      .filter(acc => acc.ownerEmail === user.email || acc.collaborators.some(c => c.email === user.email))
+      .sort((a, b) => (a.name || "").localeCompare((b.name || "")));
+  }, [accounts, user]);
+
+  const handleCreate = (e) => {
+    e.preventDefault();
+    if (!accountName.trim()) return;
+    addAccount(accountName, accountDesc);
+    setAccountName(""); setAccountDesc(""); setShowAddModal(false);
+  };
+
+  const openEditModal = (e, acc) => {
+    e.stopPropagation();
+    setEditingAcc(acc);
+    setEditName(acc.name || "");
+    setEditDesc(acc.description || "");
+    setEditPhoto(acc.photoURL || "");
+    setEditPhotoPreview(acc.photoURL || "");
+    setEditPhotoMode("url");
+  };
+
+  const handleEditPhotoUrlChange = (val) => {
+    setEditPhoto(val);
+    setEditPhotoPreview(val);
+  };
+
+  const handleEditPhotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setEditPhoto(ev.target.result);
+      setEditPhotoPreview(ev.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleEditSave = (e) => {
+    e.preventDefault();
+    if (!editName.trim()) return;
+    editAccount(editingAcc.id, { name: editName.trim(), description: editDesc.trim(), photoURL: editPhoto.trim() });
+    setEditingAcc(null);
+  };
+
+  const selectAccount = (accId) => {
+    setActiveAccountId(accId);
+    setActivePage("account-center");
+  };
+
+  return (
+    <div className="page-container">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Account Vault Hub</h1>
+          <p className="page-subtitle">Select an account workspace to view platforms, content tables, and analytics.</p>
+        </div>
+        <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
+          <i data-lucide="plus" style={{ width: "18px", height: "18px" }}></i>
+          Add New Account
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.5rem" }}>
+        {accessibleAccounts.map(acc => {
+          const role = getUserRole(acc);
+          const accContents = contents.filter(c => c.accountId === acc.id);
+          const totalViews = accContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
+
+          return (
+            <div key={acc.id} className="glass-card glass-card-interactive" style={{ cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "space-between" }} onClick={() => selectAccount(acc.id)}>
+              <div>
+                {/* Card Top Row: Avatar + Badges + Actions */}
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1rem" }}>
+                  {acc.photoURL ? (
+                    <img src={acc.photoURL} alt={acc.name} style={{ width: "48px", height: "48px", borderRadius: "12px", objectFit: "cover", border: "2px solid rgba(139,92,246,0.4)" }} onError={e => { e.target.style.display = "none"; }} />
+                  ) : (
+                    <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "linear-gradient(135deg, rgba(139,92,246,0.25), rgba(6,182,212,0.2))", border: "1px solid rgba(139,92,246,0.35)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", fontSize: "1.35rem", fontWeight: 800 }}>
+                      {acc.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
+                    <span className={`badge ${role === 'owner' ? 'badge-uploaded' : role === 'editor' ? 'badge-scheduled' : 'badge-privated'}`}>
+                      {role}
+                    </span>
+                    {role === 'owner' && (
+                      <>
+                        <button onClick={(e) => openEditModal(e, acc)} className="btn btn-secondary btn-icon" title="Edit Account" style={{ width: "30px", height: "30px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <i data-lucide="pencil" style={{ width: "14px", height: "14px" }}></i>
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete account "${acc.name}"?`)) removeAccount(acc.id); }} className="btn btn-danger btn-icon" title="Delete Account" style={{ width: "30px", height: "30px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <i data-lucide="trash-2" style={{ width: "14px", height: "14px" }}></i>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <h3 style={{ fontSize: "1.2rem", fontWeight: 700, marginBottom: "0.35rem" }}>{acc.name}</h3>
+                <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1.1rem", lineHeight: 1.5 }}>{acc.description}</p>
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1.1rem" }}>
+                  {acc.platforms.map(p => (
+                    <span key={p.id} className="chip" style={{ fontSize: "0.75rem" }}>{p.name}: {p.handle}</span>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "0.85rem", borderTop: "1px solid var(--border-color)", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                <div><strong style={{ color: "#fff" }}>{accContents.length}</strong> Content Items</div>
+                <div><strong style={{ color: "var(--accent-cyan)" }}>{(totalViews / 1000).toFixed(1)}k</strong> Views</div>
+              </div>
+            </div>
+          );
+        })}
+
+        {accessibleAccounts.length === 0 && (
+          <div className="glass-card" style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem 1.5rem" }}>
+            <i data-lucide="folder-plus" style={{ width: "48px", height: "48px", color: "var(--text-subtle)", marginBottom: "1rem" }}></i>
+            <h3 style={{ fontSize: "1.2rem", fontWeight: 700 }}>No Accounts Found</h3>
+            <p style={{ color: "var(--text-muted)", margin: "0.5rem 0 1.5rem" }}>You haven't created any social media accounts yet.</p>
+            <button onClick={() => setShowAddModal(true)} className="btn btn-primary">Create Your First Account</button>
+          </div>
+        )}
+      </div>
+
+      {/* ΓöÇΓöÇ Add Account Modal ΓöÇΓöÇ */}
+      {showAddModal && (
+        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Add New Social Account Vault</h2>
+              <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon" style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>Γ£ò</span>
+              </button>
+            </div>
+            <form onSubmit={handleCreate}>
+              <div className="form-group">
+                <label className="form-label">Account / Brand Name</label>
+                <input type="text" className="form-input" placeholder="e.g. Creator Gaming Hub" required value={accountName} onChange={e => setAccountName(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Description / Niche</label>
+                <textarea className="form-textarea" placeholder="e.g. Gaming news, live highlights, short-form clips" rows="3" value={accountDesc} onChange={e => setAccountDesc(e.target.value)}></textarea>
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
+                <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary">Cancel</button>
+                <button type="submit" className="btn btn-primary">Create Account</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ΓöÇΓöÇ Edit Account Modal ΓöÇΓöÇ */}
+      {editingAcc && (
+        <div className="modal-overlay" onClick={() => setEditingAcc(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: "520px" }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Edit Account</h2>
+              <button type="button" onClick={() => setEditingAcc(null)} className="btn btn-secondary btn-icon" style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>Γ£ò</span>
+              </button>
+            </div>
+            <form onSubmit={handleEditSave}>
+              {/* Photo Preview */}
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem" }}>
+                {editPhotoPreview ? (
+                  <img src={editPhotoPreview} alt="Preview" style={{ width: "80px", height: "80px", borderRadius: "16px", objectFit: "cover", border: "2px solid rgba(139,92,246,0.4)" }} onError={e => { e.target.style.display = "none"; }} />
+                ) : (
+                  <div style={{ width: "80px", height: "80px", borderRadius: "16px", background: "linear-gradient(135deg, rgba(139,92,246,0.25), rgba(6,182,212,0.2))", border: "2px dashed rgba(139,92,246,0.4)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", fontSize: "2rem", fontWeight: 800 }}>
+                    {editName.charAt(0).toUpperCase() || "?"}
+                  </div>
+                )}
+              </div>
+
+              {/* Account Name */}
+              <div className="form-group">
+                <label className="form-label">Account / Brand Name</label>
+                <input type="text" className="form-input" required value={editName} onChange={e => setEditName(e.target.value)} placeholder="e.g. Creator Gaming Hub" />
+              </div>
+
+              {/* Description */}
+              <div className="form-group">
+                <label className="form-label">Description / Niche</label>
+                <textarea className="form-textarea" rows="3" value={editDesc} onChange={e => setEditDesc(e.target.value)} placeholder="e.g. Gaming, tech reviews, lifestyle..."></textarea>
+              </div>
+
+              {/* Profile Photo */}
+              <div className="form-group">
+                <label className="form-label">Profile Photo</label>
+                <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                  <button type="button" onClick={() => setEditPhotoMode("url")} className={`btn ${editPhotoMode === "url" ? "btn-primary" : "btn-secondary"}`} style={{ fontSize: "0.82rem", padding: "0.35rem 0.9rem" }}>
+                    ≡ƒöù Image URL
+                  </button>
+                  <button type="button" onClick={() => setEditPhotoMode("upload")} className={`btn ${editPhotoMode === "upload" ? "btn-primary" : "btn-secondary"}`} style={{ fontSize: "0.82rem", padding: "0.35rem 0.9rem" }}>
+                    ≡ƒôü Local Upload
+                  </button>
+                </div>
+                {editPhotoMode === "url" ? (
+                  <input type="url" className="form-input" placeholder="https://example.com/photo.jpg" value={editPhoto} onChange={e => handleEditPhotoUrlChange(e.target.value)} />
+                ) : (
+                  <input type="file" accept="image/*" className="form-input" style={{ padding: "0.45rem" }} onChange={handleEditPhotoUpload} />
+                )}
+                {editPhotoPreview && (
+                  <button type="button" onClick={() => { setEditPhoto(""); setEditPhotoPreview(""); }} style={{ marginTop: "0.5rem", background: "none", border: "none", color: "#F43F5E", fontSize: "0.82rem", cursor: "pointer", padding: 0 }}>
+                    Γ£ò Remove photo
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
+                <button type="button" onClick={() => setEditingAcc(null)} className="btn btn-secondary">Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Navbar Component — Premium Top Navigation
 // Navbar Component — Premium Top Navigation & Account Switcher
@@ -810,6 +1052,7 @@ function Navbar() {
     </nav>
   );
 };
+
 function AccountCenterPage() {
   const { activeAccount, addPlatform, removePlatform, contents, canEdit, setActivePage } = React.useContext(VaultContext);
 
@@ -878,7 +1121,7 @@ function AccountCenterPage() {
               title={`Health Status: ${getHealthStatus.label}`}
             />
           </div>
-          <p className="page-subtitle">{activeAccount.description} • Managed platforms & channel credentials</p>
+          <p className="page-subtitle">{activeAccount.description} ΓÇó Managed platforms & channel credentials</p>
         </div>
         <div style={{ display: "flex", gap: "0.75rem" }}>
           {canEdit && (
@@ -977,7 +1220,7 @@ function AccountCenterPage() {
             <div className="modal-header">
               <h2 className="modal-title">Link Platform to {activeAccount.name}</h2>
               <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon" style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }} title="Close">
-                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>✕</span>
+                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>Γ£ò</span>
               </button>
             </div>
             <form onSubmit={handleAddPlatform}>
@@ -1164,14 +1407,14 @@ function AddContentPage() {
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
               {subjectsList.map(name => (
                 <span key={name} className="chip chip-subject" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
-                  👤 {name}
+                  ≡ƒæñ {name}
                   <button 
                     type="button" 
                     onClick={() => handleRemoveSubject(name)} 
                     style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold", fontSize: "0.85rem", lineHeight: 1 }}
                     title="Remove subject"
                   >
-                    ✕
+                    Γ£ò
                   </button>
                 </span>
               ))}
@@ -1426,7 +1669,7 @@ function ContentTablePage() {
                   <td><span className="chip" style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.06)" }}>{item.contentType || "Feed Post / Image"}</span></td>
                   <td><div style={{ maxWidth: "220px", fontWeight: 500 }}>{item.caption}</div></td>
                   <td>{item.hashtags.map(h => <span key={h} className="chip" style={{ fontSize: "0.75rem" }}>{h}</span>)}</td>
-                  <td>{item.subjects.map(s => <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}>👤 {s}</span>)}</td>
+                  <td>{item.subjects.map(s => <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}>≡ƒæñ {s}</span>)}</td>
                   <td style={{ color: "var(--accent-cyan)", fontWeight: 700 }}>{item.impressions.toLocaleString()}</td>
                   <td>{item.reach.toLocaleString()}</td>
                   <td>{item.likes.toLocaleString()}</td>
@@ -1459,7 +1702,7 @@ function ContentTablePage() {
       {filteredContents.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem", marginTop: "1.25rem" }}>
           <div style={{ fontSize: "0.88rem", color: "var(--text-muted)" }}>
-            Showing <strong>{startIndex + 1}</strong> – <strong>{Math.min(startIndex + itemsPerPage, filteredContents.length)}</strong> of <strong>{filteredContents.length}</strong> contents
+            Showing <strong>{startIndex + 1}</strong> ΓÇô <strong>{Math.min(startIndex + itemsPerPage, filteredContents.length)}</strong> of <strong>{filteredContents.length}</strong> contents
           </div>
 
           <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
@@ -1507,7 +1750,7 @@ function ContentTablePage() {
                 style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}
                 title="Close"
               >
-                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>✕</span>
+                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>Γ£ò</span>
               </button>
             </div>
 
@@ -1599,14 +1842,14 @@ function ContentTablePage() {
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
                   {editingContent.subjectsList.map(name => (
                     <span key={name} className="chip chip-subject" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
-                      👤 {name}
+                      ≡ƒæñ {name}
                       <button 
                         type="button" 
                         onClick={() => handleRemoveEditSubject(name)} 
                         style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold", fontSize: "0.85rem", lineHeight: 1 }}
                         title="Remove subject"
                       >
-                        ✕
+                        Γ£ò
                       </button>
                     </span>
                   ))}
@@ -1855,7 +2098,7 @@ async function generateDocxReport({ accountName, timeframeLabel, contents, accou
 
           // ---- FOOTER ----
           new Paragraph({ text: "", spacing: { after: 400 } }),
-          new Paragraph({ children: [new TextRun({ text: `SocialVault Pro Analytics Report — ${generatedAt}`, size: 18, color: "A0AEC0", italics: true })], alignment: AlignmentType.CENTER }),
+          new Paragraph({ children: [new TextRun({ text: `SocialVault Pro Analytics Report ΓÇö ${generatedAt}`, size: 18, color: "A0AEC0", italics: true })], alignment: AlignmentType.CENTER }),
         ]
       }]
     });
@@ -2183,7 +2426,7 @@ window.TimeframeAnalyticsPage = function() {
           <span className="stat-value" style={{ color: "var(--accent-primary)" }}>
             {erRate}%
           </span>
-          <span className="stat-change positive">(Total Engagement / Reach) × 100</span>
+          <span className="stat-change positive">(Total Engagement / Reach) ├ù 100</span>
         </div>
       </div>
 
@@ -2204,22 +2447,22 @@ window.TimeframeAnalyticsPage = function() {
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>❤️ Likes</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>Γ¥ñ∩╕Å Likes</span>
               <strong style={{ fontSize: "0.95rem" }}>{totalLikes.toLocaleString()}</strong>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>💬 Comments</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>≡ƒÆ¼ Comments</span>
               <strong style={{ fontSize: "0.95rem" }}>{totalComments.toLocaleString()}</strong>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>🔁 Shares</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>≡ƒöü Shares</span>
               <strong style={{ fontSize: "0.95rem" }}>{totalShares.toLocaleString()}</strong>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>📌 Saves</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>≡ƒôî Saves</span>
               <strong style={{ fontSize: "0.95rem" }}>{totalSaves.toLocaleString()}</strong>
             </div>
 
@@ -2231,7 +2474,7 @@ window.TimeframeAnalyticsPage = function() {
       {timeframe === "monthly" && (
         <div style={{ marginTop: "2.5rem" }}>
           <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "1rem" }}>
-            📊 Compare Two Months
+            ≡ƒôè Compare Two Months
           </h2>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "2rem", marginBottom: "1.5rem" }}>
@@ -2239,7 +2482,7 @@ window.TimeframeAnalyticsPage = function() {
             <div className="glass-card" style={{ padding: "1.5rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
                 <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "linear-gradient(135deg, #3B82F6, #06B6D4)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: "1.1rem" }}>
-                  1️⃣
+                  1∩╕ÅΓâú
                 </div>
                 <div>
                   <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>First Month</label>
@@ -2293,7 +2536,7 @@ window.TimeframeAnalyticsPage = function() {
             <div className="glass-card" style={{ padding: "1.5rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
                 <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "linear-gradient(135deg, #A855F7, #06B6D4)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: "1.1rem" }}>
-                  2️⃣
+                  2∩╕ÅΓâú
                 </div>
                 <div>
                   <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>Second Month</label>
@@ -2346,7 +2589,7 @@ window.TimeframeAnalyticsPage = function() {
             {/* Comparison Insights */}
             <div className="glass-card" style={{ padding: "1.5rem", background: "linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(59, 130, 246, 0.1))", borderLeft: "4px solid rgba(34, 197, 94, 0.5)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-                <div style={{ fontSize: "1.5rem" }}>📈</div>
+                <div style={{ fontSize: "1.5rem" }}>≡ƒôê</div>
                 <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>Change Analysis</h3>
               </div>
 
@@ -2363,15 +2606,15 @@ window.TimeframeAnalyticsPage = function() {
                 return (
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>📊 Impressions</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>≡ƒôè Impressions</span>
                       <strong style={{ color: impDiff >= 0 ? "var(--accent-emerald)" : "#F43F5E" }}>{impDiff >= 0 ? "+" : ""}{impDiff.toLocaleString()} ({impPercent}%)</strong>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>👥 Reach</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>≡ƒæÑ Reach</span>
                       <strong style={{ color: reachDiff >= 0 ? "var(--accent-emerald)" : "#F43F5E" }}>{reachDiff >= 0 ? "+" : ""}{reachDiff.toLocaleString()} ({reachPercent}%)</strong>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>💬 Engagement</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>≡ƒÆ¼ Engagement</span>
                       <strong style={{ color: engDiff >= 0 ? "var(--accent-emerald)" : "#F43F5E" }}>{engDiff >= 0 ? "+" : ""}{engDiff.toLocaleString()} ({engPercent}%)</strong>
                     </div>
                   </div>
@@ -2385,7 +2628,7 @@ window.TimeframeAnalyticsPage = function() {
       {/* Content Type Analytics Section - Bottom of Page */}
       <div style={{ marginTop: "2.5rem" }}>
         <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "1.5rem" }}>
-          🎬 Content Type Performance
+          ≡ƒÄ¼ Content Type Performance
         </h2>
 
         {(() => {
@@ -2425,16 +2668,16 @@ window.TimeframeAnalyticsPage = function() {
 
           // Content type icon mapping
           const contentTypeIcons = {
-            "Reels": "📹",
-            "Carousel": "🎠",
-            "Vlog": "🎥",
-            "Video": "🎬",
-            "Image": "📷",
-            "Story": "📖",
-            "Live": "🔴",
-            "Post": "📝",
-            "Short": "⏱️",
-            "Thread": "🧵"
+            "Reels": "≡ƒô╣",
+            "Carousel": "≡ƒÄá",
+            "Vlog": "≡ƒÄÑ",
+            "Video": "≡ƒÄ¼",
+            "Image": "≡ƒô╖",
+            "Story": "≡ƒôû",
+            "Live": "≡ƒö┤",
+            "Post": "≡ƒô¥",
+            "Short": "ΓÅ▒∩╕Å",
+            "Thread": "≡ƒº╡"
           };
 
           return (
@@ -2451,7 +2694,7 @@ window.TimeframeAnalyticsPage = function() {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.25rem" }}>
-                      <div style={{ fontSize: "2rem" }}>{contentTypeIcons[stat.type] || "📄"}</div>
+                      <div style={{ fontSize: "2rem" }}>{contentTypeIcons[stat.type] || "≡ƒôä"}</div>
                       <div>
                         <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-main)", margin: 0 }}>{stat.type}</h3>
                         <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.25rem 0 0 0" }}>{stat.count} content{stat.count !== 1 ? "s" : ""}</p>
@@ -2521,7 +2764,7 @@ window.TimeframeAnalyticsPage = function() {
         {/* Top Performing Post by Platform Section */}
         <div style={{ marginTop: "2.5rem" }}>
           <h2 style={{ fontSize: "1.25rem", fontWeight: 800, marginBottom: "1.25rem", color: "var(--text-main)" }}>
-            🏆 Top Performing Post by Platform
+            ≡ƒÅå Top Performing Post by Platform
           </h2>
 
           {(() => {
@@ -2785,7 +3028,7 @@ window.HashtagAnalyticsPage = function() {
                 fontSize: "1.8rem",
                 marginBottom: "1rem"
               }}>
-                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+                {index === 0 ? "≡ƒÑç" : index === 1 ? "≡ƒÑê" : "≡ƒÑë"}
               </div>
 
               {/* Hashtag Name */}
@@ -3141,8 +3384,8 @@ function SubjectAnalyticsPage() {
             </select>
 
             <select className="form-select" style={{ width: "auto" }} value={sortOrder} onChange={e => setSortOrder(e.target.value)}>
-              <option value="desc">High → Low (Z-A)</option>
-              <option value="asc">Low → High (A-Z)</option>
+              <option value="desc">High ΓåÆ Low (Z-A)</option>
+              <option value="asc">Low ΓåÆ High (A-Z)</option>
             </select>
           </div>
         </div>
@@ -4213,6 +4456,139 @@ function ReportSummaryPage() {
     </div>
   );
 };
+
+function CollaboratorsPage() {
+  const { activeAccount, addCollaborator, removeCollaborator, isOwner } = React.useContext(VaultContext);
+  const [inviteEmail, setInviteEmail] = React.useState("");
+  const [inviteRole, setInviteRole] = React.useState("editor");
+  const [copied, setCopied] = React.useState(false);
+  const [inviting, setInviting] = React.useState(false);
+
+  if (!activeAccount) return <div className="page-container"><p>No active account selected.</p></div>;
+
+  const shareLink = `${window.location.origin}${window.location.pathname}?vaultToken=${activeAccount.shareToken}`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(shareLink).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  };
+
+  const handleInvite = async (e) => {
+    e.preventDefault();
+    setInviting(true);
+    await addCollaborator(activeAccount.id, inviteEmail.trim().toLowerCase(), inviteRole);
+    setInviteEmail("");
+    setInviting(false);
+  };
+
+  return (
+    <div className="page-container">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">{activeAccount.name} - Vault Sharing & Collaborators</h1>
+          <p className="page-subtitle">Invite teammates and share read/edit access to this vault</p>
+        </div>
+      </div>
+
+      {/* Share Link Card */}
+      <div className="glass-card" style={{ marginBottom: "1.5rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+          <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-primary))", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <i data-lucide="link" style={{ width: "18px", height: "18px", color: "#fff" }}></i>
+          </div>
+          <div>
+            <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "0.1rem" }}>≡ƒöù Shareable Vault Link</h3>
+            <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Anyone with this link who is on the collaborators list can access this vault</p>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          <input type="text" className="form-input" readOnly value={shareLink} style={{ flex: 1, fontSize: "0.82rem" }} onClick={e => e.target.select()} />
+          <button onClick={handleCopy} className={`btn ${copied ? "btn-secondary" : "btn-primary"}`} style={{ whiteSpace: "nowrap", minWidth: "110px" }}>
+            {copied ? "Γ£à Copied!" : "≡ƒôï Copy Link"}
+          </button>
+        </div>
+        <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.75rem", background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "0.6rem 0.75rem" }}>
+          Γä╣∩╕Å <strong>How it works:</strong> First add the collaborator's email below, then share this link with them. When they open the link and log in, the vault will automatically appear in their account.
+        </p>
+      </div>
+
+      {/* Invite Form */}
+      {isOwner && (
+        <div className="glass-card" style={{ marginBottom: "1.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, var(--accent-emerald), var(--accent-cyan))", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <i data-lucide="user-plus" style={{ width: "18px", height: "18px", color: "#fff" }}></i>
+            </div>
+            <h3 style={{ fontSize: "1.05rem", fontWeight: 700 }}>Γ£ë∩╕Å Invite Collaborator</h3>
+          </div>
+          <form onSubmit={handleInvite} style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+            <input
+              type="email"
+              className="form-input"
+              placeholder="collaborator@gmail.com"
+              required
+              value={inviteEmail}
+              onChange={e => setInviteEmail(e.target.value)}
+              style={{ flex: 1, minWidth: "200px" }}
+            />
+            <select className="form-select" value={inviteRole} onChange={e => setInviteRole(e.target.value)} style={{ width: "auto" }}>
+              <option value="editor">Editor (can add/edit content)</option>
+              <option value="viewer">Viewer (read-only)</option>
+            </select>
+            <button type="submit" className="btn btn-primary" disabled={inviting} style={{ minWidth: "120px" }}>
+              {inviting ? "Sending..." : "Grant Access"}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Collaborators Table */}
+      <div className="glass-card">
+        <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "1rem" }}>≡ƒæÑ Vault Members ({1 + (activeAccount.collaborators || []).length})</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          {/* Owner row */}
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.75rem 1rem", background: "rgba(255,255,255,0.04)", borderRadius: "10px", border: "1px solid var(--border-color)" }}>
+            <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, var(--accent-primary), var(--accent-cyan))", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: "0.9rem" }}>
+              {activeAccount.ownerEmail.charAt(0).toUpperCase()}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: "0.92rem" }}>≡ƒææ {activeAccount.ownerEmail}</div>
+              <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Account Owner</div>
+            </div>
+            <span className="badge badge-uploaded">Owner</span>
+          </div>
+          {/* Collaborator rows */}
+          {(activeAccount.collaborators || []).map(c => (
+            <div key={c.email} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.75rem 1rem", background: "rgba(255,255,255,0.03)", borderRadius: "10px", border: "1px solid var(--border-color)" }}>
+              <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, var(--accent-emerald), var(--accent-cyan))", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: "0.9rem" }}>
+                {c.email.charAt(0).toUpperCase()}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: "0.92rem" }}>≡ƒæñ {c.email}</div>
+                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Joined {c.joinedAt || "ΓÇö"}</div>
+              </div>
+              <span className="badge badge-scheduled">{c.role}</span>
+              {isOwner && (
+                <button onClick={() => confirm(`Remove ${c.email} from this vault?`) && removeCollaborator(activeAccount.id, c.email)} className="btn btn-danger btn-icon" title="Remove collaborator">
+                  <i data-lucide="user-x" style={{ width: "14px", height: "14px" }}></i>
+                </button>
+              )}
+            </div>
+          ))}
+          {(activeAccount.collaborators || []).length === 0 && (
+            <div style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)", fontSize: "0.88rem" }}>
+              No collaborators yet. Invite someone using the form above.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 // 4. MAIN APP CONTROLLER
 function AppContent() {
   const { user, authLoading } = React.useContext(AuthContext);
