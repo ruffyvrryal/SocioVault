@@ -2895,6 +2895,7 @@ window.TimeframeAnalyticsPage = function() {
 window.HashtagAnalyticsPage = function() {
   const { activeAccount, contents } = React.useContext(window.VaultContext);
   const [searchHashtag, setSearchHashtag] = React.useState("");
+  const [hashtagSortBy, setHashtagSortBy] = React.useState("impressions");
 
   if (!activeAccount) {
     return <div className="page-container"><p>No active account selected.</p></div>;
@@ -3053,6 +3054,37 @@ window.HashtagAnalyticsPage = function() {
 
       {/* Hashtags Performance Data Table */}
       <div className="table-container">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", gap: "1rem", flexWrap: "wrap" }}>
+          <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0 }}>Hashtag Performance Table</h2>
+          
+          {/* Sort Dropdown */}
+          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+            <label style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-muted)" }}>Sort by:</label>
+            <select 
+              className="form-select"
+              value={hashtagSortBy}
+              onChange={(e) => setHashtagSortBy(e.target.value)}
+              style={{ 
+                padding: "0.5rem 0.75rem", 
+                fontSize: "0.85rem",
+                background: "var(--bg-tertiary)",
+                border: "1px solid var(--border-color)",
+                borderRadius: "8px",
+                color: "var(--text-primary)",
+                cursor: "pointer"
+              }}
+            >
+              <option value="impressions">Total Impressions</option>
+              <option value="reach">Total Reach</option>
+              <option value="engagement">Total Engagement</option>
+              <option value="contentCount">Content Count</option>
+              <option value="avgEr">Avg Engagement Rate %</option>
+              <option value="avgImpressions">Avg Impressions per Post</option>
+              <option value="alphabetical">Alphabetical (A-Z)</option>
+            </select>
+          </div>
+        </div>
+
         <table className="custom-table">
           <thead>
             <tr>
@@ -3065,16 +3097,40 @@ window.HashtagAnalyticsPage = function() {
             </tr>
           </thead>
           <tbody>
-            {filteredHashtags.map(h => (
-              <tr key={h.tag}>
-                <td><span className="chip" style={{ background: "rgba(139, 92, 246, 0.15)", color: "var(--accent-primary)", border: "1px solid rgba(139, 92, 246, 0.3)", fontSize: "0.85rem", padding: "0.3rem 0.75rem" }}>{h.tag}</span></td>
-                <td style={{ fontWeight: 600 }}>{h.contentCount} contents</td>
-                <td style={{ fontWeight: 700, color: "var(--accent-cyan)" }}>{h.impressions.toLocaleString()}</td>
-                <td>{h.reach.toLocaleString()}</td>
-                <td style={{ color: "var(--accent-emerald)", fontWeight: 600 }}>{h.engagement.toLocaleString()}</td>
-                <td style={{ fontWeight: 700, color: "var(--accent-primary)" }}>{h.avgEr}%</td>
-              </tr>
-            ))}
+            {(() => {
+              // Sort the hashtags based on selected criteria
+              const sortedHashtags = [...filteredHashtags].sort((a, b) => {
+                switch(hashtagSortBy) {
+                  case "impressions":
+                    return b.impressions - a.impressions;
+                  case "reach":
+                    return b.reach - a.reach;
+                  case "engagement":
+                    return b.engagement - a.engagement;
+                  case "contentCount":
+                    return b.contentCount - a.contentCount;
+                  case "avgEr":
+                    return parseFloat(b.avgEr) - parseFloat(a.avgEr);
+                  case "avgImpressions":
+                    return (b.contentCount > 0 ? b.impressions / b.contentCount : 0) - (a.contentCount > 0 ? a.impressions / a.contentCount : 0);
+                  case "alphabetical":
+                    return a.tag.localeCompare(b.tag);
+                  default:
+                    return b.impressions - a.impressions;
+                }
+              });
+
+              return sortedHashtags.map(h => (
+                <tr key={h.tag}>
+                  <td><span className="chip" style={{ background: "rgba(139, 92, 246, 0.15)", color: "var(--accent-primary)", border: "1px solid rgba(139, 92, 246, 0.3)", fontSize: "0.85rem", padding: "0.3rem 0.75rem" }}>{h.tag}</span></td>
+                  <td style={{ fontWeight: 600 }}>{h.contentCount} contents</td>
+                  <td style={{ fontWeight: 700, color: "var(--accent-cyan)" }}>{h.impressions.toLocaleString()}</td>
+                  <td>{h.reach.toLocaleString()}</td>
+                  <td style={{ color: "var(--accent-emerald)", fontWeight: 600 }}>{h.engagement.toLocaleString()}</td>
+                  <td style={{ fontWeight: 700, color: "var(--accent-primary)" }}>{h.avgEr}%</td>
+                </tr>
+              ));
+            })()}
 
             {filteredHashtags.length === 0 && (
               <tr>
