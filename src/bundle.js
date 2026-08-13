@@ -513,141 +513,276 @@ function VaultProvider({ children }) {
 
 // 3. COMPONENTS
 // LoginPage Component — Premium Sign-In
-// LoginPage Component — Premium Sign-In with Demo Switcher
-function LoginPage() {
-  const { loginWithGoogle } = React.useContext(AuthContext);
-  const [emailInput, setEmailInput] = React.useState("");
-  const [nameInput,  setNameInput]  = React.useState("");
-
-  const handleCustomLogin = (e) => {
-    e.preventDefault();
-    if (!emailInput.trim()) return;
-    loginWithGoogle(emailInput.trim(), nameInput.trim() || emailInput.split("@")[0]);
-  };
-
-  return (
-    <div className="login-wrapper">
-      <div className="login-card glass-card" style={{ padding: "2.5rem 2rem" }}>
-
-        {/* Brand Icon */}
-        <div className="login-brand-icon">
-          <i data-lucide="layers" style={{ width: "28px", height: "28px", color: "#fff" }}></i>
-        </div>
-
-        {/* Title */}
-        <h1 className="login-title">
-          Socio<span style={{
-            background: "var(--gradient-primary)",
-            WebkitBackgroundClip: "text",
-            backgroundClip: "text",
-            WebkitTextFillColor: "transparent"
-          }}>Vault</span>
-        </h1>
-        <p className="login-subtitle">
-          Your premium multi-account social media command centre —<br />
-          content vault, analytics, hashtag studio &amp; reports.
-        </p>
-
-        {/* Google Sign In */}
-        <button
-          className="btn btn-google"
-          style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
-          onClick={() => loginWithGoogle("alex.creator@gmail.com", "Alex Rivera")}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.24v3.15C3.26 21.3 7.37 24 12 24z"/>
-            <path fill="#FBBC05" d="M5.28 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.61H1.24C.45 8.18 0 10.03 0 12s.45 3.82 1.24 5.39l4.04-3.15z"/>
-            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.26 2.7 1.24 6.61l4.04 3.15c.95-2.85 3.6-4.96 6.72-4.96z"/>
-          </svg>
-          Continue with Google
-        </button>
-
-        {/* Divider */}
-        <div className="login-divider">or sign in with email</div>
-
-        {/* Email Form */}
-        <form onSubmit={handleCustomLogin}>
-          <div className="form-group" style={{ marginBottom: "1rem" }}>
-            <label className="form-label">Full Name</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Alex Rivera"
-              value={nameInput}
-              onChange={e => setNameInput(e.target.value)}
-            />
-          </div>
-          <div className="form-group" style={{ marginBottom: "1.25rem" }}>
-            <label className="form-label">Email Address</label>
-            <input
-              type="email"
-              className="form-input"
-              placeholder="alex@example.com"
-              required
-              value={emailInput}
-              onChange={e => setEmailInput(e.target.value)}
-            />
-          </div>
-          <button type="submit" className="btn btn-primary" style={{ width: "100%", minHeight: "46px" }}>
-            <i data-lucide="log-in" style={{ width: "16px", height: "16px" }}></i>
-            Sign In / Register
-          </button>
-        </form>
-
-        {/* Demo Quick-Login */}
-        <div className="demo-section">
-          <p className="demo-section-label">⚡ Demo Quick Sign-In</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-
-            <button
-              onClick={() => loginWithGoogle("alex.creator@gmail.com", "Alex Rivera")}
-              className="btn btn-secondary"
-              style={{ justifyContent: "flex-start", gap: "0.65rem", fontSize: "0.84rem" }}
-            >
-              <span style={{
-                width: "24px", height: "24px", borderRadius: "6px",
-                background: "linear-gradient(135deg, #10B981, #06B6D4)",
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                fontSize: "0.72rem", fontWeight: 800, color: "#fff", flexShrink: 0
-              }}>O</span>
-              <span><strong>Alex Rivera</strong> — Vault Owner</span>
-            </button>
-
-            <button
-              onClick={() => loginWithGoogle("sarah.editor@gmail.com", "Sarah Jenkins")}
-              className="btn btn-secondary"
-              style={{ justifyContent: "flex-start", gap: "0.65rem", fontSize: "0.84rem" }}
-            >
-              <span style={{
-                width: "24px", height: "24px", borderRadius: "6px",
-                background: "linear-gradient(135deg, #06B6D4, #6366F1)",
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                fontSize: "0.72rem", fontWeight: 800, color: "#fff", flexShrink: 0
-              }}>E</span>
-              <span><strong>Sarah Jenkins</strong> — Collaborator Editor</span>
-            </button>
-
-            <button
-              onClick={() => loginWithGoogle("sponsor.client@gmail.com", "Sponsor Client")}
-              className="btn btn-secondary"
-              style={{ justifyContent: "flex-start", gap: "0.65rem", fontSize: "0.84rem" }}
-            >
-              <span style={{
-                width: "24px", height: "24px", borderRadius: "6px",
-                background: "linear-gradient(135deg, #F59E0B, #F97316)",
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                fontSize: "0.72rem", fontWeight: 800, color: "#fff", flexShrink: 0
-              }}>V</span>
-              <span><strong>Sponsor Client</strong> — Read-Only Viewer</span>
-            </button>
-
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
+// LoginPage Component — Premium Sign-In with Demo Switcher
+
+function LoginPage() {
+
+  const { loginWithGoogle } = React.useContext(AuthContext);
+
+  const [emailInput, setEmailInput] = React.useState("");
+
+  const [nameInput,  setNameInput]  = React.useState("");
+
+
+
+  const handleCustomLogin = (e) => {
+
+    e.preventDefault();
+
+    if (!emailInput.trim()) return;
+
+    loginWithGoogle(emailInput.trim(), nameInput.trim() || emailInput.split("@")[0]);
+
+  };
+
+
+
+  return (
+
+    <div className="login-wrapper">
+
+      <div className="login-card glass-card" style={{ padding: "2.5rem 2rem" }}>
+
+
+
+        {/* Brand Icon */}
+
+        <div className="login-brand-icon">
+
+          <i data-lucide="layers" style={{ width: "28px", height: "28px", color: "#fff" }}></i>
+
+        </div>
+
+
+
+        {/* Title */}
+
+        <h1 className="login-title">
+
+          Socio<span style={{
+
+            background: "var(--gradient-primary)",
+
+            WebkitBackgroundClip: "text",
+
+            backgroundClip: "text",
+
+            WebkitTextFillColor: "transparent"
+
+          }}>Vault</span>
+
+        </h1>
+
+        <p className="login-subtitle">
+
+          Your premium multi-account social media command centre —<br />
+
+          content vault, analytics, hashtag studio &amp; reports.
+
+        </p>
+
+
+
+        {/* Google Sign In */}
+
+        <button
+
+          className="btn btn-google"
+
+          style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+
+          onClick={() => loginWithGoogle("alex.creator@gmail.com", "Alex Rivera")}
+
+        >
+
+          <svg width="18" height="18" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.24v3.15C3.26 21.3 7.37 24 12 24z"/>
+
+            <path fill="#FBBC05" d="M5.28 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.61H1.24C.45 8.18 0 10.03 0 12s.45 3.82 1.24 5.39l4.04-3.15z"/>
+
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.26 2.7 1.24 6.61l4.04 3.15c.95-2.85 3.6-4.96 6.72-4.96z"/>
+
+          </svg>
+
+          Continue with Google
+
+        </button>
+
+
+
+        {/* Divider */}
+
+        <div className="login-divider">or sign in with email</div>
+
+
+
+        {/* Email Form */}
+
+        <form onSubmit={handleCustomLogin}>
+
+          <div className="form-group" style={{ marginBottom: "1rem" }}>
+
+            <label className="form-label">Full Name</label>
+
+            <input
+
+              type="text"
+
+              className="form-input"
+
+              placeholder="Alex Rivera"
+
+              value={nameInput}
+
+              onChange={e => setNameInput(e.target.value)}
+
+            />
+
+          </div>
+
+          <div className="form-group" style={{ marginBottom: "1.25rem" }}>
+
+            <label className="form-label">Email Address</label>
+
+            <input
+
+              type="email"
+
+              className="form-input"
+
+              placeholder="alex@example.com"
+
+              required
+
+              value={emailInput}
+
+              onChange={e => setEmailInput(e.target.value)}
+
+            />
+
+          </div>
+
+          <button type="submit" className="btn btn-primary" style={{ width: "100%", minHeight: "46px" }}>
+
+            <i data-lucide="log-in" style={{ width: "16px", height: "16px" }}></i>
+
+            Sign In / Register
+
+          </button>
+
+        </form>
+
+
+
+        {/* Demo Quick-Login */}
+
+        <div className="demo-section">
+
+          <p className="demo-section-label">⚡ Demo Quick Sign-In</p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+
+
+
+            <button
+
+              onClick={() => loginWithGoogle("alex.creator@gmail.com", "Alex Rivera")}
+
+              className="btn btn-secondary"
+
+              style={{ justifyContent: "flex-start", gap: "0.65rem", fontSize: "0.84rem" }}
+
+            >
+
+              <span style={{
+
+                width: "24px", height: "24px", borderRadius: "6px",
+
+                background: "linear-gradient(135deg, #10B981, #06B6D4)",
+
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+
+                fontSize: "0.72rem", fontWeight: 800, color: "#fff", flexShrink: 0
+
+              }}>O</span>
+
+              <span><strong>Alex Rivera</strong> — Vault Owner</span>
+
+            </button>
+
+
+
+            <button
+
+              onClick={() => loginWithGoogle("sarah.editor@gmail.com", "Sarah Jenkins")}
+
+              className="btn btn-secondary"
+
+              style={{ justifyContent: "flex-start", gap: "0.65rem", fontSize: "0.84rem" }}
+
+            >
+
+              <span style={{
+
+                width: "24px", height: "24px", borderRadius: "6px",
+
+                background: "linear-gradient(135deg, #06B6D4, #6366F1)",
+
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+
+                fontSize: "0.72rem", fontWeight: 800, color: "#fff", flexShrink: 0
+
+              }}>E</span>
+
+              <span><strong>Sarah Jenkins</strong> — Collaborator Editor</span>
+
+            </button>
+
+
+
+            <button
+
+              onClick={() => loginWithGoogle("sponsor.client@gmail.com", "Sponsor Client")}
+
+              className="btn btn-secondary"
+
+              style={{ justifyContent: "flex-start", gap: "0.65rem", fontSize: "0.84rem" }}
+
+            >
+
+              <span style={{
+
+                width: "24px", height: "24px", borderRadius: "6px",
+
+                background: "linear-gradient(135deg, #F59E0B, #F97316)",
+
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+
+                fontSize: "0.72rem", fontWeight: 800, color: "#fff", flexShrink: 0
+
+              }}>V</span>
+
+              <span><strong>Sponsor Client</strong> — Read-Only Viewer</span>
+
+            </button>
+
+
+
+          </div>
+
+        </div>
+
+
+
+      </div>
+
+    </div>
+
+  );
+
 };
 
 function AccountVaultPage() {
@@ -894,163 +1029,320 @@ function AccountVaultPage() {
 }
 
 // Navbar Component — Premium Top Navigation
-// Navbar Component — Premium Top Navigation & Account Switcher
-function Navbar() {
-  const { user, logout } = React.useContext(AuthContext);
-  const {
-    accounts,
-    activeAccountId,
-    setActiveAccountId,
-    activeAccount,
-    activePage,
-    setActivePage,
-    activeUserRole,
-    getUserRole
-  } = React.useContext(VaultContext);
-
-  const navItems = [
-    { id: "account-center",      label: "Overview",         icon: "layout-grid"  },
-    { id: "add-content",         label: "Add Content",      icon: "plus-circle"  },
-    { id: "content-table",       label: "Content Table",    icon: "table-2"      },
-    { id: "timeframe-analytics", label: "Timeframe",        icon: "line-chart"   },
-    { id: "hashtag-analytics",   label: "Hashtag Studio",   icon: "hash"         },
-    { id: "subject-analytics",   label: "Subjects",         icon: "users"        },
-    { id: "report-summary",      label: "Report",           icon: "file-bar-chart"},
-    { id: "collaborators",       label: "Collaborators",    icon: "share-2"      }
-  ];
-
-  const accessibleAccounts = accounts.filter(acc =>
-    user && (
-      acc.ownerEmail === user.email ||
-      acc.collaborators.some(c => c.email === user.email)
-    )
-  );
-
-  const roleBadgeClass =
-    activeUserRole === 'owner'  ? 'badge-uploaded' :
-    activeUserRole === 'editor' ? 'badge-scheduled' :
-                                  'badge-privated';
-
-  return (
-    <nav className="navbar">
-      {/* ── Primary Row ── */}
-      <div className="navbar-container">
-
-        {/* Left: Brand + Account Switcher */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.9rem", minWidth: 0 }}>
-
-          {/* Brand Logo */}
-          <div
-            className="navbar-brand"
-            onClick={() => { setActiveAccountId(null); setActivePage("account-vault"); }}
-            title="Return to Account Vault"
-          >
-            <div className="brand-icon">
-              <i data-lucide="layers" style={{ width: "16px", height: "16px", color: "#fff" }}></i>
-            </div>
-            <span>SocioVault</span>
-          </div>
-
-          {/* Account Switcher */}
-          {activeAccount && (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0 }}>
-              <span style={{ color: "var(--border-hover)", fontSize: "1rem", opacity: 0.5 }}>/</span>
-
-              <select
-                className="form-select"
-                style={{
-                  padding:    "0.35rem 2rem 0.35rem 0.7rem",
-                  fontSize:   "0.82rem",
-                  fontWeight: 600,
-                  width:      "auto",
-                  minHeight:  "unset",
-                  background: "rgba(22, 30, 46, 0.9)",
-                  border:     "1px solid var(--border-color)",
-                  maxWidth:   "200px"
-                }}
-                value={activeAccountId || ""}
-                onChange={e => {
-                  if (e.target.value === "VAULT_HUB") setActiveAccountId(null);
-                  else setActiveAccountId(e.target.value);
-                }}
-              >
-                <option value="VAULT_HUB">← Vault Hub</option>
-                {accessibleAccounts.map(acc => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.name} ({getUserRole(acc)})
-                  </option>
-                ))}
-              </select>
-
-              <span className={`badge ${roleBadgeClass}`}
-                style={{ fontSize: "0.65rem" }}>
-                {activeUserRole}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Right: User Menu */}
-        <div className="user-menu">
-          {user && (
-            <>
-              <div style={{ textAlign: "right", display: "none" }}>
-                <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-main)" }}>
-                  {user.displayName}
-                </div>
-                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                  {user.email}
-                </div>
-              </div>
-              <img
-                src={user.photoURL}
-                alt={user.displayName}
-                title={`${user.displayName} · ${user.email}`}
-                style={{
-                  width:        "34px",
-                  height:       "34px",
-                  borderRadius: "50%",
-                  border:       "2px solid var(--border-color)",
-                  objectFit:    "cover",
-                  transition:   "border-color 0.2s"
-                }}
-                onMouseOver={e => e.target.style.borderColor = "var(--accent-primary)"}
-                onMouseOut={e  => e.target.style.borderColor = "var(--border-color)"}
-              />
-              <button
-                onClick={logout}
-                className="btn btn-secondary btn-icon"
-                title={`Sign out (${user.email})`}
-                style={{ minHeight: "36px", minWidth: "36px", padding: "0.4rem" }}
-              >
-                <i data-lucide="log-out" style={{ width: "15px", height: "15px" }}></i>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* ── Navigation Row (only inside an account) ── */}
-      {activeAccount && (
-        <div className="navbar-nav-row">
-          <div className="navbar-container">
-            <div className="navbar-nav">
-              {navItems.map(item => (
-                <div
-                  key={item.id}
-                  className={`nav-link ${activePage === item.id ? 'active' : ''}`}
-                  onClick={() => setActivePage(item.id)}
-                >
-                  <i data-lucide={item.icon} style={{ width: "13px", height: "13px" }}></i>
-                  {item.label}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </nav>
-  );
+// Navbar Component — Premium Top Navigation & Account Switcher
+
+function Navbar() {
+
+  const { user, logout } = React.useContext(AuthContext);
+
+  const {
+
+    accounts,
+
+    activeAccountId,
+
+    setActiveAccountId,
+
+    activeAccount,
+
+    activePage,
+
+    setActivePage,
+
+    activeUserRole,
+
+    getUserRole
+
+  } = React.useContext(VaultContext);
+
+
+
+  const navItems = [
+
+    { id: "account-center",      label: "Overview",         icon: "layout-grid"  },
+
+    { id: "add-content",         label: "Add Content",      icon: "plus-circle"  },
+
+    { id: "content-table",       label: "Content Table",    icon: "table-2"      },
+
+    { id: "timeframe-analytics", label: "Timeframe",        icon: "line-chart"   },
+
+    { id: "hashtag-analytics",   label: "Hashtag Studio",   icon: "hash"         },
+
+    { id: "subject-analytics",   label: "Subjects",         icon: "users"        },
+
+    { id: "report-summary",      label: "Report",           icon: "file-bar-chart"},
+
+    { id: "collaborators",       label: "Collaborators",    icon: "share-2"      }
+
+  ];
+
+
+
+  const accessibleAccounts = accounts.filter(acc =>
+
+    user && (
+
+      acc.ownerEmail === user.email ||
+
+      acc.collaborators.some(c => c.email === user.email)
+
+    )
+
+  );
+
+
+
+  const roleBadgeClass =
+
+    activeUserRole === 'owner'  ? 'badge-uploaded' :
+
+    activeUserRole === 'editor' ? 'badge-scheduled' :
+
+                                  'badge-privated';
+
+
+
+  return (
+
+    <nav className="navbar">
+
+      {/* ── Primary Row ── */}
+
+      <div className="navbar-container">
+
+
+
+        {/* Left: Brand + Account Switcher */}
+
+        <div style={{ display: "flex", alignItems: "center", gap: "0.9rem", minWidth: 0 }}>
+
+
+
+          {/* Brand Logo */}
+
+          <div
+
+            className="navbar-brand"
+
+            onClick={() => { setActiveAccountId(null); setActivePage("account-vault"); }}
+
+            title="Return to Account Vault"
+
+          >
+
+            <div className="brand-icon">
+
+              <i data-lucide="layers" style={{ width: "16px", height: "16px", color: "#fff" }}></i>
+
+            </div>
+
+            <span>SocioVault</span>
+
+          </div>
+
+
+
+          {/* Account Switcher */}
+
+          {activeAccount && (
+
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0 }}>
+
+              <span style={{ color: "var(--border-hover)", fontSize: "1rem", opacity: 0.5 }}>/</span>
+
+
+
+              <select
+
+                className="form-select"
+
+                style={{
+
+                  padding:    "0.35rem 2rem 0.35rem 0.7rem",
+
+                  fontSize:   "0.82rem",
+
+                  fontWeight: 600,
+
+                  width:      "auto",
+
+                  minHeight:  "unset",
+
+                  background: "rgba(22, 30, 46, 0.9)",
+
+                  border:     "1px solid var(--border-color)",
+
+                  maxWidth:   "200px"
+
+                }}
+
+                value={activeAccountId || ""}
+
+                onChange={e => {
+
+                  if (e.target.value === "VAULT_HUB") setActiveAccountId(null);
+
+                  else setActiveAccountId(e.target.value);
+
+                }}
+
+              >
+
+                <option value="VAULT_HUB">← Vault Hub</option>
+
+                {accessibleAccounts.map(acc => (
+
+                  <option key={acc.id} value={acc.id}>
+
+                    {acc.name} ({getUserRole(acc)})
+
+                  </option>
+
+                ))}
+
+              </select>
+
+
+
+              <span className={`badge ${roleBadgeClass}`}
+
+                style={{ fontSize: "0.65rem" }}>
+
+                {activeUserRole}
+
+              </span>
+
+            </div>
+
+          )}
+
+        </div>
+
+
+
+        {/* Right: User Menu */}
+
+        <div className="user-menu">
+
+          {user && (
+
+            <>
+
+              <div style={{ textAlign: "right", display: "none" }}>
+
+                <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-main)" }}>
+
+                  {user.displayName}
+
+                </div>
+
+                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+
+                  {user.email}
+
+                </div>
+
+              </div>
+
+              <img
+
+                src={user.photoURL}
+
+                alt={user.displayName}
+
+                title={`${user.displayName} · ${user.email}`}
+
+                style={{
+
+                  width:        "34px",
+
+                  height:       "34px",
+
+                  borderRadius: "50%",
+
+                  border:       "2px solid var(--border-color)",
+
+                  objectFit:    "cover",
+
+                  transition:   "border-color 0.2s"
+
+                }}
+
+                onMouseOver={e => e.target.style.borderColor = "var(--accent-primary)"}
+
+                onMouseOut={e  => e.target.style.borderColor = "var(--border-color)"}
+
+              />
+
+              <button
+
+                onClick={logout}
+
+                className="btn btn-secondary btn-icon"
+
+                title={`Sign out (${user.email})`}
+
+                style={{ minHeight: "36px", minWidth: "36px", padding: "0.4rem" }}
+
+              >
+
+                <i data-lucide="log-out" style={{ width: "15px", height: "15px" }}></i>
+
+              </button>
+
+            </>
+
+          )}
+
+        </div>
+
+      </div>
+
+
+
+      {/* ── Navigation Row (only inside an account) ── */}
+
+      {activeAccount && (
+
+        <div className="navbar-nav-row">
+
+          <div className="navbar-container">
+
+            <div className="navbar-nav">
+
+              {navItems.map(item => (
+
+                <div
+
+                  key={item.id}
+
+                  className={`nav-link ${activePage === item.id ? 'active' : ''}`}
+
+                  onClick={() => setActivePage(item.id)}
+
+                >
+
+                  <i data-lucide={item.icon} style={{ width: "13px", height: "13px" }}></i>
+
+                  {item.label}
+
+                </div>
+
+              ))}
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+    </nav>
+
+  );
+
 };
 
 function AccountCenterPage() {
@@ -3469,993 +3761,946 @@ function SubjectAnalyticsPage() {
 }
 
 
-// Report Summary Page — Professional Analytics Report
-// ReportSummaryPage — Professional Analytics Report
-function ReportSummaryPage() {
-  const { activeAccount, contents } = React.useContext(VaultContext);
-
-  if (!activeAccount) {
-    return (
-      <div className="page-container">
-        <div className="glass-card" style={{ textAlign: "center", padding: "4rem 2rem" }}>
-          <i data-lucide="file-bar-chart" style={{ width: "48px", height: "48px", color: "var(--text-subtle)", marginBottom: "1rem" }}></i>
-          <p style={{ color: "var(--text-muted)" }}>No active account selected.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── Data ───────────────────────────────────────────────────────────────────
-  const accountContents = React.useMemo(
-    () => contents.filter(c => c.accountId === activeAccount.id),
-    [contents, activeAccount.id]
-  );
-
-  const metrics = React.useMemo(() => {
-    const totalImpressions = accountContents.reduce((s, c) => s + (c.impressions || 0), 0);
-    const totalReach       = accountContents.reduce((s, c) => s + (c.reach       || 0), 0);
-    const totalLikes       = accountContents.reduce((s, c) => s + (c.likes       || 0), 0);
-    const totalComments    = accountContents.reduce((s, c) => s + (c.comments    || 0), 0);
-    const totalShares      = accountContents.reduce((s, c) => s + (c.shares      || 0), 0);
-    const totalSaves       = accountContents.reduce((s, c) => s + (c.saves       || 0), 0);
-    const totalEngagement  = totalLikes + totalComments + totalShares + totalSaves;
-
-    const erRate       = totalReach > 0 ? ((totalEngagement / totalReach) * 100).toFixed(2) : "0.00";
-    const irRatio      = totalReach > 0 ? (totalImpressions / totalReach).toFixed(2) : "0.00";
-    const avgImp       = accountContents.length > 0 ? Math.round(totalImpressions / accountContents.length) : 0;
-    const avgReach     = accountContents.length > 0 ? Math.round(totalReach       / accountContents.length) : 0;
-    const avgEng       = accountContents.length > 0 ? Math.round(totalEngagement  / accountContents.length) : 0;
-
-    // Engagement breakdown with real percentages
-    const likePct    = totalEngagement > 0 ? ((totalLikes    / totalEngagement) * 100).toFixed(1) : "0.0";
-    const commentPct = totalEngagement > 0 ? ((totalComments / totalEngagement) * 100).toFixed(1) : "0.0";
-    const sharePct   = totalEngagement > 0 ? ((totalShares   / totalEngagement) * 100).toFixed(1) : "0.0";
-    const savePct    = totalEngagement > 0 ? ((totalSaves    / totalEngagement) * 100).toFixed(1) : "0.0";
-
-    // Platform breakdown
-    const platformStats = {};
-    accountContents.forEach(c => {
-      const p = c.platform || "Unknown";
-      if (!platformStats[p]) platformStats[p] = { count: 0, impressions: 0, reach: 0, engagement: 0 };
-      platformStats[p].count       += 1;
-      platformStats[p].impressions += (c.impressions || 0);
-      platformStats[p].reach       += (c.reach       || 0);
-      platformStats[p].engagement  += (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0);
-    });
-
-    // Subject breakdown
-    const subjectStats = {};
-    accountContents.forEach(c => {
-      (c.subjects || []).forEach(sub => {
-        if (!subjectStats[sub]) subjectStats[sub] = { count: 0, impressions: 0, engagement: 0 };
-        subjectStats[sub].count       += 1;
-        subjectStats[sub].impressions += (c.impressions || 0);
-        subjectStats[sub].engagement  += (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0);
-      });
-    });
-
-    // Status breakdown
-    const statusStats = {};
-    accountContents.forEach(c => {
-      const s = c.status || "Unknown";
-      statusStats[s] = (statusStats[s] || 0) + 1;
-    });
-
-    // Date range
-    const dates = accountContents.map(c => c.uploadDate).filter(Boolean).sort();
-    const dateFrom = dates[0] || null;
-    const dateTo   = dates[dates.length - 1] || null;
-
-    // Top content
-    const topContent = [...accountContents]
-      .sort((a, b) => (b.impressions || 0) - (a.impressions || 0))
-      .slice(0, 3);
-
-    // Best performing platform
-    const bestPlatform = Object.entries(platformStats)
-      .sort((a, b) => b[1].impressions - a[1].impressions)[0] || null;
-
-    // Best subject
-    const bestSubject = Object.entries(subjectStats)
-      .sort((a, b) => b[1].impressions - a[1].impressions)[0] || null;
-
-    // Max platform impressions (for progress bars)
-    const maxPlatformImp = Math.max(...Object.values(platformStats).map(p => p.impressions), 1);
-
-    // Max subject impressions (for bars)
-    const maxSubjectImp = Math.max(...Object.values(subjectStats).map(s => s.impressions), 1);
-
-    return {
-      totalContent: accountContents.length,
-      totalImpressions, totalReach, totalLikes, totalComments, totalShares, totalSaves,
-      totalEngagement, erRate, irRatio,
-      avgImp, avgReach, avgEng,
-      likePct, commentPct, sharePct, savePct,
-      platformStats, subjectStats, statusStats,
-      dateFrom, dateTo, topContent,
-      bestPlatform, bestSubject,
-      maxPlatformImp, maxSubjectImp
-    };
-  }, [accountContents]);
-
-  // ─── Helpers ─────────────────────────────────────────────────────────────────
-  const fmt   = n => n >= 1_000_000
-    ? (n / 1_000_000).toFixed(1) + "M"
-    : n >= 1_000
-      ? (n / 1_000).toFixed(1) + "K"
-      : n.toLocaleString();
-
-  const fmtFull = n => n.toLocaleString();
-
-  const fmtDate = d => {
-    if (!d) return "—";
-    const [y, m, day] = d.split("-");
-    return new Date(+y, +m - 1, +day).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  };
-
-  const platformColor = p => ({
-    "Instagram":   "#E1306C",
-    "YouTube":     "#FF4444",
-    "TikTok":      "#25F4EE",
-    "X (Twitter)": "#60A5FA",
-    "Facebook":    "#4B8FE4",
-    "Threads":     "#E8EAED"
-  })[p] || "var(--accent-primary)";
-
-  const platformIcon = p => ({
-    "Instagram":   "instagram",
-    "YouTube":     "youtube",
-    "TikTok":      "music-2",
-    "X (Twitter)": "twitter",
-    "Facebook":    "facebook",
-    "Threads":     "at-sign"
-  })[p] || "globe";
-
-  const erQuality = er => {
-    const v = parseFloat(er);
-    if (v >= 6)  return { label: "Exceptional", color: "#10B981" };
-    if (v >= 3)  return { label: "Above Average", color: "#34D399" };
-    if (v >= 1)  return { label: "Industry Standard", color: "#F59E0B" };
-    return             { label: "Needs Improvement", color: "#F43F5E" };
-  };
-
-  const irQuality = ir => parseFloat(ir) > 1.5
-    ? "strong content retention — viewers return to watch multiple times"
-    : "typical single-view consumption pattern";
-
-  const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  const erInfo = erQuality(metrics.erRate);
-
-  // ─── DOCX Export ─────────────────────────────────────────────────────────────
-  const handleExportDocx = () => {
-    if (!window.docx) { alert("DOCX library not loaded."); return; }
-    const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, ShadingType } = window.docx;
-
-    const titleParagraph = new Paragraph({
-      children: [new TextRun({ text: "PERFORMANCE ANALYTICS REPORT", bold: true, size: 40, color: "7C3AED" })],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 100 }
-    });
-
-    const subTitle = new Paragraph({
-      children: [new TextRun({ text: activeAccount.name, bold: true, size: 28, color: "06B6D4" })],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 200 }
-    });
-
-    const dateLine = new Paragraph({
-      children: [new TextRun({ text: `Report Generated: ${today}`, size: 20, color: "6B7280", italics: true })],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 400 }
-    });
-
-    const makeHeading = (text, color = "8B5CF6") => new Paragraph({
-      children: [new TextRun({ text, bold: true, size: 26, color })],
-      spacing: { before: 400, after: 150 },
-      border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "2D3748" } }
-    });
-
-    const makeParagraph = (text) => new Paragraph({
-      children: [new TextRun({ text, size: 20, color: "C9D1D9" })],
-      spacing: { after: 160 }
-    });
-
-    const makeBullet = (label, value) => new Paragraph({
-      children: [
-        new TextRun({ text: `${label}: `, bold: true, size: 20, color: "F0F6FC" }),
-        new TextRun({ text: value, size: 20, color: "9CA3AF" })
-      ],
-      bullet: { level: 0 },
-      spacing: { after: 80 }
-    });
-
-    const doc = new Document({
-      sections: [{
-        properties: {},
-        children: [
-          titleParagraph, subTitle, dateLine,
-
-          makeHeading("EXECUTIVE SUMMARY", "06B6D4"),
-          makeParagraph(
-            `${activeAccount.name} has published ${metrics.totalContent} content pieces across ${Object.keys(metrics.platformStats).length} platform(s), ` +
-            `generating ${fmtFull(metrics.totalImpressions)} total impressions and reaching ${fmtFull(metrics.totalReach)} unique viewers. ` +
-            `Total engagement stands at ${fmtFull(metrics.totalEngagement)} interactions, representing an engagement rate of ${metrics.erRate}% — rated "${erInfo.label}".`
-          ),
-
-          makeHeading("KEY PERFORMANCE INDICATORS", "10B981"),
-          makeBullet("Total Content Published", `${metrics.totalContent} pieces`),
-          makeBullet("Total Impressions (Views)", fmtFull(metrics.totalImpressions)),
-          makeBullet("Total Reach (Unique Viewers)", fmtFull(metrics.totalReach)),
-          makeBullet("Total Engagement", fmtFull(metrics.totalEngagement)),
-          makeBullet("Engagement Rate (ER%)", `${metrics.erRate}% — ${erInfo.label}`),
-          makeBullet("Impression/Reach Ratio", `${metrics.irRatio}x — ${irQuality(metrics.irRatio)}`),
-          makeBullet("Average Impressions per Post", fmtFull(metrics.avgImp)),
-          makeBullet("Average Reach per Post", fmtFull(metrics.avgReach)),
-          makeBullet("Average Engagement per Post", fmtFull(metrics.avgEng)),
-          makeBullet("Reporting Period", metrics.dateFrom ? `${fmtDate(metrics.dateFrom)} → ${fmtDate(metrics.dateTo)}` : "All time"),
-
-          makeHeading("ENGAGEMENT BREAKDOWN", "8B5CF6"),
-          makeBullet("Likes",    `${fmtFull(metrics.totalLikes)}    (${metrics.likePct}%)`),
-          makeBullet("Comments", `${fmtFull(metrics.totalComments)} (${metrics.commentPct}%)`),
-          makeBullet("Shares",   `${fmtFull(metrics.totalShares)}   (${metrics.sharePct}%)`),
-          makeBullet("Saves",    `${fmtFull(metrics.totalSaves)}    (${metrics.savePct}%)`),
-
-          makeHeading("PLATFORM PERFORMANCE", "F59E0B"),
-          ...Object.entries(metrics.platformStats).map(([platform, stats]) =>
-            makeBullet(platform,
-              `${stats.count} posts · ${fmtFull(stats.impressions)} impressions · ` +
-              `${fmtFull(stats.engagement)} engagements · ` +
-              `ER ${stats.reach > 0 ? ((stats.engagement / stats.reach) * 100).toFixed(2) : "0.00"}%`
-            )
-          ),
-
-          ...(Object.keys(metrics.subjectStats).length > 0 ? [
-            makeHeading("SUBJECT / TALENT PERFORMANCE", "EC4899"),
-            ...Object.entries(metrics.subjectStats)
-              .sort((a, b) => b[1].impressions - a[1].impressions)
-              .map(([sub, stats]) =>
-                makeBullet(sub,
-                  `${stats.count} appearances · ${fmtFull(stats.impressions)} impressions ` +
-                  `(${(stats.impressions / Math.max(metrics.totalImpressions, 1) * 100).toFixed(1)}% of total)`
-                )
-              )
-          ] : []),
-
-          makeHeading("TOP 3 PERFORMING CONTENT", "06B6D4"),
-          ...metrics.topContent.map((c, i) => makeBullet(
-            `#${i + 1} — ${c.platform} (${fmtDate(c.uploadDate)})`,
-            `"${(c.caption || "").substring(0, 80)}..." · ` +
-            `${fmtFull(c.impressions || 0)} impressions · ` +
-            `${fmtFull(c.reach || 0)} reach · ` +
-            `${fmtFull((c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0))} engagements`
-          )),
-
-          makeHeading("STRATEGIC RECOMMENDATIONS", "34D399"),
-          makeBullet("1. Replicate Top Performers",
-            `Study the content format, posting time, and hashtags of your top-performing posts and build a repeatable template.`
-          ),
-          makeBullet("2. Double Down on Best Platform",
-            metrics.bestPlatform
-              ? `${metrics.bestPlatform[0]} drives the most impressions. Allocate more resources and posting frequency here.`
-              : "Establish a clear primary platform and build your posting strategy around it."
-          ),
-          makeBullet("3. Prioritise High-Impact Talent",
-            metrics.bestSubject
-              ? `Content featuring ${metrics.bestSubject[0]} consistently drives the highest viewership — schedule more collaborations.`
-              : "Identify and develop recurring on-screen talent to build audience familiarity."
-          ),
-          makeBullet("4. Improve Engagement Rate",
-            `Your current ER of ${metrics.erRate}% is "${erInfo.label}". ` +
-            "Introduce interactive formats — polls, Q&A, pinned comment threads — to push interactions higher."
-          ),
-          makeBullet("5. Diversify Engagement Types",
-            `Saves (${metrics.savePct}%) indicate evergreen value — produce more how-to and reference content to boost saves. ` +
-            `Shares (${metrics.sharePct}%) amplify organic reach — emotional or surprising hooks tend to maximise shares.`
-          ),
-
-          new Paragraph({
-            children: [new TextRun({ text: `\nGenerated by SocioVault · ${today}`, size: 16, color: "484F58", italics: true })],
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 600 }
-          })
-        ]
-      }]
-    });
-
-    Packer.toBlob(doc).then(blob => {
-      const url = URL.createObjectURL(blob);
-      const a   = document.createElement("a");
-      a.href     = url;
-      a.download = `${activeAccount.name.replace(/\s+/g, "_")}_Report_${new Date().toISOString().slice(0,10)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-  };
-
-  // ─── Render ──────────────────────────────────────────────────────────────────
-  return (
-    <div className="page-container">
-
-      {/* ══ HERO COVER ══════════════════════════════════════════════════════════ */}
-      <div className="report-hero">
-        <div className="report-hero-content">
-          <div className="report-title-eyebrow">
-            <i data-lucide="file-bar-chart" style={{ width: "12px", height: "12px" }}></i>
-            Performance Analytics Report
-          </div>
-
-          <h1 className="report-hero-title">{activeAccount.name}</h1>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.92rem", marginBottom: "0.5rem" }}>
-            {activeAccount.description || "Social Media Analytics Overview"}
-          </p>
-
-          <div className="report-hero-meta">
-            <div className="report-hero-meta-item">
-              <i data-lucide="calendar" style={{ width: "13px", height: "13px" }}></i>
-              <span>
-                {metrics.dateFrom
-                  ? `${fmtDate(metrics.dateFrom)} — ${fmtDate(metrics.dateTo)}`
-                  : "All-Time Data"}
-              </span>
-            </div>
-            <div className="report-hero-meta-item">
-              <i data-lucide="layers" style={{ width: "13px", height: "13px" }}></i>
-              <span>{metrics.totalContent} content pieces</span>
-            </div>
-            <div className="report-hero-meta-item">
-              <i data-lucide="globe" style={{ width: "13px", height: "13px" }}></i>
-              <span>{Object.keys(metrics.platformStats).length} platforms</span>
-            </div>
-            <div className="report-hero-meta-item">
-              <i data-lucide="clock" style={{ width: "13px", height: "13px" }}></i>
-              <span>Generated {today}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div style={{ position: "absolute", top: "1.5rem", right: "1.5rem", display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
-          <button
-            className="btn btn-export btn-sm"
-            onClick={handleExportDocx}
-            title="Export as .docx"
-          >
-            <i data-lucide="download" style={{ width: "13px", height: "13px" }}></i>
-            Export DOCX
-          </button>
-          <button
-            className="btn btn-print btn-sm"
-            onClick={() => window.print()}
-            title="Print report"
-          >
-            <i data-lucide="printer" style={{ width: "13px", height: "13px" }}></i>
-            Print
-          </button>
-        </div>
-      </div>
-
-      {/* ══ KPI STRIP ════════════════════════════════════════════════════════════ */}
-      <div className="report-kpi-grid">
-
-        {[
-          { label: "Total Impressions",    value: fmt(metrics.totalImpressions), sub: fmtFull(metrics.totalImpressions) + " views",        color: "#06B6D4",  gradient: "linear-gradient(90deg, #06B6D4, #22D3EE)" },
-          { label: "Total Reach",          value: fmt(metrics.totalReach),       sub: "unique viewers",                                    color: "#8B5CF6",  gradient: "linear-gradient(90deg, #8B5CF6, #A78BFA)" },
-          { label: "Total Engagement",     value: fmt(metrics.totalEngagement),  sub: "likes + comments + shares + saves",                 color: "#10B981",  gradient: "linear-gradient(90deg, #10B981, #34D399)" },
-          { label: "Engagement Rate",      value: metrics.erRate + "%",          sub: erInfo.label,                                        color: erInfo.color, gradient: `linear-gradient(90deg, ${erInfo.color}, ${erInfo.color}99)` },
-          { label: "Avg Views / Post",     value: fmt(metrics.avgImp),           sub: "per content piece",                                 color: "#F59E0B",  gradient: "linear-gradient(90deg, #F59E0B, #FCD34D)" },
-          { label: "Impression / Reach",   value: metrics.irRatio + "×",         sub: irQuality(metrics.irRatio).split(" — ")[0] || "ratio", color: "#EC4899", gradient: "linear-gradient(90deg, #EC4899, #F9A8D4)" }
-        ].map((kpi, i) => (
-          <div key={i} className="report-kpi-card">
-            <div className="kpi-accent-bar" style={{ background: kpi.gradient }}></div>
-            <div className="report-kpi-label">{kpi.label}</div>
-            <div className="report-kpi-value" style={{ color: kpi.color }}>{kpi.value}</div>
-            <div className="report-kpi-sub">{kpi.sub}</div>
-          </div>
-        ))}
-
-      </div>
-
-      {/* ══ EXECUTIVE SUMMARY ════════════════════════════════════════════════════ */}
-      <div className="report-section" style={{ marginBottom: "1.5rem" }}>
-        <div className="report-section-head">
-          <div className="report-section-icon" style={{ background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.2)" }}>
-            <span>📋</span>
-          </div>
-          <div>
-            <div className="report-section-label">Executive Summary</div>
-          </div>
-        </div>
-        <div className="report-section-body">
-          <div className="insight-prose">
-            <p>
-              <strong>{activeAccount.name}</strong> has published{" "}
-              <span className="metric-callout metric-callout-primary">{metrics.totalContent} pieces</span>{" "}
-              of content across{" "}
-              <span className="metric-callout metric-callout-cyan">{Object.keys(metrics.platformStats).length} platform{Object.keys(metrics.platformStats).length !== 1 ? "s" : ""}</span>,
-              accumulating a total of{" "}
-              <span className="metric-callout metric-callout-cyan">{fmtFull(metrics.totalImpressions)} impressions</span>{" "}
-              and reaching{" "}
-              <span className="metric-callout metric-callout-primary">{fmtFull(metrics.totalReach)} unique viewers</span>.
-              The impression-to-reach ratio of <strong>{metrics.irRatio}×</strong> indicates {irQuality(metrics.irRatio)}.
-            </p>
-            <p>
-              Audience interaction totals{" "}
-              <span className="metric-callout metric-callout-emerald">{fmtFull(metrics.totalEngagement)} engagements</span>{" "}
-              — yielding an overall engagement rate of{" "}
-              <span className="metric-callout" style={{ background: `${erInfo.color}18`, color: erInfo.color, border: `1px solid ${erInfo.color}30` }}>
-                {metrics.erRate}%
-              </span>,
-              classified as <strong style={{ color: erInfo.color }}>{erInfo.label}</strong> relative to industry benchmarks.
-              On average, each content piece receives{" "}
-              <strong>{fmtFull(metrics.avgImp)}</strong> views,{" "}
-              <strong>{fmtFull(metrics.avgReach)}</strong> unique viewers, and{" "}
-              <strong>{fmtFull(metrics.avgEng)}</strong> interactions.
-            </p>
-            {metrics.bestPlatform && (
-              <p>
-                The strongest-performing platform is{" "}
-                <span className="metric-callout metric-callout-amber">{metrics.bestPlatform[0]}</span>{" "}
-                with{" "}
-                <strong>{fmtFull(metrics.bestPlatform[1].impressions)}</strong> total impressions
-                across <strong>{metrics.bestPlatform[1].count}</strong> post{metrics.bestPlatform[1].count !== 1 ? "s" : ""}.
-                {metrics.bestSubject && (
-                  <> Content featuring <span className="metric-callout metric-callout-primary">{metrics.bestSubject[0]}</span>{" "}
-                  drives the highest viewership among all tracked subjects.</>
-                )}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ══ ENGAGEMENT BREAKDOWN + PLATFORM SIDE BY SIDE ═════════════════════════ */}
-      <div className="report-two-col" style={{ marginBottom: "1.5rem" }}>
-
-        {/* Engagement Breakdown */}
-        <div className="report-section" style={{ marginBottom: 0 }}>
-          <div className="report-section-head">
-            <div className="report-section-icon" style={{ background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.2)" }}>
-              <span>💬</span>
-            </div>
-            <div>
-              <div className="report-section-label">Engagement Breakdown</div>
-            </div>
-          </div>
-          <div className="report-section-body">
-
-            {[
-              { label: "Likes",    icon: "heart",      value: metrics.totalLikes,    pct: metrics.likePct,    color: "#F43F5E",  gradient: "linear-gradient(90deg, #F43F5E, #FB7185)" },
-              { label: "Comments", icon: "message-circle", value: metrics.totalComments, pct: metrics.commentPct, color: "#8B5CF6",  gradient: "linear-gradient(90deg, #8B5CF6, #A78BFA)" },
-              { label: "Shares",   icon: "repeat-2",   value: metrics.totalShares,   pct: metrics.sharePct,   color: "#06B6D4",  gradient: "linear-gradient(90deg, #06B6D4, #22D3EE)" },
-              { label: "Saves",    icon: "bookmark",   value: metrics.totalSaves,    pct: metrics.savePct,    color: "#10B981",  gradient: "linear-gradient(90deg, #10B981, #34D399)" }
-            ].map(item => (
-              <div key={item.label} className="engagement-bar-row">
-                <div className="engagement-bar-label">
-                  <i data-lucide={item.icon} style={{ width: "14px", height: "14px", color: item.color, flexShrink: 0 }}></i>
-                  {item.label}
-                </div>
-                <div className="engagement-bar-track">
-                  <div
-                    className="engagement-bar-fill"
-                    style={{ width: `${item.pct}%`, background: item.gradient }}
-                  ></div>
-                </div>
-                <div className="engagement-bar-value">{fmt(item.value)}</div>
-                <div className="engagement-bar-pct">{item.pct}%</div>
-              </div>
-            ))}
-
-            {/* Total row */}
-            <div style={{
-              marginTop: "1rem", paddingTop: "0.85rem",
-              borderTop: "1px solid var(--border-color)",
-              display: "flex", justifyContent: "space-between", alignItems: "center"
-            }}>
-              <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                Total Interactions
-              </span>
-              <span style={{ fontSize: "1.2rem", fontWeight: 800, fontFamily: "var(--font-heading)", color: "var(--accent-emerald)" }}>
-                {fmtFull(metrics.totalEngagement)}
-              </span>
-            </div>
-
-            {/* Insight note */}
-            <div style={{
-              marginTop: "0.85rem", padding: "0.85rem 1rem",
-              background: "rgba(139,92,246,0.06)", borderRadius: "var(--radius-sm)",
-              border: "1px solid rgba(139,92,246,0.1)"
-            }}>
-              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.6, margin: 0 }}>
-                <strong style={{ color: "var(--accent-primary-light)" }}>💡 Insight: </strong>
-                {parseFloat(metrics.savePct) >= 15
-                  ? `High save rate (${metrics.savePct}%) signals strong evergreen/reference content value.`
-                  : parseFloat(metrics.sharePct) >= 15
-                    ? `Strong share rate (${metrics.sharePct}%) is driving significant organic amplification.`
-                    : parseFloat(metrics.commentPct) >= 15
-                      ? `Above-average comment rate (${metrics.commentPct}%) indicates high audience conversational engagement.`
-                      : `Likes dominate at ${metrics.likePct}% — experiment with CTAs to convert passive likes into saves and shares.`
-                }
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Content Status */}
-        <div className="report-section" style={{ marginBottom: 0 }}>
-          <div className="report-section-head">
-            <div className="report-section-icon" style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.2)" }}>
-              <span>📊</span>
-            </div>
-            <div>
-              <div className="report-section-label">Content Status Overview</div>
-            </div>
-          </div>
-          <div className="report-section-body">
-
-            {/* Status cards */}
-            {Object.entries(metrics.statusStats).length > 0 ? (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem", marginBottom: "1.25rem" }}>
-                {[
-                  { key: "Uploaded",  label: "Published",  color: "#10B981", gradient: "linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05))", border: "rgba(16,185,129,0.3)",  icon: "check-circle" },
-                  { key: "Scheduled", label: "Scheduled",  color: "#06B6D4", gradient: "linear-gradient(135deg, rgba(6,182,212,0.15), rgba(6,182,212,0.05))",   border: "rgba(6,182,212,0.3)",   icon: "clock"        },
-                  { key: "Privated",  label: "Privated",   color: "#F59E0B", gradient: "linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05))", border: "rgba(245,158,11,0.3)",  icon: "eye-off"      },
-                  { key: "Deleted",   label: "Archived",   color: "#F43F5E", gradient: "linear-gradient(135deg, rgba(244,63,94,0.12), rgba(244,63,94,0.04))",   border: "rgba(244,63,94,0.25)",  icon: "archive"      }
-                ].map(s => {
-                  const count = metrics.statusStats[s.key] || 0;
-                  if (count === 0) return null;
-                  const pct = metrics.totalContent > 0 ? ((count / metrics.totalContent) * 100).toFixed(0) : 0;
-                  return (
-                    <div key={s.key} style={{
-                      padding: "1rem", borderRadius: "var(--radius-md)",
-                      background: s.gradient, border: `1px solid ${s.border}`
-                    }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                        <i data-lucide={s.icon} style={{ width: "15px", height: "15px", color: s.color }}></i>
-                        <span style={{ fontSize: "0.7rem", color: s.color, fontWeight: 700 }}>{pct}%</span>
-                      </div>
-                      <div style={{ fontSize: "1.6rem", fontWeight: 800, fontFamily: "var(--font-heading)", color: s.color, lineHeight: 1 }}>
-                        {count}
-                      </div>
-                      <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 600, marginTop: "0.2rem", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                        {s.label}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p style={{ color: "var(--text-muted)", fontSize: "0.88rem" }}>No status data available.</p>
-            )}
-
-            {/* Publication health bar */}
-            {metrics.totalContent > 0 && (
-              <div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 600, marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  Publication Health
-                </div>
-                <div className="progress-bar-track progress-bar-track-lg">
-                  <div
-                    className="progress-bar-fill progress-bar-fill-emerald"
-                    style={{ width: `${((metrics.statusStats["Uploaded"] || 0) / metrics.totalContent) * 100}%` }}
-                  ></div>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "0.35rem" }}>
-                  <span style={{ fontSize: "0.75rem", color: "var(--accent-emerald)" }}>
-                    {metrics.statusStats["Uploaded"] || 0} published
-                  </span>
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                    {metrics.totalContent} total
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Avg engagement rate note */}
-            <div style={{
-              marginTop: "1rem", padding: "0.85rem 1rem",
-              background: `${erInfo.color}0F`, borderRadius: "var(--radius-sm)",
-              border: `1px solid ${erInfo.color}25`
-            }}>
-              <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-subtle)", fontWeight: 700, marginBottom: "0.35rem" }}>
-                Overall Engagement Health
-              </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: "1.5rem", fontWeight: 800, fontFamily: "var(--font-heading)", color: erInfo.color }}>
-                  {metrics.erRate}%
-                </span>
-                <span style={{
-                  padding: "0.25rem 0.65rem", borderRadius: "var(--radius-full)",
-                  background: `${erInfo.color}18`, border: `1px solid ${erInfo.color}30`,
-                  fontSize: "0.75rem", fontWeight: 700, color: erInfo.color
-                }}>
-                  {erInfo.label}
-                </span>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-
-      {/* ══ PLATFORM PERFORMANCE ════════════════════════════════════════════════ */}
-      {Object.keys(metrics.platformStats).length > 0 && (
-        <div className="report-section" style={{ marginBottom: "1.5rem" }}>
-          <div className="report-section-head">
-            <div className="report-section-icon" style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.2)" }}>
-              <span>📱</span>
-            </div>
-            <div>
-              <div className="report-section-label">Platform Performance Analysis</div>
-            </div>
-          </div>
-          <div className="report-section-body">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "1rem" }}>
-              {Object.entries(metrics.platformStats)
-                .sort((a, b) => b[1].impressions - a[1].impressions)
-                .map(([platform, stats]) => {
-                  const pct      = Math.round((stats.impressions / metrics.maxPlatformImp) * 100);
-                  const er       = stats.reach > 0 ? ((stats.engagement / stats.reach) * 100).toFixed(2) : "0.00";
-                  const avgViews = stats.count > 0 ? Math.round(stats.impressions / stats.count) : 0;
-                  const pColor   = platformColor(platform);
-
-                  return (
-                    <div key={platform} className="platform-stat-card">
-                      <div className="platform-stat-header">
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                          <div style={{
-                            width: "32px", height: "32px", borderRadius: "9px",
-                            background: `${pColor}18`, border: `1px solid ${pColor}30`,
-                            display: "flex", alignItems: "center", justifyContent: "center"
-                          }}>
-                            <i data-lucide={platformIcon(platform)} style={{ width: "14px", height: "14px", color: pColor }}></i>
-                          </div>
-                          <div className="platform-stat-name" style={{ color: pColor }}>{platform}</div>
-                        </div>
-                        <span className="platform-stat-count">{stats.count} post{stats.count !== 1 ? "s" : ""}</span>
-                      </div>
-
-                      {/* Impression progress bar */}
-                      <div>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.35rem" }}>
-                          <span style={{ fontSize: "0.72rem", color: "var(--text-subtle)", textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }}>Impressions share</span>
-                          <span style={{ fontSize: "0.78rem", fontWeight: 700, color: pColor }}>{pct}%</span>
-                        </div>
-                        <div className="progress-bar-track">
-                          <div
-                            className="progress-bar-fill"
-                            style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${pColor}, ${pColor}99)` }}
-                          ></div>
-                        </div>
-                      </div>
-
-                      <div className="platform-stat-metrics">
-                        <div className="platform-stat-metric-item">
-                          <span className="platform-stat-metric-lbl">Impressions</span>
-                          <span className="platform-stat-metric-val" style={{ color: "var(--accent-cyan)" }}>{fmt(stats.impressions)}</span>
-                        </div>
-                        <div className="platform-stat-metric-item">
-                          <span className="platform-stat-metric-lbl">Reach</span>
-                          <span className="platform-stat-metric-val">{fmt(stats.reach)}</span>
-                        </div>
-                        <div className="platform-stat-metric-item">
-                          <span className="platform-stat-metric-lbl">Engagement</span>
-                          <span className="platform-stat-metric-val" style={{ color: "var(--accent-emerald)" }}>{fmt(stats.engagement)}</span>
-                        </div>
-                        <div className="platform-stat-metric-item">
-                          <span className="platform-stat-metric-lbl">Avg. ER %</span>
-                          <span className="platform-stat-metric-val" style={{ color: "var(--accent-primary)" }}>{er}%</span>
-                        </div>
-                        <div className="platform-stat-metric-item" style={{ gridColumn: "1 / -1" }}>
-                          <span className="platform-stat-metric-lbl">Avg views / post</span>
-                          <span className="platform-stat-metric-val" style={{ color: "var(--accent-amber)" }}>{fmt(avgViews)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══ SUBJECT / TALENT PERFORMANCE ════════════════════════════════════════ */}
-      {Object.keys(metrics.subjectStats).length > 0 && (
-        <div className="report-section" style={{ marginBottom: "1.5rem" }}>
-          <div className="report-section-head">
-            <div className="report-section-icon" style={{ background: "rgba(236,72,153,0.12)", border: "1px solid rgba(236,72,153,0.2)" }}>
-              <span>👥</span>
-            </div>
-            <div>
-              <div className="report-section-label">Subject &amp; Talent Performance</div>
-            </div>
-          </div>
-          <div className="report-section-body">
-            {Object.entries(metrics.subjectStats)
-              .sort((a, b) => b[1].impressions - a[1].impressions)
-              .map(([name, stats], idx) => {
-                const pct     = Math.round((stats.impressions / metrics.maxSubjectImp) * 100);
-                const share   = metrics.totalImpressions > 0
-                  ? ((stats.impressions / metrics.totalImpressions) * 100).toFixed(1)
-                  : "0.0";
-                const initials = name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
-                const gradients = [
-                  "linear-gradient(135deg, #8B5CF6, #06B6D4)",
-                  "linear-gradient(135deg, #10B981, #06B6D4)",
-                  "linear-gradient(135deg, #F59E0B, #EF4444)",
-                  "linear-gradient(135deg, #EC4899, #8B5CF6)",
-                  "linear-gradient(135deg, #6366F1, #06B6D4)"
-                ];
-
-                return (
-                  <div key={name} className="subject-person-row">
-                    <div className="subject-avatar" style={{ background: gradients[idx % gradients.length] }}>
-                      {initials}
-                    </div>
-                    <div className="subject-info">
-                      <div className="subject-name">{name}</div>
-                      <div className="subject-meta">
-                        {stats.count} appearance{stats.count !== 1 ? "s" : ""} · {share}% of total impressions
-                      </div>
-                    </div>
-                    <div style={{ textAlign: "right", marginRight: "1rem", flexShrink: 0 }}>
-                      <div style={{ fontSize: "1.05rem", fontWeight: 800, fontFamily: "var(--font-heading)", color: "var(--text-main)" }}>
-                        {fmt(stats.impressions)}
-                      </div>
-                      <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>impressions</div>
-                    </div>
-                    <div className="subject-bar-wrap">
-                      <div className="progress-bar-track">
-                        <div
-                          className="progress-bar-fill"
-                          style={{
-                            width: `${pct}%`,
-                            background: gradients[idx % gradients.length]
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        </div>
-      )}
-
-      {/* ══ TOP 3 PERFORMING CONTENT ═════════════════════════════════════════════ */}
-      {metrics.topContent.length > 0 && (
-        <div className="report-section" style={{ marginBottom: "1.5rem" }}>
-          <div className="report-section-head">
-            <div className="report-section-icon" style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.2)" }}>
-              <span>🏆</span>
-            </div>
-            <div>
-              <div className="report-section-label">Top 3 Performing Content</div>
-            </div>
-          </div>
-          <div className="report-section-body">
-            <div className="podium-grid">
-              {metrics.topContent.map((content, idx) => {
-                const eng = (content.likes||0) + (content.comments||0) + (content.shares||0) + (content.saves||0);
-                const pColor = platformColor(content.platform);
-                const cardClass = `podium-card podium-card-${idx + 1}`;
-                const badgeClass = `podium-rank-badge podium-rank-badge-${idx + 1}`;
-                const medals = ["🥇", "🥈", "🥉"];
-
-                return (
-                  <div key={content.id || idx} className={cardClass}>
-                    <div className={badgeClass}>#{idx + 1} Top</div>
-                    <span className="podium-medal">{medals[idx]}</span>
-
-                    <div className="podium-platform-tag">
-                      <i data-lucide={platformIcon(content.platform)} style={{ width: "11px", height: "11px", color: pColor }}></i>
-                      <span style={{ color: pColor }}>{content.platform}</span>
-                      <span style={{ color: "var(--text-subtle)" }}>·</span>
-                      <span>{fmtDate(content.uploadDate)}</span>
-                    </div>
-
-                    <p className="podium-caption">{content.caption || "No caption"}</p>
-
-                    {/* Hashtags */}
-                    {content.hashtags && content.hashtags.length > 0 && (
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem", marginBottom: "0.85rem" }}>
-                        {content.hashtags.slice(0, 4).map(tag => (
-                          <span key={tag} className="chip" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem" }}>{tag}</span>
-                        ))}
-                        {content.hashtags.length > 4 && (
-                          <span style={{ fontSize: "0.72rem", color: "var(--text-subtle)" }}>+{content.hashtags.length - 4}</span>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="podium-metrics-strip">
-                      <div className="podium-metric">
-                        <span className="podium-metric-lbl">Views</span>
-                        <span className="podium-metric-val" style={{ color: "var(--accent-cyan)" }}>{fmt(content.impressions || 0)}</span>
-                      </div>
-                      <div className="podium-metric">
-                        <span className="podium-metric-lbl">Reach</span>
-                        <span className="podium-metric-val">{fmt(content.reach || 0)}</span>
-                      </div>
-                      <div className="podium-metric">
-                        <span className="podium-metric-lbl">Engmt</span>
-                        <span className="podium-metric-val" style={{ color: "var(--accent-emerald)" }}>{fmt(eng)}</span>
-                      </div>
-                      <div className="podium-metric">
-                        <span className="podium-metric-lbl">Likes</span>
-                        <span className="podium-metric-val" style={{ color: "#FB7185" }}>{fmt(content.likes || 0)}</span>
-                      </div>
-                      <div className="podium-metric">
-                        <span className="podium-metric-lbl">Shares</span>
-                        <span className="podium-metric-val" style={{ color: "var(--accent-cyan)" }}>{fmt(content.shares || 0)}</span>
-                      </div>
-                      <div className="podium-metric">
-                        <span className="podium-metric-lbl">Saves</span>
-                        <span className="podium-metric-val" style={{ color: "var(--accent-emerald)" }}>{fmt(content.saves || 0)}</span>
-                      </div>
-                    </div>
-
-                    {/* ER for this post */}
-                    {content.reach > 0 && (
-                      <div style={{
-                        marginTop: "0.75rem", paddingTop: "0.65rem",
-                        borderTop: "1px solid rgba(255,255,255,0.06)",
-                        display: "flex", alignItems: "center", justifyContent: "space-between"
-                      }}>
-                        <span style={{ fontSize: "0.72rem", color: "var(--text-subtle)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>Post ER</span>
-                        <span style={{ fontSize: "0.95rem", fontWeight: 800, fontFamily: "var(--font-heading)", color: "var(--accent-primary)" }}>
-                          {((eng / content.reach) * 100).toFixed(2)}%
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══ STRATEGIC RECOMMENDATIONS ═══════════════════════════════════════════ */}
-      <div className="report-section">
-        <div className="report-section-head">
-          <div className="report-section-icon" style={{ background: "rgba(52,211,153,0.12)", border: "1px solid rgba(52,211,153,0.2)" }}>
-            <span>🎯</span>
-          </div>
-          <div>
-            <div className="report-section-label">Strategic Recommendations</div>
-          </div>
-        </div>
-        <div className="report-section-body">
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-
-            {/* Rec 1 — Replicate Top Performers */}
-            <div className="recommendation-card">
-              <div className="recommendation-number">1</div>
-              <div className="recommendation-content">
-                <div className="recommendation-title">Replicate Top-Performing Formats</div>
-                <div className="recommendation-text">
-                  Identify the content format, posting cadence, and hashtag clusters from your top {metrics.topContent.length} post{metrics.topContent.length !== 1 ? "s" : ""} and
-                  build a repeatable content template around them.
-                  {metrics.topContent[0] && (
-                    <> Your current #1 post generated <strong style={{ color: "var(--accent-cyan)" }}>{fmt(metrics.topContent[0].impressions || 0)}</strong> views —
-                    use this as the performance benchmark for future content.</>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Rec 2 — Platform Focus */}
-            <div className="recommendation-card">
-              <div className="recommendation-number">2</div>
-              <div className="recommendation-content">
-                <div className="recommendation-title">
-                  Double Down on {metrics.bestPlatform ? metrics.bestPlatform[0] : "Your Best Platform"}
-                </div>
-                <div className="recommendation-text">
-                  {metrics.bestPlatform
-                    ? <>
-                        <strong>{metrics.bestPlatform[0]}</strong> accounts for{" "}
-                        <strong style={{ color: "var(--accent-cyan)" }}>
-                          {((metrics.bestPlatform[1].impressions / Math.max(metrics.totalImpressions, 1)) * 100).toFixed(0)}%
-                        </strong> of total impressions across {metrics.bestPlatform[1].count} post{metrics.bestPlatform[1].count !== 1 ? "s" : ""}.
-                        Increase posting frequency here and experiment with new formats (e.g. Reels, Shorts, Threads) to compound reach further.
-                      </>
-                    : "Identify the platform generating the most reach and allocate additional content resources to maximise returns there."
-                  }
-                </div>
-              </div>
-            </div>
-
-            {/* Rec 3 — Talent / Subjects */}
-            <div className="recommendation-card">
-              <div className="recommendation-number">3</div>
-              <div className="recommendation-content">
-                <div className="recommendation-title">
-                  Prioritise High-Impact Talent
-                </div>
-                <div className="recommendation-text">
-                  {metrics.bestSubject
-                    ? <>
-                        Content featuring <strong>{metrics.bestSubject[0]}</strong> drives the highest viewership
-                        at <strong style={{ color: "var(--accent-primary)" }}>{fmt(metrics.bestSubject[1].impressions)}</strong> impressions
-                        ({((metrics.bestSubject[1].impressions / Math.max(metrics.totalImpressions, 1)) * 100).toFixed(1)}% of all views).
-                        Schedule more frequent appearances and collaborative content to capitalise on this audience affinity.
-                      </>
-                    : "Develop consistent on-screen talent or recurring characters to build audience familiarity and loyalty over time."
-                  }
-                </div>
-              </div>
-            </div>
-
-            {/* Rec 4 — Engagement Rate */}
-            <div className="recommendation-card">
-              <div className="recommendation-number">4</div>
-              <div className="recommendation-content">
-                <div className="recommendation-title">Elevate Engagement Rate from {metrics.erRate}%</div>
-                <div className="recommendation-text">
-                  Your current ER is <strong style={{ color: erInfo.color }}>{metrics.erRate}% ({erInfo.label})</strong>.{" "}
-                  {parseFloat(metrics.erRate) < 3
-                    ? "Introduce interactive hooks — polls, question stickers, pinned comments — in the first 3 seconds of video or in the first line of captions to drive higher interaction rates."
-                    : "Maintain this strong engagement by consistently testing new interactive formats: Q&A sessions, reaction videos, and challenge posts tend to amplify interaction spikes."
-                  }
-                </div>
-              </div>
-            </div>
-
-            {/* Rec 5 — Engagement Mix */}
-            <div className="recommendation-card">
-              <div className="recommendation-number">5</div>
-              <div className="recommendation-content">
-                <div className="recommendation-title">Optimise Engagement Type Mix</div>
-                <div className="recommendation-text">
-                  Saves ({metrics.savePct}%) are the highest-value signal for algorithmic reach — produce more how-to, reference, and checklist content to boost this metric.
-                  Shares ({metrics.sharePct}%) amplify organic distribution — emotional, surprising, or highly relatable content reliably maximises share velocity.
-                  {parseFloat(metrics.commentPct) < 10 && (
-                    <> Comment rate ({metrics.commentPct}%) is below average — end content with a direct open-ended question to stimulate discussion.</>
-                  )}
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-
-      {/* ── Footer ───────────────────────────────────────────────────────────── */}
-      <div style={{
-        marginTop: "2.5rem", paddingTop: "1.5rem",
-        borderTop: "1px solid var(--border-subtle)",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        flexWrap: "wrap", gap: "1rem"
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-          <div style={{
-            width: "24px", height: "24px", borderRadius: "7px",
-            background: "var(--gradient-primary)",
-            display: "flex", alignItems: "center", justifyContent: "center"
-          }}>
-            <i data-lucide="layers" style={{ width: "12px", height: "12px", color: "#fff" }}></i>
-          </div>
-          <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-muted)" }}>SocioVault</span>
-        </div>
-        <div style={{ fontSize: "0.76rem", color: "var(--text-subtle)" }}>
-          Report generated on {today} · Data covers {metrics.totalContent} content pieces
-        </div>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <button className="btn btn-export btn-sm" onClick={handleExportDocx}>
-            <i data-lucide="download" style={{ width: "12px", height: "12px" }}></i>
-            Export DOCX
-          </button>
-          <button className="btn btn-print btn-sm" onClick={() => window.print()}>
-            <i data-lucide="printer" style={{ width: "12px", height: "12px" }}></i>
-            Print
-          </button>
-        </div>
-      </div>
-
-    </div>
-  );
-};
+// Report Summary Page - Deep Analytics with Per-Platform Breakdown
+function ReportSummaryPage() {
+  const { activeAccount, contents } = React.useContext(VaultContext);
+
+  if (!activeAccount) {
+    return (
+      <div className="page-container">
+        <div className="glass-card" style={{ textAlign:"center", padding:"4rem 2rem" }}>
+          <i data-lucide="file-bar-chart" style={{ width:"48px", height:"48px", color:"var(--text-subtle)", marginBottom:"1rem", display:"block", margin:"0 auto 1rem" }}></i>
+          <p style={{ color:"var(--text-muted)" }}>No active account selected.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const accountContents = React.useMemo(
+    () => contents.filter(c => c.accountId === activeAccount.id),
+    [contents, activeAccount.id]
+  );
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  const fmt = function(n) {
+    if (!n) return "0";
+    if (n >= 1000000) return (n/1000000).toFixed(2) + "M";
+    if (n >= 1000)    return (n/1000).toFixed(1) + "K";
+    return n.toLocaleString();
+  };
+  const fmtFull = function(n) { return (n||0).toLocaleString(); };
+  const fmtDate = function(d) {
+    if (!d) return "-";
+    var parts = d.split("-");
+    return new Date(+parts[0], +parts[1]-1, +parts[2]).toLocaleDateString("en-US", {month:"short", day:"numeric", year:"numeric"});
+  };
+  var calcPct = function(num, den) { return den > 0 ? ((num/den)*100).toFixed(1) : "0.0"; };
+  var calcEr  = function(eng, reach) { return reach > 0 ? ((eng/reach)*100).toFixed(2) : "0.00"; };
+  var calcIr  = function(imp, reach) { return reach > 0 ? (imp/reach).toFixed(2) : "0.00"; };
+
+  var PCOLORS = { "Instagram":"#E1306C","YouTube":"#FF4444","TikTok":"#25F4EE","X (Twitter)":"#60A5FA","Facebook":"#4B8FE4","Threads":"#E8EAED" };
+  var PICONS  = { "Instagram":"instagram","YouTube":"youtube","TikTok":"music-2","X (Twitter)":"twitter","Facebook":"facebook","Threads":"at-sign" };
+  var pColor  = function(p) { return PCOLORS[p] || "var(--accent-primary)"; };
+  var pIcon   = function(p) { return PICONS[p]  || "globe"; };
+  var erInfo  = function(er) {
+    var v = parseFloat(er);
+    if (v >= 6) return { label:"Exceptional",       color:"#10B981" };
+    if (v >= 3) return { label:"Above Average",     color:"#34D399" };
+    if (v >= 1) return { label:"Industry Standard", color:"#F59E0B" };
+    return           { label:"Needs Improvement",  color:"#F43F5E" };
+  };
+
+  // ── Combined metrics ─────────────────────────────────────────────────────────
+  var combined = React.useMemo(function() {
+    var imp=0, reach=0, lik=0, com=0, sha=0, sav=0;
+    accountContents.forEach(function(c) {
+      imp   += c.impressions||0;
+      reach += c.reach||0;
+      lik   += c.likes||0;
+      com   += c.comments||0;
+      sha   += c.shares||0;
+      sav   += c.saves||0;
+    });
+    var eng = lik+com+sha+sav;
+    var n   = accountContents.length;
+    var dates = accountContents.map(function(c){return c.uploadDate;}).filter(Boolean).sort();
+    var statuses = {};
+    accountContents.forEach(function(c){ var s=c.status||"Unknown"; statuses[s]=(statuses[s]||0)+1; });
+    var topContent = accountContents.slice().sort(function(a,b){return (b.impressions||0)-(a.impressions||0);}).slice(0,3);
+    return {
+      imp:imp, reach:reach, lik:lik, com:com, sha:sha, sav:sav, eng:eng,
+      er: calcEr(eng,reach), ir: calcIr(imp,reach),
+      avgImp: n>0?Math.round(imp/n):0, avgReach: n>0?Math.round(reach/n):0, avgEng: n>0?Math.round(eng/n):0,
+      likPct: calcPct(lik,eng), comPct: calcPct(com,eng), shaPct: calcPct(sha,eng), savPct: calcPct(sav,eng),
+      count:n, dateFrom:dates[0]||null, dateTo:dates[dates.length-1]||null,
+      statuses:statuses, topContent:topContent
+    };
+  }, [accountContents]);
+
+
+  // ── Per-platform metrics ──────────────────────────────────────────────────────
+  var platformData = React.useMemo(function() {
+    var map = {};
+    accountContents.forEach(function(c) {
+      var p = c.platform || "Unknown";
+      if (!map[p]) map[p] = { name:p, posts:[], imp:0, reach:0, lik:0, com:0, sha:0, sav:0 };
+      map[p].posts.push(c);
+      map[p].imp   += c.impressions||0;
+      map[p].reach += c.reach||0;
+      map[p].lik   += c.likes||0;
+      map[p].com   += c.comments||0;
+      map[p].sha   += c.shares||0;
+      map[p].sav   += c.saves||0;
+    });
+    return Object.values(map).map(function(p) {
+      var eng = p.lik+p.com+p.sha+p.sav;
+      var n   = p.posts.length;
+      var sortedPosts = p.posts.slice().sort(function(a,b){return (b.impressions||0)-(a.impressions||0);});
+      var pDates = p.posts.map(function(x){return x.uploadDate;}).filter(Boolean).sort();
+      return Object.assign({}, p, {
+        eng:eng, er:calcEr(eng,p.reach), ir:calcIr(p.imp,p.reach),
+        avgImp: n>0?Math.round(p.imp/n):0,
+        avgReach: n>0?Math.round(p.reach/n):0,
+        avgEng: n>0?Math.round(eng/n):0,
+        likPct:calcPct(p.lik,eng), comPct:calcPct(p.com,eng),
+        shaPct:calcPct(p.sha,eng), savPct:calcPct(p.sav,eng),
+        impShare: calcPct(p.imp, combined.imp||1),
+        reachShare: calcPct(p.reach, combined.reach||1),
+        engShare: calcPct(eng, combined.eng||1),
+        topPost: sortedPosts[0]||null,
+        sortedPosts: sortedPosts,
+        dates: pDates
+      });
+    }).sort(function(a,b){return b.imp-a.imp;});
+  }, [accountContents, combined]);
+
+  // ── Subject metrics ───────────────────────────────────────────────────────────
+  var subjectData = React.useMemo(function() {
+    var map = {};
+    accountContents.forEach(function(c) {
+      (c.subjects||[]).forEach(function(sub) {
+        if (!map[sub]) map[sub] = { name:sub, count:0, imp:0, eng:0 };
+        map[sub].count += 1;
+        map[sub].imp   += c.impressions||0;
+        map[sub].eng   += (c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
+      });
+    });
+    return Object.values(map).sort(function(a,b){return b.imp-a.imp;});
+  }, [accountContents]);
+
+  var today   = new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+  var erCombined = erInfo(combined.er);
+  var maxPlImp   = platformData.length > 0 ? platformData[0].imp : 1;
+
+
+  // ── DOCX Export ──────────────────────────────────────────────────────────────
+  var handleExportDocx = function() {
+    if (!window.docx) {
+      alert("DOCX library not loaded. Please check your internet connection and reload the page.");
+      return;
+    }
+    var Document = window.docx.Document;
+    var Packer   = window.docx.Packer;
+    var Paragraph = window.docx.Paragraph;
+    var TextRun   = window.docx.TextRun;
+    var AlignmentType = window.docx.AlignmentType;
+    var BorderStyle   = window.docx.BorderStyle;
+
+    var H = function(text, color) {
+      return new Paragraph({
+        children: [new TextRun({ text:text, bold:true, size:26, color:color||"7C3AED" })],
+        spacing: { before:400, after:150 },
+        border: { bottom:{ style:BorderStyle.SINGLE, size:4, color:"2D3748" } }
+      });
+    };
+    var P = function(text) {
+      return new Paragraph({ children:[new TextRun({text:text,size:20,color:"C9D1D9"})], spacing:{after:140} });
+    };
+    var B = function(label, value) {
+      return new Paragraph({
+        children:[
+          new TextRun({text:label+": ",bold:true,size:20,color:"F0F6FC"}),
+          new TextRun({text:value,size:20,color:"9CA3AF"})
+        ],
+        bullet:{level:0}, spacing:{after:80}
+      });
+    };
+
+    var children = [
+      new Paragraph({ children:[new TextRun({text:"PERFORMANCE ANALYTICS REPORT",bold:true,size:44,color:"7C3AED"})], alignment:AlignmentType.CENTER, spacing:{after:100} }),
+      new Paragraph({ children:[new TextRun({text:activeAccount.name,bold:true,size:30,color:"06B6D4"})], alignment:AlignmentType.CENTER, spacing:{after:80} }),
+      new Paragraph({ children:[new TextRun({text:"Generated: "+today+"  |  Period: "+fmtDate(combined.dateFrom)+" to "+fmtDate(combined.dateTo),size:18,color:"6B7280",italics:true})], alignment:AlignmentType.CENTER, spacing:{after:400} }),
+      H("EXECUTIVE SUMMARY","06B6D4"),
+      P(activeAccount.name+" has published "+combined.count+" content pieces across "+platformData.length+" platform(s), generating "+fmtFull(combined.imp)+" total impressions and reaching "+fmtFull(combined.reach)+" unique viewers. Overall engagement rate: "+combined.er+"% ("+erCombined.label+")."),
+      H("COMBINED KEY METRICS","10B981"),
+      B("Total Impressions", fmtFull(combined.imp)),
+      B("Total Reach", fmtFull(combined.reach)),
+      B("Total Engagement", fmtFull(combined.eng)),
+      B("Likes / Comments / Shares / Saves", fmtFull(combined.lik)+" / "+fmtFull(combined.com)+" / "+fmtFull(combined.sha)+" / "+fmtFull(combined.sav)),
+      B("Engagement Rate", combined.er+"% - "+erCombined.label),
+      B("Impression/Reach Ratio", combined.ir+"x"),
+      B("Avg Impressions/Post", fmtFull(combined.avgImp)),
+      B("Avg Reach/Post", fmtFull(combined.avgReach)),
+      B("Avg Engagement/Post", fmtFull(combined.avgEng)),
+      B("Reporting Period", combined.dateFrom ? fmtDate(combined.dateFrom)+" to "+fmtDate(combined.dateTo) : "All time"),
+    ];
+
+
+    // Per-platform DOCX sections
+    platformData.forEach(function(pl, idx) {
+      var erI = erInfo(pl.er);
+      children.push(H("PLATFORM "+(idx+1)+": "+pl.name.toUpperCase(), "8B5CF6"));
+      children.push(B("Posts Published", ""+pl.posts.length));
+      children.push(B("Total Impressions", fmtFull(pl.imp)+" ("+pl.impShare+"% of all platforms)"));
+      children.push(B("Total Reach", fmtFull(pl.reach)+" ("+pl.reachShare+"% of all platforms)"));
+      children.push(B("Total Engagement", fmtFull(pl.eng)+" ("+pl.engShare+"% of all platforms)"));
+      children.push(B("Likes / Comments / Shares / Saves", fmtFull(pl.lik)+" ("+pl.likPct+"%) / "+fmtFull(pl.com)+" ("+pl.comPct+"%) / "+fmtFull(pl.sha)+" ("+pl.shaPct+"%) / "+fmtFull(pl.sav)+" ("+pl.savPct+"%)"));
+      children.push(B("Engagement Rate", pl.er+"% - "+erI.label+(parseFloat(pl.er)>parseFloat(combined.er)?" (above account avg "+combined.er+"%)":"(below account avg "+combined.er+"%)  ")));
+      children.push(B("Impression/Reach Ratio", pl.ir+"x"));
+      children.push(B("Avg Impressions/Post", fmtFull(pl.avgImp)));
+      children.push(B("Avg Reach/Post", fmtFull(pl.avgReach)));
+      children.push(B("Avg Engagement/Post", fmtFull(pl.avgEng)));
+      if (pl.topPost) {
+        var tpEng = (pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0);
+        children.push(B("Top Post", (pl.topPost.caption||"").substring(0,80)+"... | "+fmtFull(pl.topPost.impressions||0)+" views | ER "+calcEr(tpEng,pl.topPost.reach||0)+"%"));
+      }
+      if (pl.dates.length) children.push(B("Date Range", fmtDate(pl.dates[0])+" to "+fmtDate(pl.dates[pl.dates.length-1])));
+      // All posts table as bullets
+      children.push(new Paragraph({ children:[new TextRun({text:"All Posts:",bold:true,size:20,color:"F0F6FC"})], spacing:{before:160,after:60} }));
+      pl.sortedPosts.forEach(function(post, pi) {
+        var pEng = (post.likes||0)+(post.comments||0)+(post.shares||0)+(post.saves||0);
+        children.push(B("#"+(pi+1)+" ("+fmtDate(post.uploadDate)+")", (post.caption||"").substring(0,60)+"... | "+fmtFull(post.impressions||0)+" views | "+fmtFull(post.reach||0)+" reach | "+fmtFull(pEng)+" eng | ER "+calcEr(pEng,post.reach||0)+"%"));
+      });
+    });
+
+    if (subjectData.length > 0) {
+      children.push(H("SUBJECT / TALENT PERFORMANCE","EC4899"));
+      subjectData.forEach(function(s) {
+        children.push(B(s.name, s.count+" appearance(s) | "+fmtFull(s.imp)+" impressions ("+calcPct(s.imp,combined.imp||1)+"% of total)"));
+      });
+    }
+
+    children.push(H("TOP 3 PERFORMING CONTENT","F59E0B"));
+    combined.topContent.forEach(function(c,i) {
+      var eng=(c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
+      children.push(B("#"+(i+1)+" - "+c.platform+" ("+fmtDate(c.uploadDate)+")", (c.caption||"").substring(0,80)+"... | "+fmtFull(c.impressions||0)+" views | "+fmtFull(c.reach||0)+" reach | ER "+calcEr(eng,c.reach||0)+"%"));
+    });
+
+    children.push(H("STRATEGIC RECOMMENDATIONS","34D399"));
+    var bestPl = platformData[0];
+    children.push(B("1. Best Platform", bestPl ? bestPl.name+" leads with "+fmtFull(bestPl.imp)+" impressions ("+bestPl.impShare+"% of total). Increase posting frequency here." : "Identify top platform and allocate more resources."));
+    children.push(B("2. Replicate Top Performers", "Study format, timing, and hashtags of top posts and build repeatable templates."));
+    children.push(B("3. Improve Engagement Rate", "Current ER: "+combined.er+"% ("+erCombined.label+"). Use polls, Q&A, and interactive captions."));
+    children.push(B("4. Boost Saves and Shares", "Saves ("+combined.savPct+"%) = evergreen value. Shares ("+combined.shaPct+"%) = organic reach. Create how-to and shareable content."));
+    children.push(B("5. Platform Diversification", platformData.length < 3 ? "Expand to more platforms to reduce dependency and grow total audience." : "You have "+platformData.length+" platforms. Reallocate budget from underperformers to top channels."));
+
+    children.push(new Paragraph({ children:[new TextRun({text:"Generated by SocioVault on "+today,size:16,color:"484F58",italics:true})], alignment:AlignmentType.CENTER, spacing:{before:600} }));
+
+    var doc = new Document({ sections:[{ properties:{}, children:children }] });
+    Packer.toBlob(doc).then(function(blob) {
+      var url = URL.createObjectURL(blob);
+      var a   = document.createElement("a");
+      a.href     = url;
+      a.download = (activeAccount.name.replace(/\s+/g,"_"))+"_Report_"+(new Date().toISOString().slice(0,10))+".docx";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  };
+
+
+  // ── Render ────────────────────────────────────────────────────────────────────
+  return (
+    <div className="page-container">
+
+      {/* HERO */}
+      <div className="report-hero">
+        <div className="report-hero-content">
+          <div className="report-title-eyebrow">
+            <i data-lucide="file-bar-chart" style={{ width:"12px", height:"12px" }}></i>
+            Performance Analytics Report
+          </div>
+          <h1 className="report-hero-title">{activeAccount.name}</h1>
+          <p style={{ color:"var(--text-muted)", fontSize:"0.9rem", marginBottom:"0.5rem" }}>
+            {activeAccount.description || "Social Media Analytics Overview"}
+          </p>
+          <div className="report-hero-meta">
+            <div className="report-hero-meta-item">
+              <i data-lucide="calendar" style={{ width:"13px", height:"13px" }}></i>
+              <span>{combined.dateFrom ? fmtDate(combined.dateFrom)+" - "+fmtDate(combined.dateTo) : "All-Time"}</span>
+            </div>
+            <div className="report-hero-meta-item">
+              <i data-lucide="layers" style={{ width:"13px", height:"13px" }}></i>
+              <span>{combined.count} content pieces</span>
+            </div>
+            <div className="report-hero-meta-item">
+              <i data-lucide="monitor-smartphone" style={{ width:"13px", height:"13px" }}></i>
+              <span>{platformData.length} platform{platformData.length !== 1 ? "s" : ""}</span>
+            </div>
+            <div className="report-hero-meta-item">
+              <i data-lucide="clock" style={{ width:"13px", height:"13px" }}></i>
+              <span>Generated {today}</span>
+            </div>
+          </div>
+        </div>
+        <div style={{ position:"absolute", top:"1.5rem", right:"1.5rem", display:"flex", gap:"0.6rem" }}>
+          <button className="btn btn-export btn-sm" onClick={handleExportDocx}>
+            <i data-lucide="download" style={{ width:"13px", height:"13px" }}></i>
+            Export DOCX
+          </button>
+          <button className="btn btn-print btn-sm" onClick={function(){ window.print(); }}>
+            <i data-lucide="printer" style={{ width:"13px", height:"13px" }}></i>
+            Print
+          </button>
+        </div>
+      </div>
+
+
+      {/* COMBINED KPI STRIP */}
+      <div className="report-kpi-grid">
+        {[
+          { label:"Total Impressions",  value:fmt(combined.imp),    sub:fmtFull(combined.imp)+" views",         color:"#06B6D4", g:"linear-gradient(90deg,#06B6D4,#22D3EE)" },
+          { label:"Total Reach",        value:fmt(combined.reach),  sub:"unique viewers",                        color:"#8B5CF6", g:"linear-gradient(90deg,#8B5CF6,#A78BFA)" },
+          { label:"Total Engagement",   value:fmt(combined.eng),    sub:"likes+comments+shares+saves",          color:"#10B981", g:"linear-gradient(90deg,#10B981,#34D399)" },
+          { label:"Engagement Rate",    value:combined.er+"%",      sub:erCombined.label,                        color:erCombined.color, g:"linear-gradient(90deg,"+erCombined.color+","+erCombined.color+"88)" },
+          { label:"Avg Views / Post",   value:fmt(combined.avgImp), sub:"per content piece",                     color:"#F59E0B", g:"linear-gradient(90deg,#F59E0B,#FCD34D)" },
+          { label:"Imp / Reach Ratio",  value:combined.ir+"x",     sub:parseFloat(combined.ir)>1.5?"Strong retention":"Single-view", color:"#EC4899", g:"linear-gradient(90deg,#EC4899,#F9A8D4)" },
+        ].map(function(k,i) {
+          return (
+            <div key={i} className="report-kpi-card">
+              <div className="kpi-accent-bar" style={{ background:k.g }}></div>
+              <div className="report-kpi-label">{k.label}</div>
+              <div className="report-kpi-value" style={{ color:k.color }}>{k.value}</div>
+              <div className="report-kpi-sub">{k.sub}</div>
+            </div>
+          );
+        })}
+      </div>
+
+
+      {/* EXECUTIVE SUMMARY */}
+      <div className="report-section" style={{ marginBottom:"1.5rem" }}>
+        <div className="report-section-head">
+          <div className="report-section-icon" style={{ background:"rgba(6,182,212,0.1)", border:"1px solid rgba(6,182,212,0.2)" }}>
+            <i data-lucide="clipboard-list" style={{ width:"16px", height:"16px", color:"#06B6D4" }}></i>
+          </div>
+          <div className="report-section-label">Executive Summary</div>
+        </div>
+        <div className="report-section-body insight-prose">
+          <p>
+            <strong>{activeAccount.name}</strong> has published{" "}
+            <span className="metric-callout metric-callout-primary">{combined.count} pieces</span>{" "}
+            of content across{" "}
+            <span className="metric-callout metric-callout-cyan">{platformData.length} platform{platformData.length!==1?"s":""}</span>,
+            accumulating{" "}
+            <span className="metric-callout metric-callout-cyan">{fmtFull(combined.imp)} total impressions</span>{" "}
+            and reaching{" "}
+            <span className="metric-callout metric-callout-primary">{fmtFull(combined.reach)} unique viewers</span>.
+            The impression-to-reach ratio of <strong>{combined.ir}x</strong> indicates{" "}
+            {parseFloat(combined.ir) > 1.5 ? "strong content retention — viewers consume content multiple times." : "a typical single-view consumption pattern."}
+          </p>
+          <p>
+            Total audience interaction stands at{" "}
+            <span className="metric-callout metric-callout-emerald">{fmtFull(combined.eng)} engagements</span>,
+            yielding an overall engagement rate of{" "}
+            <span className="metric-callout" style={{ background:erCombined.color+"18", color:erCombined.color, border:"1px solid "+erCombined.color+"30" }}>{combined.er}%</span>{" "}
+            — classified as <strong style={{ color:erCombined.color }}>{erCombined.label}</strong>.
+            On average, each post receives <strong>{fmtFull(combined.avgImp)}</strong> views,
+            <strong> {fmtFull(combined.avgReach)}</strong> unique viewers, and
+            <strong> {fmtFull(combined.avgEng)}</strong> interactions.
+          </p>
+          {platformData.length > 0 && (
+            <p>
+              The strongest platform is{" "}
+              <span className="metric-callout metric-callout-amber">{platformData[0].name}</span>{" "}
+              contributing <strong>{platformData[0].impShare}%</strong> of total impressions
+              across <strong>{platformData[0].posts.length}</strong> post{platformData[0].posts.length!==1?"s":""}.
+              {platformData.length > 1 && " Full per-platform breakdowns are detailed below."}
+            </p>
+          )}
+        </div>
+      </div>
+
+
+      {/* COMBINED ENGAGEMENT + STATUS */}
+      <div className="report-two-col" style={{ marginBottom:"1.5rem" }}>
+
+        {/* Engagement breakdown */}
+        <div className="report-section" style={{ marginBottom:0 }}>
+          <div className="report-section-head">
+            <div className="report-section-icon" style={{ background:"rgba(139,92,246,0.1)", border:"1px solid rgba(139,92,246,0.2)" }}>
+              <i data-lucide="bar-chart-2" style={{ width:"16px", height:"16px", color:"var(--accent-primary)" }}></i>
+            </div>
+            <div className="report-section-label">Combined Engagement Breakdown</div>
+          </div>
+          <div className="report-section-body">
+            {[
+              { label:"Likes",    icon:"heart",          value:combined.lik, pct:combined.likPct, color:"#F43F5E", g:"linear-gradient(90deg,#F43F5E,#FB7185)" },
+              { label:"Comments", icon:"message-circle", value:combined.com, pct:combined.comPct, color:"#8B5CF6", g:"linear-gradient(90deg,#8B5CF6,#A78BFA)" },
+              { label:"Shares",   icon:"repeat-2",       value:combined.sha, pct:combined.shaPct, color:"#06B6D4", g:"linear-gradient(90deg,#06B6D4,#22D3EE)" },
+              { label:"Saves",    icon:"bookmark",       value:combined.sav, pct:combined.savPct, color:"#10B981", g:"linear-gradient(90deg,#10B981,#34D399)" },
+            ].map(function(item) {
+              return (
+                <div key={item.label} className="engagement-bar-row">
+                  <div className="engagement-bar-label">
+                    <i data-lucide={item.icon} style={{ width:"13px", height:"13px", color:item.color, flexShrink:0 }}></i>
+                    {item.label}
+                  </div>
+                  <div className="engagement-bar-track">
+                    <div className="engagement-bar-fill" style={{ width:item.pct+"%", background:item.g }}></div>
+                  </div>
+                  <div className="engagement-bar-value">{fmt(item.value)}</div>
+                  <div className="engagement-bar-pct">{item.pct}%</div>
+                </div>
+              );
+            })}
+            <div style={{ marginTop:"1rem", paddingTop:"0.85rem", borderTop:"1px solid var(--border-color)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span style={{ fontSize:"0.78rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.04em" }}>Total</span>
+              <span style={{ fontSize:"1.2rem", fontWeight:800, fontFamily:"var(--font-heading)", color:"var(--accent-emerald)" }}>{fmtFull(combined.eng)}</span>
+            </div>
+            <div style={{ marginTop:"0.85rem", padding:"0.85rem 1rem", background:"rgba(139,92,246,0.06)", borderRadius:"var(--radius-sm)", border:"1px solid rgba(139,92,246,0.1)" }}>
+              <p style={{ fontSize:"0.8rem", color:"var(--text-muted)", lineHeight:1.6, margin:0 }}>
+                <strong style={{ color:"var(--accent-primary-light)" }}>Insight: </strong>
+                {parseFloat(combined.savPct) >= 15
+                  ? "High save rate ("+combined.savPct+"%) signals strong evergreen content value."
+                  : parseFloat(combined.shaPct) >= 15
+                    ? "Strong share rate ("+combined.shaPct+"%) is driving organic amplification."
+                    : parseFloat(combined.comPct) >= 15
+                      ? "Above-average comment rate ("+combined.comPct+"%) shows high conversational engagement."
+                      : "Likes dominate at "+combined.likPct+"%. Use CTAs to convert passive likes into saves and shares."}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Content status */}
+        <div className="report-section" style={{ marginBottom:0 }}>
+          <div className="report-section-head">
+            <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.2)" }}>
+              <i data-lucide="layout-list" style={{ width:"16px", height:"16px", color:"var(--accent-amber)" }}></i>
+            </div>
+            <div className="report-section-label">Content Status Overview</div>
+          </div>
+          <div className="report-section-body">
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.85rem", marginBottom:"1.25rem" }}>
+              {[
+                { key:"Uploaded",  label:"Published", color:"#10B981", bg:"linear-gradient(135deg,rgba(16,185,129,0.15),rgba(16,185,129,0.05))",  border:"rgba(16,185,129,0.3)",  icon:"check-circle" },
+                { key:"Scheduled", label:"Scheduled", color:"#06B6D4", bg:"linear-gradient(135deg,rgba(6,182,212,0.15),rgba(6,182,212,0.05))",    border:"rgba(6,182,212,0.3)",   icon:"clock"        },
+                { key:"Privated",  label:"Privated",  color:"#F59E0B", bg:"linear-gradient(135deg,rgba(245,158,11,0.15),rgba(245,158,11,0.05))",  border:"rgba(245,158,11,0.3)",  icon:"eye-off"      },
+                { key:"Deleted",   label:"Archived",  color:"#F43F5E", bg:"linear-gradient(135deg,rgba(244,63,94,0.12),rgba(244,63,94,0.04))",    border:"rgba(244,63,94,0.25)",  icon:"archive"      },
+              ].map(function(s) {
+                var count = combined.statuses[s.key] || 0;
+                if (count === 0) return null;
+                return (
+                  <div key={s.key} style={{ padding:"1rem", borderRadius:"var(--radius-md)", background:s.bg, border:"1px solid "+s.border }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.5rem" }}>
+                      <i data-lucide={s.icon} style={{ width:"15px", height:"15px", color:s.color }}></i>
+                      <span style={{ fontSize:"0.7rem", color:s.color, fontWeight:700 }}>{calcPct(count,combined.count)}%</span>
+                    </div>
+                    <div style={{ fontSize:"1.6rem", fontWeight:800, fontFamily:"var(--font-heading)", color:s.color, lineHeight:1 }}>{count}</div>
+                    <div style={{ fontSize:"0.72rem", color:"var(--text-muted)", fontWeight:700, marginTop:"0.2rem", textTransform:"uppercase", letterSpacing:"0.04em" }}>{s.label}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", fontWeight:700, marginBottom:"0.5rem", textTransform:"uppercase", letterSpacing:"0.04em" }}>Publication Rate</div>
+            <div className="progress-bar-track progress-bar-track-lg">
+              <div className="progress-bar-fill progress-bar-fill-emerald" style={{ width:calcPct(combined.statuses["Uploaded"]||0, combined.count)+"%" }}></div>
+            </div>
+            <div style={{ display:"flex", justifyContent:"space-between", marginTop:"0.35rem" }}>
+              <span style={{ fontSize:"0.75rem", color:"var(--accent-emerald)" }}>{combined.statuses["Uploaded"]||0} published</span>
+              <span style={{ fontSize:"0.75rem", color:"var(--text-muted)" }}>{combined.count} total</span>
+            </div>
+            <div style={{ marginTop:"1rem", padding:"0.85rem 1rem", background:erCombined.color+"0F", borderRadius:"var(--radius-sm)", border:"1px solid "+erCombined.color+"25" }}>
+              <div style={{ fontSize:"0.72rem", textTransform:"uppercase", letterSpacing:"0.05em", color:"var(--text-subtle)", fontWeight:700, marginBottom:"0.3rem" }}>Overall ER Health</div>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <span style={{ fontSize:"1.5rem", fontWeight:800, fontFamily:"var(--font-heading)", color:erCombined.color }}>{combined.er}%</span>
+                <span style={{ padding:"0.25rem 0.65rem", borderRadius:"var(--radius-full)", background:erCombined.color+"18", border:"1px solid "+erCombined.color+"30", fontSize:"0.75rem", fontWeight:700, color:erCombined.color }}>{erCombined.label}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      {/* CROSS-PLATFORM RANKING (only when >1 platform) */}
+      {platformData.length > 1 && (
+        <div className="report-section" style={{ marginBottom:"1.5rem" }}>
+          <div className="report-section-head">
+            <div className="report-section-icon" style={{ background:"rgba(99,102,241,0.1)", border:"1px solid rgba(99,102,241,0.2)" }}>
+              <i data-lucide="bar-chart-horizontal" style={{ width:"16px", height:"16px", color:"#6366F1" }}></i>
+            </div>
+            <div className="report-section-label">Cross-Platform Ranking</div>
+          </div>
+          <div className="report-section-body">
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))", gap:"1rem" }}>
+              {["Impressions","Reach","Engagement","ER %"].map(function(metric) {
+                var sorted = platformData.slice().sort(function(a,b) {
+                  if (metric==="Impressions") return b.imp-a.imp;
+                  if (metric==="Reach")       return b.reach-a.reach;
+                  if (metric==="Engagement")  return b.eng-a.eng;
+                  return parseFloat(b.er)-parseFloat(a.er);
+                });
+                var maxVal = sorted.length > 0 ? (metric==="ER %" ? parseFloat(sorted[0].er) : (metric==="Impressions"?sorted[0].imp : metric==="Reach"?sorted[0].reach : sorted[0].eng)) : 1;
+                return (
+                  <div key={metric} style={{ padding:"1rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.5)", border:"1px solid var(--border-color)" }}>
+                    <div style={{ fontSize:"0.72rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.85rem" }}>{metric} Ranking</div>
+                    {sorted.map(function(pl, rank) {
+                      var val = metric==="ER %" ? parseFloat(pl.er) : (metric==="Impressions"?pl.imp : metric==="Reach"?pl.reach : pl.eng);
+                      var dispVal = metric==="ER %" ? pl.er+"%" : fmt(val);
+                      var barPct  = maxVal > 0 ? (val/maxVal)*100 : 0;
+                      var color   = pColor(pl.name);
+                      return (
+                        <div key={pl.name} style={{ marginBottom:"0.65rem" }}>
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.25rem" }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
+                              <span style={{ fontSize:"0.68rem", fontWeight:800, color:"var(--text-subtle)", width:"14px" }}>#{rank+1}</span>
+                              <i data-lucide={pIcon(pl.name)} style={{ width:"11px", height:"11px", color:color }}></i>
+                              <span style={{ fontSize:"0.78rem", fontWeight:600, color:"var(--text-secondary)" }}>{pl.name}</span>
+                            </div>
+                            <span style={{ fontSize:"0.78rem", fontWeight:700, color:color }}>{dispVal}</span>
+                          </div>
+                          <div className="progress-bar-track">
+                            <div className="progress-bar-fill" style={{ width:barPct+"%", background:"linear-gradient(90deg,"+color+","+color+"88)" }}></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* PER-PLATFORM DEEP ANALYSIS */}
+      {platformData.map(function(pl, plIdx) {
+        var color  = pColor(pl.name);
+        var erI    = erInfo(pl.er);
+        var isTop  = plIdx === 0;
+
+        return (
+          <div key={pl.name} className="report-section" style={{ marginBottom:"1.5rem" }}>
+
+            {/* Platform header */}
+            <div className="report-section-head" style={{ background:"linear-gradient(135deg,"+color+"10,"+color+"04)", borderBottom:"1px solid "+color+"20" }}>
+              <div style={{ width:"36px", height:"36px", borderRadius:"10px", background:color+"18", border:"1px solid "+color+"35", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <i data-lucide={pIcon(pl.name)} style={{ width:"16px", height:"16px", color:color }}></i>
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:"0.65rem", flexWrap:"wrap" }}>
+                  <span className="report-section-label" style={{ color:color }}>{pl.name}</span>
+                  <span style={{ fontSize:"0.7rem", color:erI.color, fontWeight:700, padding:"0.15rem 0.5rem", borderRadius:"var(--radius-full)", background:erI.color+"15", border:"1px solid "+erI.color+"30" }}>
+                    ER {pl.er}% — {erI.label}
+                  </span>
+                  {isTop && (
+                    <span style={{ fontSize:"0.68rem", color:"#F59E0B", fontWeight:800, padding:"0.12rem 0.45rem", borderRadius:"var(--radius-full)", background:"rgba(245,158,11,0.12)", border:"1px solid rgba(245,158,11,0.3)" }}>
+                      Top Platform
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", marginTop:"0.15rem" }}>
+                  {pl.posts.length} post{pl.posts.length!==1?"s":""}{" "}
+                  {pl.dates.length ? "| "+fmtDate(pl.dates[0])+" - "+fmtDate(pl.dates[pl.dates.length-1]) : ""}
+                </div>
+              </div>
+              <div style={{ textAlign:"right", flexShrink:0 }}>
+                <div style={{ fontSize:"1.4rem", fontWeight:900, fontFamily:"var(--font-heading)", color:color }}>{fmt(pl.imp)}</div>
+                <div style={{ fontSize:"0.7rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.04em" }}>Impressions</div>
+              </div>
+            </div>
+
+            <div className="report-section-body">
+
+              {/* 8-metric KPI row */}
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))", gap:"0.85rem", marginBottom:"1.5rem" }}>
+                {[
+                  { label:"Impressions",    value:fmt(pl.imp),      sub:pl.impShare+"% of total",   color:color },
+                  { label:"Reach",          value:fmt(pl.reach),    sub:pl.reachShare+"% of total", color:"var(--accent-primary)" },
+                  { label:"Engagement",     value:fmt(pl.eng),      sub:pl.engShare+"% of total",   color:"var(--accent-emerald)" },
+                  { label:"Eng. Rate",      value:pl.er+"%",        sub:erI.label,                   color:erI.color },
+                  { label:"Imp/Reach",      value:pl.ir+"x",       sub:parseFloat(pl.ir)>1.5?"Retained":"Single-view", color:"#EC4899" },
+                  { label:"Avg Views/Post", value:fmt(pl.avgImp),   sub:"per post",                  color:"#F59E0B" },
+                  { label:"Avg Reach/Post", value:fmt(pl.avgReach), sub:"per post",                  color:"var(--accent-primary)" },
+                  { label:"Avg Eng/Post",   value:fmt(pl.avgEng),   sub:"per post",                  color:"var(--accent-emerald)" },
+                ].map(function(k, ki) {
+                  return (
+                    <div key={ki} style={{ padding:"0.85rem 1rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.5)", border:"1px solid "+color+"18" }}>
+                      <div style={{ fontSize:"0.68rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.05em", fontWeight:700, marginBottom:"0.4rem" }}>{k.label}</div>
+                      <div style={{ fontSize:"1.15rem", fontWeight:800, fontFamily:"var(--font-heading)", color:k.color, lineHeight:1, marginBottom:"0.2rem" }}>{k.value}</div>
+                      <div style={{ fontSize:"0.7rem", color:"var(--text-subtle)" }}>{k.sub}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+
+              {/* Engagement mix + share of total */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.25rem", marginBottom:"1.5rem" }}>
+
+                <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.4)", border:"1px solid "+color+"15" }}>
+                  <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"1rem" }}>Engagement Mix</div>
+                  {[
+                    { label:"Likes",    icon:"heart",          value:pl.lik, pct:pl.likPct, color:"#F43F5E", g:"linear-gradient(90deg,#F43F5E,#FB7185)" },
+                    { label:"Comments", icon:"message-circle", value:pl.com, pct:pl.comPct, color:"#8B5CF6", g:"linear-gradient(90deg,#8B5CF6,#A78BFA)" },
+                    { label:"Shares",   icon:"repeat-2",       value:pl.sha, pct:pl.shaPct, color:"#06B6D4", g:"linear-gradient(90deg,#06B6D4,#22D3EE)" },
+                    { label:"Saves",    icon:"bookmark",       value:pl.sav, pct:pl.savPct, color:"#10B981", g:"linear-gradient(90deg,#10B981,#34D399)" },
+                  ].map(function(item) {
+                    return (
+                      <div key={item.label} className="engagement-bar-row">
+                        <div className="engagement-bar-label">
+                          <i data-lucide={item.icon} style={{ width:"13px", height:"13px", color:item.color, flexShrink:0 }}></i>
+                          {item.label}
+                        </div>
+                        <div className="engagement-bar-track">
+                          <div className="engagement-bar-fill" style={{ width:item.pct+"%", background:item.g }}></div>
+                        </div>
+                        <div className="engagement-bar-value">{fmt(item.value)}</div>
+                        <div className="engagement-bar-pct">{item.pct}%</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.4)", border:"1px solid "+color+"15" }}>
+                  <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"1rem" }}>Share of All-Platform Total</div>
+                  {[
+                    { label:"Impressions", val:pl.imp,   share:pl.impShare,   c:color },
+                    { label:"Reach",       val:pl.reach, share:pl.reachShare, c:"var(--accent-primary)" },
+                    { label:"Engagement",  val:pl.eng,   share:pl.engShare,   c:"var(--accent-emerald)" },
+                  ].map(function(s) {
+                    return (
+                      <div key={s.label} style={{ marginBottom:"0.85rem" }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.3rem" }}>
+                          <span style={{ fontSize:"0.78rem", fontWeight:600, color:"var(--text-secondary)" }}>{s.label}</span>
+                          <div style={{ display:"flex", gap:"0.5rem", alignItems:"center" }}>
+                            <span style={{ fontSize:"0.78rem", fontWeight:700, color:s.c }}>{fmt(s.val)}</span>
+                            <span style={{ fontSize:"0.7rem", color:"var(--text-muted)", background:"rgba(255,255,255,0.05)", padding:"0.1rem 0.4rem", borderRadius:"4px" }}>{s.share}%</span>
+                          </div>
+                        </div>
+                        <div className="progress-bar-track">
+                          <div className="progress-bar-fill" style={{ width:s.share+"%", background:"linear-gradient(90deg,"+s.c+","+s.c+"88)" }}></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div style={{ marginTop:"0.85rem", padding:"0.75rem", background:color+"08", borderRadius:"var(--radius-sm)", border:"1px solid "+color+"18" }}>
+                    <p style={{ fontSize:"0.78rem", color:"var(--text-muted)", lineHeight:1.6, margin:0 }}>
+                      <strong style={{ color:color }}>Platform insight: </strong>
+                      {parseFloat(pl.er) > parseFloat(combined.er)
+                        ? pl.name+" ER ("+pl.er+"%) exceeds account average ("+combined.er+"%) — prioritise this platform."
+                        : pl.name+" ER ("+pl.er+"%) is below account average ("+combined.er+"%). Test new content formats and posting times."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+
+              {/* All posts table */}
+              <div style={{ marginBottom:"1.5rem" }}>
+                <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.85rem" }}>
+                  All {pl.posts.length} Post{pl.posts.length!==1?"s":""} on {pl.name} — sorted by views
+                </div>
+                <div style={{ borderRadius:"var(--radius-md)", border:"1px solid "+color+"20", overflow:"hidden" }}>
+                  <table className="custom-table" style={{ fontSize:"0.79rem" }}>
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Caption</th>
+                        <th style={{ color:"var(--accent-cyan)" }}>Views</th>
+                        <th>Reach</th>
+                        <th style={{ color:"var(--accent-emerald)" }}>Eng.</th>
+                        <th>Likes</th>
+                        <th>Cmts</th>
+                        <th>Shares</th>
+                        <th>Saves</th>
+                        <th style={{ color:"var(--accent-primary)" }}>ER%</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pl.sortedPosts.map(function(post, pi) {
+                        var postEng = (post.likes||0)+(post.comments||0)+(post.shares||0)+(post.saves||0);
+                        var postEr  = calcEr(postEng, post.reach||0);
+                        var erC     = erInfo(postEr).color;
+                        return (
+                          <tr key={post.id||pi} style={pi===0 ? { background:color+"0A" } : {}}>
+                            <td style={{ fontWeight:700, color:pi===0?color:"var(--text-subtle)" }}>{pi===0?"#1 Top":"#"+(pi+1)}</td>
+                            <td style={{ whiteSpace:"nowrap", color:"var(--text-muted)" }}>{fmtDate(post.uploadDate)}</td>
+                            <td style={{ maxWidth:"180px" }}>
+                              <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block", maxWidth:"180px" }} title={post.caption||""}>
+                                {(post.caption||"-").substring(0,55)}{post.caption && post.caption.length>55?"...":""}
+                              </span>
+                            </td>
+                            <td style={{ fontWeight:700, color:"var(--accent-cyan)" }}>{fmt(post.impressions||0)}</td>
+                            <td>{fmt(post.reach||0)}</td>
+                            <td style={{ fontWeight:700, color:"var(--accent-emerald)" }}>{fmt(postEng)}</td>
+                            <td>{fmt(post.likes||0)}</td>
+                            <td>{fmt(post.comments||0)}</td>
+                            <td>{fmt(post.shares||0)}</td>
+                            <td>{fmt(post.saves||0)}</td>
+                            <td style={{ fontWeight:700, color:erC }}>{postEr}%</td>
+                            <td><span className={"badge badge-"+((post.status||"uploaded").toLowerCase())}>{post.status||"-"}</span></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+
+              {/* Top post + platform analysis narrative */}
+              {pl.topPost && (
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1rem" }}>
+
+                  <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"linear-gradient(135deg,rgba(245,158,11,0.08),rgba(245,158,11,0.03))", border:"1px solid rgba(245,158,11,0.25)" }}>
+                    <div style={{ fontSize:"0.72rem", color:"#F59E0B", fontWeight:800, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.75rem" }}>
+                      Top Post on {pl.name}
+                    </div>
+                    <p style={{ fontSize:"0.82rem", color:"var(--text-secondary)", lineHeight:1.55, marginBottom:"0.85rem" }}>
+                      "{(pl.topPost.caption||"No caption").substring(0,100)}{pl.topPost.caption && pl.topPost.caption.length>100?"...":""}"
+                    </p>
+                    {(pl.topPost.hashtags||[]).length > 0 && (
+                      <div style={{ display:"flex", gap:"0.3rem", flexWrap:"wrap", marginBottom:"0.85rem" }}>
+                        {pl.topPost.hashtags.slice(0,5).map(function(t){ return <span key={t} className="chip" style={{ fontSize:"0.7rem", padding:"0.12rem 0.45rem" }}>{t}</span>; })}
+                      </div>
+                    )}
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"0.5rem", paddingTop:"0.75rem", borderTop:"1px solid rgba(255,255,255,0.06)" }}>
+                      {[
+                        { label:"Views",  value:fmt(pl.topPost.impressions||0), color:"var(--accent-cyan)" },
+                        { label:"Reach",  value:fmt(pl.topPost.reach||0),       color:"var(--text-main)" },
+                        { label:"ER",     value:calcEr((pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0), pl.topPost.reach||0)+"%", color:erInfo(calcEr((pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0),pl.topPost.reach||0)).color },
+                        { label:"Likes",  value:fmt(pl.topPost.likes||0),       color:"#FB7185" },
+                        { label:"Shares", value:fmt(pl.topPost.shares||0),      color:"var(--accent-cyan)" },
+                        { label:"Saves",  value:fmt(pl.topPost.saves||0),       color:"var(--accent-emerald)" },
+                      ].map(function(m) {
+                        return (
+                          <div key={m.label} style={{ display:"flex", flexDirection:"column", gap:"0.15rem", alignItems:"center" }}>
+                            <span style={{ fontSize:"0.68rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.04em", fontWeight:600 }}>{m.label}</span>
+                            <span style={{ fontSize:"0.95rem", fontWeight:800, fontFamily:"var(--font-heading)", color:m.color }}>{m.value}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.4)", border:"1px solid "+color+"15" }}>
+                    <div style={{ fontSize:"0.72rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.85rem" }}>Platform Analysis</div>
+                    <div className="insight-prose" style={{ fontSize:"0.82rem" }}>
+                      <p>
+                        <strong style={{ color:color }}>{pl.name}</strong> accounts for{" "}
+                        <span className="metric-callout metric-callout-amber">{pl.impShare}% of impressions</span>{" "}
+                        and <span className="metric-callout metric-callout-emerald">{pl.engShare}% of engagement</span>{" "}
+                        across {pl.posts.length} post{pl.posts.length!==1?"s":""}.
+                      </p>
+                      <p>
+                        {parseFloat(pl.er) > parseFloat(combined.er)
+                          ? "At "+pl.er+"% ER, this platform outperforms the account average of "+combined.er+"%, making it the highest-return platform relative to audience size."
+                          : "At "+pl.er+"% ER, this platform sits below the account average of "+combined.er+"%. Review content format, posting frequency, and caption strategy."}
+                      </p>
+                      <p>
+                        The impression-to-reach ratio of <strong>{pl.ir}x</strong>{" "}
+                        {parseFloat(pl.ir) > 1.5
+                          ? "suggests viewers rewatch content or the algorithm redistributes it to existing followers."
+                          : "indicates most viewers see the content once — invest in stronger hooks and thumbnails."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        );
+      })}
+
+
+      {/* SUBJECT PERFORMANCE */}
+      {subjectData.length > 0 && (
+        <div className="report-section" style={{ marginBottom:"1.5rem" }}>
+          <div className="report-section-head">
+            <div className="report-section-icon" style={{ background:"rgba(236,72,153,0.1)", border:"1px solid rgba(236,72,153,0.2)" }}>
+              <i data-lucide="users" style={{ width:"16px", height:"16px", color:"#EC4899" }}></i>
+            </div>
+            <div className="report-section-label">Subject &amp; Talent Performance</div>
+          </div>
+          <div className="report-section-body">
+            {subjectData.map(function(s, si) {
+              var gradients = [
+                "linear-gradient(135deg,#8B5CF6,#06B6D4)",
+                "linear-gradient(135deg,#10B981,#06B6D4)",
+                "linear-gradient(135deg,#F59E0B,#EF4444)",
+                "linear-gradient(135deg,#EC4899,#8B5CF6)",
+                "linear-gradient(135deg,#6366F1,#06B6D4)"
+              ];
+              var initials = s.name.split(" ").map(function(n){return n[0]||"";}).join("").toUpperCase().slice(0,2);
+              var share    = calcPct(s.imp, combined.imp||1);
+              var barPct   = subjectData[0].imp > 0 ? (s.imp/subjectData[0].imp)*100 : 0;
+              return (
+                <div key={s.name} className="subject-person-row">
+                  <div className="subject-avatar" style={{ background:gradients[si%gradients.length] }}>{initials}</div>
+                  <div className="subject-info">
+                    <div className="subject-name">{s.name}</div>
+                    <div className="subject-meta">{s.count} appearance{s.count!==1?"s":""} — {share}% of total impressions</div>
+                  </div>
+                  <div style={{ textAlign:"right", marginRight:"1rem", flexShrink:0 }}>
+                    <div style={{ fontSize:"1.05rem", fontWeight:800, fontFamily:"var(--font-heading)", color:"var(--text-main)" }}>{fmt(s.imp)}</div>
+                    <div style={{ fontSize:"0.72rem", color:"var(--text-muted)" }}>impressions</div>
+                  </div>
+                  <div className="subject-bar-wrap">
+                    <div className="progress-bar-track">
+                      <div className="progress-bar-fill" style={{ width:barPct+"%", background:gradients[si%gradients.length] }}></div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* TOP 3 CONTENT */}
+      {combined.topContent.length > 0 && (
+        <div className="report-section" style={{ marginBottom:"1.5rem" }}>
+          <div className="report-section-head">
+            <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.2)" }}>
+              <i data-lucide="award" style={{ width:"16px", height:"16px", color:"var(--accent-amber)" }}></i>
+            </div>
+            <div className="report-section-label">Top 3 Performing Content (All Platforms)</div>
+          </div>
+          <div className="report-section-body">
+            <div className="podium-grid">
+              {combined.topContent.map(function(content, idx) {
+                var eng     = (content.likes||0)+(content.comments||0)+(content.shares||0)+(content.saves||0);
+                var postEr  = calcEr(eng, content.reach||0);
+                var color   = pColor(content.platform);
+                var badgeClasses = ["podium-rank-badge podium-rank-badge-1","podium-rank-badge podium-rank-badge-2","podium-rank-badge podium-rank-badge-3"];
+                var cardClasses  = ["podium-card podium-card-1","podium-card podium-card-2","podium-card podium-card-3"];
+                var rankLabels   = ["#1 Best","#2","#3"];
+                return (
+                  <div key={content.id||idx} className={cardClasses[idx]}>
+                    <div className={badgeClasses[idx]}>{rankLabels[idx]}</div>
+                    <div style={{ fontSize:"2rem", marginBottom:"0.75rem", display:"block" }}>{idx===0?"(1st)":idx===1?"(2nd)":"(3rd)"}</div>
+                    <div className="podium-platform-tag">
+                      <i data-lucide={pIcon(content.platform)} style={{ width:"11px", height:"11px", color:color }}></i>
+                      <span style={{ color:color }}>{content.platform}</span>
+                      <span style={{ color:"var(--text-subtle)" }}>—</span>
+                      <span>{fmtDate(content.uploadDate)}</span>
+                    </div>
+                    <p className="podium-caption">{content.caption||"No caption"}</p>
+                    {(content.hashtags||[]).length > 0 && (
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:"0.3rem", marginBottom:"0.85rem" }}>
+                        {content.hashtags.slice(0,4).map(function(t){ return <span key={t} className="chip" style={{ fontSize:"0.7rem", padding:"0.12rem 0.45rem" }}>{t}</span>; })}
+                        {content.hashtags.length > 4 && <span style={{ fontSize:"0.72rem", color:"var(--text-subtle)" }}>+{content.hashtags.length-4} more</span>}
+                      </div>
+                    )}
+                    <div className="podium-metrics-strip">
+                      <div className="podium-metric"><span className="podium-metric-lbl">Views</span><span className="podium-metric-val" style={{ color:"var(--accent-cyan)" }}>{fmt(content.impressions||0)}</span></div>
+                      <div className="podium-metric"><span className="podium-metric-lbl">Reach</span><span className="podium-metric-val">{fmt(content.reach||0)}</span></div>
+                      <div className="podium-metric"><span className="podium-metric-lbl">Eng.</span><span className="podium-metric-val" style={{ color:"var(--accent-emerald)" }}>{fmt(eng)}</span></div>
+                      <div className="podium-metric"><span className="podium-metric-lbl">Likes</span><span className="podium-metric-val" style={{ color:"#FB7185" }}>{fmt(content.likes||0)}</span></div>
+                      <div className="podium-metric"><span className="podium-metric-lbl">Shares</span><span className="podium-metric-val" style={{ color:"var(--accent-cyan)" }}>{fmt(content.shares||0)}</span></div>
+                      <div className="podium-metric"><span className="podium-metric-lbl">Saves</span><span className="podium-metric-val" style={{ color:"var(--accent-emerald)" }}>{fmt(content.saves||0)}</span></div>
+                    </div>
+                    {content.reach > 0 && (
+                      <div style={{ marginTop:"0.75rem", paddingTop:"0.65rem", borderTop:"1px solid rgba(255,255,255,0.06)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <span style={{ fontSize:"0.72rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.05em", fontWeight:600 }}>Post ER</span>
+                        <span style={{ fontSize:"0.95rem", fontWeight:800, fontFamily:"var(--font-heading)", color:erInfo(postEr).color }}>{postEr}%</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* STRATEGIC RECOMMENDATIONS */}
+      <div className="report-section">
+        <div className="report-section-head">
+          <div className="report-section-icon" style={{ background:"rgba(52,211,153,0.1)", border:"1px solid rgba(52,211,153,0.2)" }}>
+            <i data-lucide="target" style={{ width:"16px", height:"16px", color:"var(--accent-emerald)" }}></i>
+          </div>
+          <div className="report-section-label">Strategic Recommendations</div>
+        </div>
+        <div className="report-section-body">
+          <div style={{ display:"flex", flexDirection:"column", gap:"0.75rem" }}>
+            {[
+              {
+                title: "Double Down on " + (platformData[0] ? platformData[0].name : "Your Best Platform"),
+                body:  platformData[0]
+                  ? platformData[0].name+" leads with "+fmtFull(platformData[0].imp)+" impressions ("+platformData[0].impShare+"% of total) across "+platformData[0].posts.length+" post"+(platformData[0].posts.length!==1?"s":"")+". Increase posting frequency, test Reels/Shorts, and repurpose top content here to compound reach."
+                  : "Identify the platform generating the most reach and allocate additional content resources to maximise returns."
+              },
+              {
+                title: "Replicate Top-Performing Formats",
+                body:  combined.topContent[0]
+                  ? "Your current #1 post generated "+fmt(combined.topContent[0].impressions||0)+" views. Study its format, posting time, caption structure, and hashtag clusters to build a repeatable content template."
+                  : "Identify your top post and build a repeatable content template around its format, timing, and hashtags."
+              },
+              {
+                title: "Elevate Engagement Rate from " + combined.er + "%",
+                body:  parseFloat(combined.er) < 3
+                  ? "Current ER ("+combined.er+"%) is "+erCombined.label+". Introduce interactive hooks — polls, question stickers, pinned comments — in the first 3 seconds of video or the first line of captions to drive higher interaction."
+                  : "Current ER ("+combined.er+"%) is "+erCombined.label+". Maintain this by consistently testing new interactive formats: Q&A sessions, reaction videos, and challenge posts tend to amplify interaction spikes."
+              },
+              {
+                title: "Optimise Engagement Type Mix",
+                body:  "Saves ("+combined.savPct+"%) are the highest-value algorithmic signal — produce more how-to, reference, and checklist content. Shares ("+combined.shaPct+"%) amplify organic distribution — emotional or surprising content maximises share velocity. "
+                  + (parseFloat(combined.comPct) < 10 ? "Comment rate ("+combined.comPct+"%) is low — end content with a direct open-ended question to stimulate discussion." : "Comment engagement ("+combined.comPct+"%) is healthy — reply to comments promptly to signal algorithm activity.")
+              },
+              {
+                title: platformData.length < 3 ? "Expand Your Platform Mix" : "Optimise Cross-Platform Allocation",
+                body:  platformData.length < 3
+                  ? "You're currently on "+platformData.length+" platform"+(platformData.length!==1?"s":"")+". Expanding to additional platforms (e.g. TikTok, YouTube Shorts, LinkedIn depending on niche) reduces dependency risk and grows total addressable audience."
+                  : "You operate across "+platformData.length+" platforms. "+(platformData[platformData.length-1] ? platformData[platformData.length-1].name+" has the lowest impressions ("+fmt(platformData[platformData.length-1].imp)+"). Consider whether resources there are better reallocated to "+platformData[0].name+"." : "Audit each platform's ROI and reallocate budget from underperformers to top channels.")
+              }
+            ].map(function(rec, ri) {
+              return (
+                <div key={ri} className="recommendation-card">
+                  <div className="recommendation-number">{ri+1}</div>
+                  <div>
+                    <div className="recommendation-title">{rec.title}</div>
+                    <div className="recommendation-text">{rec.body}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <div style={{ marginTop:"2.5rem", paddingTop:"1.5rem", borderTop:"1px solid var(--border-subtle)", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:"1rem" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"0.6rem" }}>
+          <div style={{ width:"24px", height:"24px", borderRadius:"7px", background:"var(--gradient-primary)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <i data-lucide="layers" style={{ width:"12px", height:"12px", color:"#fff" }}></i>
+          </div>
+          <span style={{ fontSize:"0.8rem", fontWeight:700, color:"var(--text-muted)" }}>SocioVault</span>
+        </div>
+        <div style={{ fontSize:"0.76rem", color:"var(--text-subtle)" }}>
+          Report generated on {today} — {combined.count} content pieces across {platformData.length} platform{platformData.length!==1?"s":""}
+        </div>
+        <div style={{ display:"flex", gap:"0.5rem" }}>
+          <button className="btn btn-export btn-sm" onClick={handleExportDocx}>
+            <i data-lucide="download" style={{ width:"12px", height:"12px" }}></i>
+            Export DOCX
+          </button>
+          <button className="btn btn-print btn-sm" onClick={function(){ window.print(); }}>
+            <i data-lucide="printer" style={{ width:"12px", height:"12px" }}></i>
+            Print
+          </button>
+        </div>
+      </div>
+
+    </div>
+  );
+}
 
 function CollaboratorsPage() {
   const { activeAccount, addCollaborator, removeCollaborator, isOwner } = React.useContext(VaultContext);
