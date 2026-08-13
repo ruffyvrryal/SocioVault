@@ -1,0 +1,15 @@
+{
+  "name": "socio-vault",
+  "version": "1.0.0",
+  "description": "Social Media Hub - Account Vault & Analytics",
+  "private": true,
+  "scripts": {
+    "test": "echo \"No tests configured\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
+  }
+}
