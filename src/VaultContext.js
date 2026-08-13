@@ -89,6 +89,12 @@ window.VaultProvider = function({ children }) {
     }
   };
 
+  const editAccount = (accountId, updatedFields) => {
+    setAccounts(prev => prev.map(a =>
+      a.id === accountId ? { ...a, ...updatedFields } : a
+    ));
+  };
+
   // Platform Actions
   const addPlatform = (accountId, platformData) => {
     setAccounts(prev => prev.map(acc => {
@@ -184,6 +190,7 @@ window.VaultProvider = function({ children }) {
       isOwner,
       addAccount,
       removeAccount,
+      editAccount,
       addPlatform,
       removePlatform,
       addContent,
