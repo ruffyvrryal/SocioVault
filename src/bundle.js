@@ -1192,7 +1192,7 @@ function AddContentPage() {
       </div>
       <div className="glass-card" style={{ maxWidth: "800px", margin: "0 auto" }}>
         <form onSubmit={handleSubmit}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem", "@media (max-width: 640px)": { gridTemplateColumns: "1fr" } }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" }}>
             <div className="form-group">
               <label className="form-label">Upload Date</label>
               <input type="date" className="form-input" required value={uploadDate} onChange={e => setUploadDate(e.target.value)} />
@@ -1203,7 +1203,7 @@ function AddContentPage() {
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem", "@media (max-width: 640px)": { gridTemplateColumns: "1fr" } }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" }}>
             <div className="form-group">
               <label className="form-label">Platform</label>
               <select className="form-select" value={platform} onChange={e => setPlatform(e.target.value)}>
