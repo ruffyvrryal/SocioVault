@@ -2476,18 +2476,18 @@ window.TimeframeAnalyticsPage = function() {
       {/* Content Type Analytics Section - Bottom of Page */}
       <div style={{ marginTop: "2.5rem" }}>
         <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "1.5rem" }}>
-          📱 Content Type Performance
+          🎬 Content Type Performance
         </h2>
 
         {(() => {
-          // Group contents by platform and calculate analytics
-          const platformStats = React.useMemo(() => {
+          // Group contents by content type and calculate analytics
+          const contentTypeStats = React.useMemo(() => {
             const stats = {};
             filteredContents.forEach(content => {
-              const platform = content.platform || "Unknown";
-              if (!stats[platform]) {
-                stats[platform] = {
-                  platform,
+              const type = content.contentType || "Unspecified";
+              if (!stats[type]) {
+                stats[type] = {
+                  type,
                   count: 0,
                   impressions: 0,
                   reach: 0,
@@ -2497,15 +2497,15 @@ window.TimeframeAnalyticsPage = function() {
                   avgImpressions: 0
                 };
               }
-              stats[platform].count += 1;
-              stats[platform].impressions += content.impressions || 0;
-              stats[platform].reach += content.reach || 0;
-              stats[platform].engagement += (content.likes || 0) + (content.comments || 0) + (content.shares || 0) + (content.saves || 0);
+              stats[type].count += 1;
+              stats[type].impressions += content.impressions || 0;
+              stats[type].reach += content.reach || 0;
+              stats[type].engagement += (content.likes || 0) + (content.comments || 0) + (content.shares || 0) + (content.saves || 0);
             });
 
             // Calculate averages
-            Object.keys(stats).forEach(platform => {
-              const stat = stats[platform];
+            Object.keys(stats).forEach(type => {
+              const stat = stats[type];
               stat.avgImpressions = stat.count > 0 ? Math.round(stat.impressions / stat.count) : 0;
               stat.avgReach = stat.count > 0 ? Math.round(stat.reach / stat.count) : 0;
               stat.avgEngagement = stat.count > 0 ? Math.round(stat.engagement / stat.count) : 0;
@@ -2514,23 +2514,26 @@ window.TimeframeAnalyticsPage = function() {
             return Object.values(stats).sort((a, b) => b.impressions - a.impressions);
           }, [filteredContents]);
 
-          // Platform icon mapping
-          const platformIcons = {
-            "Instagram": "📷",
-            "YouTube": "🎥",
-            "TikTok": "🎬",
-            "X (Twitter)": "𝕏",
-            "Facebook": "f",
-            "LinkedIn": "in",
-            "Pinterest": "📌"
+          // Content type icon mapping
+          const contentTypeIcons = {
+            "Reels": "📹",
+            "Carousel": "🎠",
+            "Vlog": "🎥",
+            "Video": "🎬",
+            "Image": "📷",
+            "Story": "📖",
+            "Live": "🔴",
+            "Post": "📝",
+            "Short": "⏱️",
+            "Thread": "🧵"
           };
 
           return (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.5rem" }}>
-              {platformStats.length > 0 ? (
-                platformStats.map((stat, idx) => (
+              {contentTypeStats.length > 0 ? (
+                contentTypeStats.map((stat, idx) => (
                   <div 
-                    key={stat.platform}
+                    key={stat.type}
                     className="glass-card" 
                     style={{ 
                       padding: "1.5rem",
@@ -2539,9 +2542,9 @@ window.TimeframeAnalyticsPage = function() {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.25rem" }}>
-                      <div style={{ fontSize: "2rem" }}>{platformIcons[stat.platform] || "📄"}</div>
+                      <div style={{ fontSize: "2rem" }}>{contentTypeIcons[stat.type] || "📄"}</div>
                       <div>
-                        <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-main)", margin: 0 }}>{stat.platform}</h3>
+                        <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-main)", margin: 0 }}>{stat.type}</h3>
                         <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.25rem 0 0 0" }}>{stat.count} content{stat.count !== 1 ? "s" : ""}</p>
                       </div>
                       {idx === 0 && (
@@ -2558,7 +2561,7 @@ window.TimeframeAnalyticsPage = function() {
                           <strong style={{ color: "var(--accent-cyan)", fontSize: "0.9rem" }}>{stat.impressions.toLocaleString()}</strong>
                         </div>
                         <div style={{ width: "100%", height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
-                          <div style={{ width: `${Math.min((stat.impressions / Math.max(...platformStats.map(s => s.impressions))) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, var(--accent-cyan), var(--accent-primary))", borderRadius: "3px" }} />
+                          <div style={{ width: `${Math.min((stat.impressions / Math.max(...contentTypeStats.map(s => s.impressions))) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, var(--accent-cyan), var(--accent-primary))", borderRadius: "3px" }} />
                         </div>
                       </div>
 
@@ -2568,7 +2571,7 @@ window.TimeframeAnalyticsPage = function() {
                           <strong style={{ fontSize: "0.9rem" }}>{stat.reach.toLocaleString()}</strong>
                         </div>
                         <div style={{ width: "100%", height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
-                          <div style={{ width: `${Math.min((stat.reach / Math.max(...platformStats.map(s => s.reach))) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, #A78BFA, #7C3AED)", borderRadius: "3px" }} />
+                          <div style={{ width: `${Math.min((stat.reach / Math.max(...contentTypeStats.map(s => s.reach))) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, #A78BFA, #7C3AED)", borderRadius: "3px" }} />
                         </div>
                       </div>
 
@@ -2578,7 +2581,7 @@ window.TimeframeAnalyticsPage = function() {
                           <strong style={{ color: "var(--accent-emerald)", fontSize: "0.9rem" }}>{stat.engagement.toLocaleString()}</strong>
                         </div>
                         <div style={{ width: "100%", height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
-                          <div style={{ width: `${Math.min((stat.engagement / Math.max(...platformStats.map(s => s.engagement))) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, #34D399, #10B981)", borderRadius: "3px" }} />
+                          <div style={{ width: `${Math.min((stat.engagement / Math.max(...contentTypeStats.map(s => s.engagement))) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, #34D399, #10B981)", borderRadius: "3px" }} />
                         </div>
                       </div>
 
