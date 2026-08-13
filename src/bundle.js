@@ -2116,18 +2116,12 @@ window.TimeframeAnalyticsPage = function() {
       if (chartInstanceRef.current) chartInstanceRef.current.destroy();
     };
   }, [filteredContents, timeframe, selectedMonth]);
-  const [selectedYear, setSelectedYear] = React.useState(2026);
-  const [selectedMonth, setSelectedMonth] = React.useState(8);
-  const [selectedPlatform, setSelectedPlatform] = React.useState("All");
-  const [showExportModal, setShowExportModal] = React.useState(false);
-  const [isExporting, setIsExporting] = React.useState(false);
-
-  const lineChartRef = React.useRef(null);
-  const lineChartInstance = React.useRef(null);
 
   if (!activeAccount) return <div className="page-container"><p>No active account selected.</p></div>;
 
-  const accountContents = contents.filter(c => c.accountId === activeAccount.id);
+  const accountContents = React.useMemo(() => {
+    return contents.filter(c => c.accountId === activeAccount.id);
+  }, [contents, activeAccount.id]);
 
   // Get all unique platforms
   const allPlatforms = React.useMemo(() => {
@@ -2135,164 +2129,128 @@ window.TimeframeAnalyticsPage = function() {
     return platforms.filter(Boolean).sort();
   }, [accountContents]);
 
-  const timeframeFilteredContents = React.useMemo(() => {
+  // Filter contents by timeframe and platform
+  const filteredContents = React.useMemo(() => {
+    const now = new Date();
     return accountContents.filter(item => {
-      if (!item.uploadDate) return false;
-      
+      if (!item.uploadDate) return true;
+      const itemDate = new Date(item.uploadDate);
+
       // Platform filter
       if (selectedPlatform !== "All" && item.platform !== selectedPlatform) return false;
 
-      const d = new Date(item.uploadDate);
-
-      if (timeframe === "monthly") {
-        return (d.getMonth() + 1) === Number(selectedMonth) && d.getFullYear() === Number(selectedYear);
+      if (timeframe === "weekly") {
+        const diffDays = (now - itemDate) / (1000 * 3600 * 24);
+        return diffDays <= 7 && diffDays >= 0;
       }
 
-      if (timeframe === "weekly") {
-        return (d.getMonth() + 1) === Number(selectedMonth) && d.getFullYear() === Number(selectedYear);
+      if (timeframe === "monthly") {
+        const [year, month] = selectedMonth.split('-');
+        return itemDate.getMonth() === parseInt(month) - 1 && itemDate.getFullYear() === parseInt(year);
       }
 
       return true; // all-time
     });
-  }, [accountContents, timeframe, selectedMonth, selectedYear, selectedPlatform]);
+  }, [accountContents, timeframe, selectedPlatform, selectedMonth]);
 
-  const topPost = React.useMemo(() => {
-    if (timeframeFilteredContents.length === 0) return null;
-    return [...timeframeFilteredContents].sort((a, b) => (b.impressions || 0) - (a.impressions || 0))[0];
-  }, [timeframeFilteredContents]);
-
-  const totalImpressions = timeframeFilteredContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
-  const totalReach = timeframeFilteredContents.reduce((sum, c) => sum + (c.reach || 0), 0);
-  const totalEngagement = timeframeFilteredContents.reduce((sum, c) => sum + (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0), 0);
+  // Compute Aggregates
+  const totalImpressions = filteredContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
+  const totalReach = filteredContents.reduce((sum, c) => sum + (c.reach || 0), 0);
+  const totalLikes = filteredContents.reduce((sum, c) => sum + (c.likes || 0), 0);
+  const totalComments = filteredContents.reduce((sum, c) => sum + (c.comments || 0), 0);
+  const totalShares = filteredContents.reduce((sum, c) => sum + (c.shares || 0), 0);
+  const totalSaves = filteredContents.reduce((sum, c) => sum + (c.saves || 0), 0);
+  
+  const totalEngagement = totalLikes + totalComments + totalShares + totalSaves;
   const erRate = totalReach > 0 ? ((totalEngagement / totalReach) * 100).toFixed(2) : "0.00";
 
-  const contentTypeStats = React.useMemo(() => {
-    // Dynamic color/icon palette for custom content types
-    const colorPalette = [
-      { icon: "🎬", color: "var(--accent-cyan)" },
-      { icon: "🖼️", color: "var(--accent-primary)" },
-      { icon: "📸", color: "var(--accent-emerald)" },
-      { icon: "⏱️", color: "var(--accent-amber)" },
-      { icon: "📹", color: "#EC4899" },
-      { icon: "📝", color: "#6366F1" },
-      { icon: "📌", color: "#F97316" },
-      { icon: "🎙️", color: "#14B8A6" },
-      { icon: "🗂️", color: "#A855F7" },
-      { icon: "🌟", color: "#EAB308" }
-    ];
-
-    const map = {};
-    let colorIndex = 0;
-
-    timeframeFilteredContents.forEach(item => {
-      const type = (item.contentType || "").trim() || "Uncategorized";
-      if (!map[type]) {
-        const palette = colorPalette[colorIndex % colorPalette.length];
-        colorIndex++;
-        map[type] = { type, icon: palette.icon, color: palette.color, count: 0, impressions: 0, reach: 0, engagement: 0 };
-      }
-      const eng = (Number(item.likes) || 0) + (Number(item.comments) || 0) + (Number(item.shares) || 0) + (Number(item.saves) || 0);
-      map[type].count += 1;
-      map[type].impressions += Number(item.impressions) || 0;
-      map[type].reach += Number(item.reach) || 0;
-      map[type].engagement += eng;
-    });
-
-    return Object.values(map)
-      .sort((a, b) => b.impressions - a.impressions)
-      .map(s => ({
-        ...s,
-        avgEr: s.reach > 0 ? ((s.engagement / s.reach) * 100).toFixed(2) : "0.00"
-      }));
-  }, [timeframeFilteredContents]);
-
+  // Render Chart.js - Different data based on timeframe
   React.useEffect(() => {
-    if (!lineChartRef.current || !window.Chart) return;
+    if (!chartRef.current || window.Chart === undefined) return;
 
-    if (lineChartInstance.current) {
-      lineChartInstance.current.destroy();
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.destroy();
     }
 
-    const ctx = lineChartRef.current.getContext('2d');
-    let labels = [];
-    let impressionsData = [];
-    let reachData = [];
-    let engagementData = [];
+    const ctx = chartRef.current.getContext('2d');
+    let labels, impressionsData;
+    let chartTitle = "Impressions by Platform";
 
-    if (timeframe === "monthly" || timeframe === "all") {
-      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      labels = monthNames;
-
-      monthNames.forEach((_, monthIndex) => {
-        const monthItems = accountContents.filter(c => {
-          if (!c.uploadDate) return false;
-          const d = new Date(c.uploadDate);
-          return d.getMonth() === monthIndex && d.getFullYear() === selectedYear;
-        });
-
-        impressionsData.push(monthItems.reduce((sum, c) => sum + (c.impressions || 0), 0));
-        reachData.push(monthItems.reduce((sum, c) => sum + (c.reach || 0), 0));
-        engagementData.push(monthItems.reduce((sum, c) => sum + (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0), 0));
-      });
-    } else if (timeframe === "weekly") {
-      labels = ["Week 1 (Days 1–7)", "Week 2 (Days 8–14)", "Week 3 (Days 15–21)", "Week 4 (Days 22–31)"];
-
-      const monthItems = accountContents.filter(c => {
-        if (!c.uploadDate) return false;
-        const d = new Date(c.uploadDate);
-        return (d.getMonth() + 1) === Number(selectedMonth) && d.getFullYear() === Number(selectedYear);
+    if (timeframe === "monthly") {
+      // Show daily data for the selected month
+      const [year, month] = selectedMonth.split('-');
+      const monthData = {};
+      
+      // Group contents by date
+      filteredContents.forEach(c => {
+        if (c.uploadDate) {
+          const dateObj = new Date(c.uploadDate);
+          if (dateObj.getMonth() === parseInt(month) - 1 && dateObj.getFullYear() === parseInt(year)) {
+            const dateStr = c.uploadDate;
+            monthData[dateStr] = (monthData[dateStr] || 0) + (c.impressions || 0);
+          }
+        }
       });
 
-      const weekBuckets = [
-        monthItems.filter(c => new Date(c.uploadDate).getDate() <= 7),
-        monthItems.filter(c => new Date(c.uploadDate).getDate() > 7 && new Date(c.uploadDate).getDate() <= 14),
-        monthItems.filter(c => new Date(c.uploadDate).getDate() > 14 && new Date(c.uploadDate).getDate() <= 21),
-        monthItems.filter(c => new Date(c.uploadDate).getDate() > 21)
-      ];
-
-      weekBuckets.forEach(bucket => {
-        impressionsData.push(bucket.reduce((sum, c) => sum + (c.impressions || 0), 0));
-        reachData.push(bucket.reduce((sum, c) => sum + (c.reach || 0), 0));
-        engagementData.push(bucket.reduce((sum, c) => sum + (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0), 0));
+      // Sort dates and create arrays
+      const sortedDates = Object.keys(monthData).sort();
+      labels = sortedDates.length > 0 ? sortedDates.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : ['No Data'];
+      impressionsData = sortedDates.length > 0 ? sortedDates.map(d => monthData[d]) : [0];
+      chartTitle = `Daily Impressions - ${new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+    } else {
+      // Show by platform for all-time and weekly views
+      const platforms = [...new Set(filteredContents.map(c => c.platform))];
+      const platformImpressions = platforms.map(p => {
+        return filteredContents.filter(c => c.platform === p).reduce((sum, c) => sum + (c.impressions || 0), 0);
       });
+      labels = platforms.length > 0 ? platforms : ['No Data'];
+      impressionsData = platformImpressions.length > 0 ? platformImpressions : [0];
+      chartTitle = `Impressions by Platform${selectedPlatform !== "All" ? ` (${selectedPlatform})` : ""}`;
     }
 
-    lineChartInstance.current = new window.Chart(ctx, {
+    chartInstanceRef.current = new window.Chart(ctx, {
       type: 'line',
       data: {
         labels: labels,
-        datasets: [
-          { label: 'Impressions (Views)', data: impressionsData, borderColor: '#06B6D4', backgroundColor: 'rgba(6, 182, 212, 0.15)', tension: 0.35, fill: true, pointRadius: 5 },
-          { label: 'Reach (Unique Viewers)', data: reachData, borderColor: '#8B5CF6', backgroundColor: 'rgba(139, 92, 246, 0.15)', tension: 0.35, fill: true, pointRadius: 5 },
-          { label: 'Total Engagement', data: engagementData, borderColor: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.15)', tension: 0.35, fill: true, pointRadius: 5 }
-        ]
+        datasets: [{
+          label: 'Total Impressions (Views)',
+          data: impressionsData,
+          borderColor: '#06B6D4',
+          backgroundColor: 'rgba(6, 182, 212, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: '#06B6D4',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7
+        }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { labels: { color: '#F9FAFB', font: { family: 'Inter', size: 12 } } }
+          legend: { labels: { color: '#9CA3AF' } },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return 'Impressions: ' + context.parsed.y.toLocaleString();
+              }
+            }
+          }
         },
         scales: {
-          x: { ticks: { color: '#9CA3AF' }, grid: { color: 'rgba(255,255,255,0.06)' } },
-          y: { ticks: { color: '#9CA3AF' }, grid: { color: 'rgba(255,255,255,0.06)' } }
+          x: { ticks: { color: '#9CA3AF' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color: '#9CA3AF' }, grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true }
         }
       }
     });
 
     return () => {
-      if (lineChartInstance.current) lineChartInstance.current.destroy();
+      if (chartInstanceRef.current) chartInstanceRef.current.destroy();
     };
-  }, [timeframe, selectedMonth, selectedYear, accountContents]);
-
-  const monthOptions = [
-    { value: 1, label: "January" }, { value: 2, label: "February" }, { value: 3, label: "March" },
-    { value: 4, label: "April" }, { value: 5, label: "May" }, { value: 6, label: "June" },
-    { value: 7, label: "July" }, { value: 8, label: "August" }, { value: 9, label: "September" },
-    { value: 10, label: "October" }, { value: 11, label: "November" }, { value: 12, label: "December" }
-  ];
-
-  const currentMonthName = monthOptions.find(m => m.value === Number(selectedMonth))?.label;
+  }, [filteredContents, timeframe, selectedMonth]);
 
   return (
     <div className="page-container">
