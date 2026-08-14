@@ -4167,7 +4167,8 @@ function ReportSummaryPage() {
 
   async function generateAiAnalysis(combined, platformData, contentTypeData, subjectData, brief, fmt, fmtFull, fmtDate, calcEr, pct) {
     var key = aiKey.trim();
-    if (!key) { setAiError("Please enter your Gemini API key first."); return; }
+    if (!key) { setAiError("Please enter your Gemini API key first. Get one free at aistudio.google.com/app/apikey"); return; }
+    if (!key.startsWith("AIza")) { setAiError("Invalid API key format. Gemini keys start with 'AIza...'. Get a new one at aistudio.google.com/app/apikey"); return; }
 
     setAiLoading(true); setAiOutput(""); setAiError("");
 
@@ -4222,10 +4223,10 @@ function ReportSummaryPage() {
       if (!resp.ok) {
         var errData = await resp.json().catch(function(){return {};});
         var msg = (errData.error&&errData.error.message) ? errData.error.message : "API error "+resp.status;
-        if (resp.status===400) msg="Invalid request. Check your Gemini API key.";
-        if (resp.status===403) msg="API key not authorised. Enable Gemini API in Google Cloud Console.";
-        if (resp.status===404) msg="Model not found. Try gemini-2.0-flash or gemini-1.5-flash.";
-        if (resp.status===429) msg="Rate limit hit. Wait a moment and try again.";
+        if (resp.status===400) msg="Invalid request. Check your API key format (should start with AIza).";
+        if (resp.status===403) msg="API key not authorised. Verify it's enabled in Google Cloud Console or use a free key from aistudio.google.com";
+        if (resp.status===404) msg="Model not available. Gemini API may be unavailable in your region. Try a new key from aistudio.google.com/app/apikey";
+        if (resp.status===429) msg="Rate limit hit. You've made too many requests. Wait a few minutes.";
         throw new Error(msg);
       }
       var data = await resp.json();
