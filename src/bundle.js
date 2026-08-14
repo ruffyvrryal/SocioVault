@@ -3676,8 +3676,8 @@ function SubjectAnalyticsPage() {
             </select>
 
             <select className="form-select" style={{ width: "auto" }} value={sortOrder} onChange={e => setSortOrder(e.target.value)}>
-              <option value="desc">High -> Low (Z-A)</option>
-              <option value="asc">Low -> High (A-Z)</option>
+              <option value="desc">High to Low (Z-A)</option>
+              <option value="asc">Low to High (A-Z)</option>
             </select>
           </div>
         </div>
