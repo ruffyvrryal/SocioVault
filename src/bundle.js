@@ -3920,7 +3920,93 @@ function ReportSummaryPage() {
   const [draftPillars,  setDraftPillars]  = React.useState("");
   const [draftContext,  setDraftContext]  = React.useState("");
 
+  // ── AI Advisor state ────────────────────────────────────────────────────────
+  const [aiKey,        setAiKey]        = React.useState(function(){ return localStorage.getItem("sv_gemini_key") || ""; });
+  const [aiKeyVisible, setAiKeyVisible] = React.useState(false);
+  const [aiLoading,    setAiLoading]    = React.useState(false);
+  const [aiOutput,     setAiOutput]     = React.useState("");
+  const [aiError,      setAiError]      = React.useState("");
+  const [aiKeySaved,   setAiKeySaved]   = React.useState(false);
+
+  async function generateAiAnalysis(combined, platformData, contentTypeData, subjectData, brief, fmt, fmtFull, fmtDate, calcEr, pct) {
+    var key = aiKey.trim();
+    if (!key) { setAiError("Please enter your Gemini API key first."); return; }
+
+    setAiLoading(true); setAiOutput(""); setAiError("");
+
+    var ctx = "=== ACCOUNT: " + activeAccount.name + " ===\n";
+    if (brief.niche)    ctx += "Niche/Industry: " + brief.niche + "\n";
+    if (brief.goals)    ctx += "Goals: " + brief.goals + "\n";
+    if (brief.audience) ctx += "Target Audience: " + brief.audience + "\n";
+    if (brief.tone)     ctx += "Content Tone: " + brief.tone + "\n";
+    if (brief.pillars)  ctx += "Content Pillars: " + brief.pillars + "\n";
+    if (brief.context)  ctx += "Context: " + brief.context + "\n";
+    ctx += "\n=== OVERALL METRICS ===\n";
+    ctx += "Posts: " + combined.count + " | Impressions: " + fmtFull(combined.imp) + " | Reach: " + fmtFull(combined.reach) + "\n";
+    ctx += "Engagement: " + fmtFull(combined.eng) + " (Likes " + fmtFull(combined.lik) + " / Comments " + fmtFull(combined.com) + " / Shares " + fmtFull(combined.sha) + " / Saves " + fmtFull(combined.sav) + ")\n";
+    ctx += "ER: " + combined.er + "% | Imp/Reach: " + combined.ir + "x | Avg views/post: " + fmtFull(combined.avgImp) + "\n";
+    ctx += "Likes " + combined.likPct + "% / Comments " + combined.comPct + "% / Shares " + combined.shaPct + "% / Saves " + combined.savPct + "%\n";
+    ctx += "Health — Danger: " + combined.impTiers.danger + " | Warning: " + combined.impTiers.warning + " | Safe: " + combined.impTiers.safe + " | Good: " + combined.impTiers.good + " | FYP: " + combined.impTiers.fyp + "\n";
+    ctx += "Period: " + fmtDate(combined.dateFrom) + " to " + fmtDate(combined.dateTo) + "\n";
+
+    platformData.forEach(function(pl) {
+      ctx += "\nPLATFORM " + pl.name + ": " + pl.posts.length + " posts | " + fmtFull(pl.imp) + " views (" + pl.impShare + "%) | ER " + pl.er + "% | Avg " + fmtFull(pl.avgImp) + " views/post\n";
+      ctx += "  Mix: Likes " + pl.likPct + "% Shares " + pl.shaPct + "% Saves " + pl.savPct + "%\n";
+      if (pl.topPost) { var tpe=(pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0); ctx += "  Best: \"" + (pl.topPost.caption||"").substring(0,70) + "\" — " + fmtFull(pl.topPost.impressions||0) + " views ER " + calcEr(tpe,pl.topPost.reach||0) + "%\n"; }
+      if (pl.worstPost && pl.worstPost.id!==(pl.topPost||{}).id) ctx += "  Worst: \"" + (pl.worstPost.caption||"").substring(0,50) + "\" — " + fmtFull(pl.worstPost.impressions||0) + " views\n";
+    });
+
+    if (contentTypeData.length > 0) {
+      ctx += "\nCONTENT TYPES:\n";
+      contentTypeData.forEach(function(ct){ ctx += "  " + ct.type + ": " + ct.posts.length + " posts | avg " + fmtFull(ct.avgImp) + " views | ER " + ct.er + "%\n"; });
+    }
+
+    if (subjectData.length > 0) {
+      ctx += "\nSUBJECTS:\n";
+      subjectData.forEach(function(s){ ctx += "  " + s.name + ": " + s.count + " appearances | " + fmtFull(s.imp) + " impressions (" + pct(s.imp,combined.imp||1) + "%)\n"; });
+    }
+
+    if (combined.topContent.length > 0) {
+      ctx += "\nTOP 3 POSTS:\n";
+      combined.topContent.forEach(function(c,i){ var e=(c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0); ctx += "  #"+(i+1)+" ("+c.platform+" "+fmtDate(c.uploadDate)+"): \"" + (c.caption||"").substring(0,70) + "\" — " + fmtFull(c.impressions||0) + " views ER "+calcEr(e,c.reach||0)+"%\n"; if(c.hashtags&&c.hashtags.length) ctx+="    Tags: "+c.hashtags.join(" ")+"\n"; });
+    }
+    if (combined.bottomContent.length > 0) {
+      ctx += "\nLOWEST POSTS:\n";
+      combined.bottomContent.forEach(function(c,i){ ctx += "  #"+(i+1)+" ("+c.platform+"): \"" + (c.caption||"").substring(0,50) + "\" — " + fmtFull(c.impressions||0) + " views\n"; });
+    }
+
+    var prompt = "You are a senior social media strategist and growth consultant. You have deep expertise in platform algorithms, content strategy, audience psychology, and creator monetisation.\n\nAnalyse the following social media account data and provide a comprehensive, actionable, and intelligent growth strategy. Go beyond summarising numbers — diagnose WHY metrics are what they are, identify hidden patterns, compare against industry benchmarks, and prescribe specific prioritised actions.\n\nStructure your response exactly as:\n1. **Diagnostic Summary** — Account health and trajectory based on data\n2. **Algorithm Health Analysis** — Content distribution health, impression tiers, and what signals the algorithm is reading\n3. **Platform-Specific Strategy** — For each platform: what is working, what is broken, the single highest-impact change\n4. **Content & Engagement Gaps** — Specific weaknesses in engagement mix and content format\n5. **Top 3 Growth Levers** — Highest-ROI actions for next 30 days, ranked by impact\n6. **Audience & Niche Alignment** — How well content aligns with stated goals and audience, what to adjust\n7. **30/60/90 Day Roadmap** — Specific milestones and actions\n\nBe direct, specific, data-driven. Reference actual numbers. No generic advice.\n\nACCOUNT DATA:\n" + ctx;
+
+    try {
+      var resp = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="+key, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.7,maxOutputTokens:2048} })
+      });
+      if (!resp.ok) {
+        var errData = await resp.json().catch(function(){return {};});
+        var msg = (errData.error&&errData.error.message) ? errData.error.message : "API error "+resp.status;
+        if (resp.status===400) msg="Invalid request. Check your Gemini API key.";
+        if (resp.status===403) msg="API key not authorised. Enable Gemini API in Google Cloud Console.";
+        if (resp.status===429) msg="Rate limit hit. Wait a moment and try again.";
+        throw new Error(msg);
+      }
+      var data = await resp.json();
+      var text = data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text;
+      if (!text) throw new Error("Empty response from Gemini. Please try again.");
+      setAiOutput(text);
+    } catch(err) { setAiError(err.message||"Unexpected error. Please try again."); }
+    setAiLoading(false);
+  }
+
   if (!activeAccount) {
+    return (
+      <div className="page-container">
+        <div className="glass-card" style={{ textAlign:"center", padding:"4rem 2rem" }}>
+          <p style={{ color:"var(--text-muted)" }}>No active account selected.</p>
+        </div>
+      </div>
+    );
+  }
     return (
       <div className="page-container">
         <div className="glass-card" style={{ textAlign:"center", padding:"4rem 2rem" }}>
@@ -5069,6 +5155,151 @@ function ReportSummaryPage() {
         </div>
       )}
 
+
+      {/* ══ AI ADVISOR ═══════════════════════════════════════════════════════ */}
+      <div className="ai-advisor-card">
+        <div className="ai-advisor-head">
+          <div className="ai-advisor-brand">
+            <div className="ai-advisor-icon">
+              <i data-lucide="sparkles" style={{ width:"20px", height:"20px", color:"#fff" }}></i>
+            </div>
+            <div>
+              <div className="ai-advisor-title">AI Growth Advisor</div>
+              <div className="ai-advisor-subtitle">Powered by Google Gemini — deep analysis of your actual data</div>
+            </div>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
+            <span style={{ fontSize:"0.72rem", color:"var(--accent-primary-light)", background:"rgba(139,92,246,0.1)", padding:"0.2rem 0.65rem", borderRadius:"var(--radius-full)", border:"1px solid rgba(139,92,246,0.25)", fontWeight:700 }}>BETA</span>
+          </div>
+        </div>
+        <div className="ai-advisor-body">
+
+          {/* API key row */}
+          <div className="ai-key-row">
+            <div style={{ position:"relative", flex:1 }}>
+              <i data-lucide="key" style={{ position:"absolute", left:"0.75rem", top:"50%", transform:"translateY(-50%)", width:"13px", height:"13px", color:"var(--text-subtle)", pointerEvents:"none" }}></i>
+              <input
+                type={aiKeyVisible ? "text" : "password"}
+                className="ai-key-input"
+                style={{ paddingLeft:"2.25rem", paddingRight:"2.5rem" }}
+                placeholder="Paste your Gemini API key (AIza...)"
+                value={aiKey}
+                onChange={function(e){ saveAiKey(e.target.value); }}
+              />
+              <button
+                onClick={function(){ setAiKeyVisible(!aiKeyVisible); }}
+                style={{ position:"absolute", right:"0.65rem", top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"var(--text-subtle)", padding:"0.15rem" }}
+                title={aiKeyVisible ? "Hide key" : "Show key"}
+              >
+                <i data-lucide={aiKeyVisible ? "eye-off" : "eye"} style={{ width:"14px", height:"14px" }}></i>
+              </button>
+            </div>
+            <button
+              className="btn-ai-generate"
+              disabled={aiLoading || !aiKey.trim()}
+              onClick={function(){ generateAiAnalysis(combined, platformData, contentTypeData, subjectData, brief, fmt, fmtFull, fmtDate, calcEr, pct); }}
+            >
+              {aiLoading
+                ? <><i data-lucide="loader-2" style={{ width:"14px", height:"14px" }}></i> Analysing...</>
+                : <><i data-lucide="sparkles" style={{ width:"14px", height:"14px" }}></i> Generate AI Analysis</>
+              }
+            </button>
+          </div>
+
+          {/* Key saved indicator */}
+          {aiKeySaved && (
+            <div style={{ marginBottom:"0.85rem", fontSize:"0.75rem", color:"#10B981", display:"flex", alignItems:"center", gap:"0.35rem" }}>
+              <i data-lucide="check" style={{ width:"12px", height:"12px" }}></i>
+              API key saved to browser storage
+            </div>
+          )}
+
+          {/* Get key link */}
+          {!aiKey.trim() && (
+            <div style={{ marginBottom:"0.85rem", fontSize:"0.78rem", color:"var(--text-muted)", lineHeight:1.6 }}>
+              Get a free API key at{" "}
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer"
+                style={{ color:"var(--accent-primary-light)", textDecoration:"underline", textUnderlineOffset:"3px" }}>
+                aistudio.google.com/app/apikey
+              </a>
+              {" "}— free tier includes 15 requests/minute. Your key is stored only in your browser.
+            </div>
+          )}
+
+          {/* Thinking indicator */}
+          {aiLoading && (
+            <div className="ai-thinking">
+              <div className="ai-thinking-dots">
+                <span></span><span></span><span></span>
+              </div>
+              <span>Analysing {combined.count} posts across {platformData.length} platform{platformData.length!==1?"s":""}...</span>
+            </div>
+          )}
+
+          {/* Error */}
+          {aiError && !aiLoading && (
+            <div className="ai-error-box">
+              <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.35rem", fontWeight:700 }}>
+                <i data-lucide="alert-triangle" style={{ width:"14px", height:"14px" }}></i>
+                Error
+              </div>
+              {aiError}
+            </div>
+          )}
+
+          {/* AI Output */}
+          {aiOutput && !aiLoading && (
+            <div className="ai-output">
+              <div className="ai-output-head">
+                <div className="ai-output-label">
+                  <i data-lucide="sparkles" style={{ width:"12px", height:"12px" }}></i>
+                  AI Analysis — {activeAccount.name}
+                </div>
+                <button
+                  onClick={function(){ navigator.clipboard && navigator.clipboard.writeText(aiOutput); }}
+                  className="btn btn-secondary btn-sm"
+                  style={{ gap:"0.35rem", fontSize:"0.72rem", padding:"0.25rem 0.65rem", minHeight:"28px" }}
+                  title="Copy to clipboard"
+                >
+                  <i data-lucide="copy" style={{ width:"11px", height:"11px" }}></i>
+                  Copy
+                </button>
+              </div>
+              <div className="ai-output-body">
+                {aiOutput.split("\n").map(function(line, i) {
+                  if (line.startsWith("**") && line.endsWith("**")) {
+                    return <div key={i} style={{ fontWeight:800, color:"var(--text-main)", fontSize:"0.9rem", marginTop:"1rem", marginBottom:"0.3rem" }}>{line.replace(/\*\*/g,"")}</div>;
+                  }
+                  if (line.match(/^\d+\.\s*\*\*/)) {
+                    var cleaned = line.replace(/\*\*/g,"");
+                    return <div key={i} style={{ fontWeight:800, color:"var(--accent-primary-light)", fontSize:"0.9rem", marginTop:"1.1rem", marginBottom:"0.3rem" }}>{cleaned}</div>;
+                  }
+                  if (line.startsWith("- ") || line.startsWith("* ")) {
+                    return <div key={i} style={{ paddingLeft:"1rem", marginBottom:"0.2rem" }}>{"• "+line.slice(2)}</div>;
+                  }
+                  if (line.trim() === "") return <div key={i} style={{ height:"0.5rem" }}></div>;
+                  // Inline bold
+                  var parts = line.split(/(\*\*[^*]+\*\*)/g);
+                  return (
+                    <div key={i} style={{ marginBottom:"0.2rem" }}>
+                      {parts.map(function(part, j) {
+                        if (part.startsWith("**") && part.endsWith("**")) {
+                          return <strong key={j}>{part.slice(2,-2)}</strong>;
+                        }
+                        return part;
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="ai-disclaimer">
+            Your API key is stored only in your browser's localStorage and is sent directly to Google's Gemini API — it never touches SocioVault's servers. Analytics data is sent to Gemini for analysis. Do not share your API key with others.
+          </div>
+        </div>
+      </div>
 
       {/* ══ STRATEGIC RECOMMENDATIONS ════════════════════════════════════════ */}
       <div className="report-section">
