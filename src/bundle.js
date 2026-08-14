@@ -892,21 +892,26 @@ function AccountVaultPage() {
   }
 
   // Save to Firestore — call after toggleSchedule updates state
+  var scheduleRef = React.useRef(null);
+  var accessibleAccountsRef = React.useRef(null);
+  
+  scheduleRef.current = schedule;
+  accessibleAccountsRef.current = accessibleAccounts;
+
   React.useEffect(function() {
     var timeout = setTimeout(async function() {
-      if (accessibleAccounts.length === 0) return;
+      if (accessibleAccountsRef.current.length === 0) return;
       setScheduleSaving(true);
       try {
-        // Save to the first account (global schedule per account)
-        var firstAcc = accessibleAccounts[0];
-        await editAccount(firstAcc.id, { uploadSchedule: schedule });
+        var firstAcc = accessibleAccountsRef.current[0];
+        await editAccount(firstAcc.id, { uploadSchedule: scheduleRef.current });
       } catch(e) {
         console.error("Failed to save schedule:", e);
       }
       setScheduleSaving(false);
-    }, 800); // Debounce 800ms
+    }, 800);
     return function() { clearTimeout(timeout); };
-  }, [schedule, accessibleAccounts, editAccount]);
+  }, []);
 
   function isScheduled(accId, dayKey) {
     return !!(schedule[accId] && schedule[accId].indexOf(dayKey) >= 0);
@@ -5736,19 +5741,27 @@ function NotesPage() {
     }
   }, [activeAccount?.id]);
 
+  var notesRef = React.useRef(null);
+  var activeAccountRef = React.useRef(null);
+  var canEditRef = React.useRef(null);
+
+  notesRef.current = notes;
+  activeAccountRef.current = activeAccount;
+  canEditRef.current = canEdit;
+
   React.useEffect(function() {
     var timeout = setTimeout(async function() {
-      if (!activeAccount || !canEdit || notes === (activeAccount.notes || "")) return;
+      if (!activeAccountRef.current || !canEditRef.current || notesRef.current === (activeAccountRef.current.notes || "")) return;
       setNotesSaving(true);
       try {
-        await editAccount(activeAccount.id, { notes: notes.trim() });
+        await editAccount(activeAccountRef.current.id, { notes: notesRef.current.trim() });
       } catch(e) {
         console.error("Failed to save notes:", e);
       }
       setNotesSaving(false);
-    }, 1200); // Debounce 1.2s
+    }, 1200);
     return function() { clearTimeout(timeout); };
-  }, [notes, activeAccount, editAccount, canEdit]);
+  }, []);
 
   if (!activeAccount) {
     return (
