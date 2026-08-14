@@ -42,9 +42,9 @@ window.INITIAL_DATA = {
   contents: [
     { id: "cnt_01", accountId: "acc_01", uploadDate: "2026-08-10", uploadTime: "14:30", platform: "Instagram", caption: "Unboxing the futuristic AI Glasses with Sarah! Is this the replacement for smartphones?", hashtags: ["#tech", "#gadgets", "#aiglasses"], subjects: ["Alex", "Sarah"], impressions: 145000, reach: 122000, likes: 12400, comments: 980, shares: 1420, saves: 3100, status: "Uploaded" },
     { id: "cnt_02", accountId: "acc_01", uploadDate: "2026-08-08", uploadTime: "18:00", platform: "YouTube", caption: "Full Day in the Life of a Tech Creator feat. Jordan & Alex (Setup Tour 2026)", hashtags: ["#vlog", "#setuptour", "#tech"], subjects: ["Alex", "Jordan"], impressions: 380000, reach: 295000, likes: 28900, comments: 2450, shares: 3100, saves: 5400, status: "Uploaded" },
-    { id: "cnt_03", accountId: "acc_01", uploadDate: "2026-08-05", uploadTime: "11:15", platform: "TikTok", caption: "3 AI tools you need to try this week! ≡ƒÜÇ #ai #productivity #tech", hashtags: ["#ai", "#productivity", "#tech"], subjects: ["Alex"], impressions: 620000, reach: 540000, likes: 54000, comments: 3120, shares: 12400, saves: 18900, status: "Uploaded" },
+    { id: "cnt_03", accountId: "acc_01", uploadDate: "2026-08-05", uploadTime: "11:15", platform: "TikTok", caption: "3 AI tools you need to try this week!  #ai #productivity #tech", hashtags: ["#ai", "#productivity", "#tech"], subjects: ["Alex"], impressions: 620000, reach: 540000, likes: 54000, comments: 3120, shares: 12400, saves: 18900, status: "Uploaded" },
     { id: "cnt_04", accountId: "acc_01", uploadDate: "2026-08-15", uploadTime: "09:00", platform: "Instagram", caption: "Behind the scenes with Sarah on the new studio build podcast!", hashtags: ["#podcast", "#studio"], subjects: ["Sarah"], impressions: 85000, reach: 71000, likes: 7200, comments: 420, shares: 610, saves: 1100, status: "Scheduled" },
-    { id: "cnt_05", accountId: "acc_01", uploadDate: "2026-07-28", uploadTime: "16:45", platform: "X (Twitter)", caption: "Thread: Why 2026 is the turning point for wearable spatial computing. ≡ƒº╡≡ƒæç", hashtags: ["#tech", "#spatialcomputing"], subjects: ["Alex"], impressions: 92000, reach: 84000, likes: 4100, comments: 630, shares: 1890, saves: 2200, status: "Uploaded" },
+    { id: "cnt_05", accountId: "acc_01", uploadDate: "2026-07-28", uploadTime: "16:45", platform: "X (Twitter)", caption: "Thread: Why 2026 is the turning point for wearable spatial computing. ", hashtags: ["#tech", "#spatialcomputing"], subjects: ["Alex"], impressions: 92000, reach: 84000, likes: 4100, comments: 630, shares: 1890, saves: 2200, status: "Uploaded" },
     { id: "cnt_06", accountId: "acc_01", uploadDate: "2026-07-20", uploadTime: "19:30", platform: "Instagram", caption: "Testing camera quality at sunset with Jordan #photography", hashtags: ["#photography", "#tech"], subjects: ["Jordan"], impressions: 110000, reach: 95000, likes: 9800, comments: 510, shares: 720, saves: 1400, status: "Uploaded" },
     { id: "cnt_07", accountId: "acc_01", uploadDate: "2026-07-12", uploadTime: "13:00", platform: "YouTube", caption: "Top 5 Mac Apps for Creators in 2026", hashtags: ["#mac", "#apps", "#productivity"], subjects: ["Alex"], impressions: 240000, reach: 210000, likes: 18500, comments: 1200, shares: 1900, saves: 4200, status: "Uploaded" },
     { id: "cnt_08", accountId: "acc_01", uploadDate: "2026-07-04", uploadTime: "15:20", platform: "TikTok", caption: "How to edit videos 2x faster with AI shortcodes!", hashtags: ["#editing", "#ai", "#tutorial"], subjects: ["Alex"], impressions: 450000, reach: 390000, likes: 41000, comments: 1950, shares: 8900, saves: 12500, status: "Uploaded" },
@@ -275,7 +275,7 @@ function VaultProvider({ children }) {
       });
     });
 
-    // Handle ?vaultToken in URL ΓÇö automatically register shared vault into collaborator index
+    // Handle ?vaultToken in URL - automatically register shared vault into collaborator index
     const params = new URLSearchParams(window.location.search);
     const vaultToken = params.get('vaultToken');
     if (vaultToken && user) {
@@ -346,7 +346,7 @@ function VaultProvider({ children }) {
   const canEdit = activeUserRole === "owner" || activeUserRole === "editor";
   const isOwner = activeUserRole === "owner";
 
-  // ΓöÇΓöÇ Account Actions (Firestore) ΓöÇΓöÇ
+  // -- Account Actions (Firestore) --
   const addAccount = async (name, description) => {
     if (!user) return;
     const shareToken = "vlt_token_" + Math.random().toString(36).substr(2, 8);
@@ -385,7 +385,7 @@ function VaultProvider({ children }) {
     setSharedAccounts(prev => prev.map(a => a.id === accountId ? { ...a, ...updatedFields } : a));
   };
 
-  // ΓöÇΓöÇ Platform Actions (Firestore) ΓöÇΓöÇ
+  // -- Platform Actions (Firestore) --
   const addPlatform = async (accountId, platformData) => {
     const ownerUid = getOwnerUidForAccount(accountId);
     const ref = getRefForUid(ownerUid).collection('accounts').doc(accountId);
@@ -404,7 +404,7 @@ function VaultProvider({ children }) {
     }
   };
 
-  // ΓöÇΓöÇ Content Actions (Firestore) ΓöÇΓöÇ
+  // -- Content Actions (Firestore) --
   const addContent = async (contentData) => {
     const ownerUid = getOwnerUidForAccount(activeAccountId);
     await getRefForUid(ownerUid).collection('contents').add({ accountId: activeAccountId, ...contentData });
@@ -420,7 +420,7 @@ function VaultProvider({ children }) {
     await getRefForUid(ownerUid).collection('contents').doc(contentId).delete();
   };
 
-  // ΓöÇΓöÇ Collaborator Actions (Firestore) ΓöÇΓöÇ
+  // -- Collaborator Actions (Firestore) --
   const addCollaborator = async (accountId, email, role) => {
     const cleanEmail = (email || "").toLowerCase().trim();
     if (!cleanEmail) return;
@@ -443,7 +443,7 @@ function VaultProvider({ children }) {
     if (!existingVaults.some(v => v.accountId === accountId)) {
       await indexRef.set({ vaults: [...existingVaults, { ownerUid, accountId, role, shareToken: current.shareToken, accountName: current.name }] }, { merge: true });
     }
-    alert(`Γ£à Access granted! ${cleanEmail} can now view and edit this vault in real time.`);
+    alert(`[OK] Access granted! ${cleanEmail} can now view and edit this vault in real time.`);
   };
 
   const updateCollaboratorRole = async (accountId, email, newRole) => {
@@ -473,7 +473,7 @@ function VaultProvider({ children }) {
     }
   };
 
-  // ΓöÇΓöÇ Subject Photo Action ΓöÇΓöÇ
+  // -- Subject Photo Action --
   const updateSubjectPhoto = async (subjectName, photoData) => {
     if (!activeAccount) return;
     const ownerUid = getOwnerUidForAccount(activeAccount.id);
@@ -931,14 +931,14 @@ function AccountVaultPage() {
         )}
       </div>
 
-      {/* ΓöÇΓöÇ Add Account Modal ΓöÇΓöÇ */}
+      {/* -- Add Account Modal -- */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Add New Social Account Vault</h2>
               <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon" style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>Γ£ò</span>
+                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>x</span>
               </button>
             </div>
             <form onSubmit={handleCreate}>
@@ -959,14 +959,14 @@ function AccountVaultPage() {
         </div>
       )}
 
-      {/* ΓöÇΓöÇ Edit Account Modal ΓöÇΓöÇ */}
+      {/* -- Edit Account Modal -- */}
       {editingAcc && (
         <div className="modal-overlay" onClick={() => setEditingAcc(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: "520px" }}>
             <div className="modal-header">
               <h2 className="modal-title">Edit Account</h2>
               <button type="button" onClick={() => setEditingAcc(null)} className="btn btn-secondary btn-icon" style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>Γ£ò</span>
+                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>x</span>
               </button>
             </div>
             <form onSubmit={handleEditSave}>
@@ -998,10 +998,10 @@ function AccountVaultPage() {
                 <label className="form-label">Profile Photo</label>
                 <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
                   <button type="button" onClick={() => setEditPhotoMode("url")} className={`btn ${editPhotoMode === "url" ? "btn-primary" : "btn-secondary"}`} style={{ fontSize: "0.82rem", padding: "0.35rem 0.9rem" }}>
-                    ≡ƒöù Image URL
+                     Image URL
                   </button>
                   <button type="button" onClick={() => setEditPhotoMode("upload")} className={`btn ${editPhotoMode === "upload" ? "btn-primary" : "btn-secondary"}`} style={{ fontSize: "0.82rem", padding: "0.35rem 0.9rem" }}>
-                    ≡ƒôü Local Upload
+                     Local Upload
                   </button>
                 </div>
                 {editPhotoMode === "url" ? (
@@ -1011,7 +1011,7 @@ function AccountVaultPage() {
                 )}
                 {editPhotoPreview && (
                   <button type="button" onClick={() => { setEditPhoto(""); setEditPhotoPreview(""); }} style={{ marginTop: "0.5rem", background: "none", border: "none", color: "#F43F5E", fontSize: "0.82rem", cursor: "pointer", padding: 0 }}>
-                    Γ£ò Remove photo
+                    x Remove photo
                   </button>
                 )}
               </div>
@@ -1413,7 +1413,7 @@ function AccountCenterPage() {
               title={`Health Status: ${getHealthStatus.label}`}
             />
           </div>
-          <p className="page-subtitle">{activeAccount.description} ΓÇó Managed platforms & channel credentials</p>
+          <p className="page-subtitle">{activeAccount.description} * Managed platforms & channel credentials</p>
         </div>
         <div style={{ display: "flex", gap: "0.75rem" }}>
           {canEdit && (
@@ -1512,7 +1512,7 @@ function AccountCenterPage() {
             <div className="modal-header">
               <h2 className="modal-title">Link Platform to {activeAccount.name}</h2>
               <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon" style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }} title="Close">
-                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>Γ£ò</span>
+                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>x</span>
               </button>
             </div>
             <form onSubmit={handleAddPlatform}>
@@ -1699,14 +1699,14 @@ function AddContentPage() {
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
               {subjectsList.map(name => (
                 <span key={name} className="chip chip-subject" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
-                  ≡ƒæñ {name}
+                   {name}
                   <button 
                     type="button" 
                     onClick={() => handleRemoveSubject(name)} 
                     style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold", fontSize: "0.85rem", lineHeight: 1 }}
                     title="Remove subject"
                   >
-                    Γ£ò
+                    x
                   </button>
                 </span>
               ))}
@@ -1961,7 +1961,7 @@ function ContentTablePage() {
                   <td><span className="chip" style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.06)" }}>{item.contentType || "Feed Post / Image"}</span></td>
                   <td><div style={{ maxWidth: "220px", fontWeight: 500 }}>{item.caption}</div></td>
                   <td>{item.hashtags.map(h => <span key={h} className="chip" style={{ fontSize: "0.75rem" }}>{h}</span>)}</td>
-                  <td>{item.subjects.map(s => <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}>≡ƒæñ {s}</span>)}</td>
+                  <td>{item.subjects.map(s => <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}> {s}</span>)}</td>
                   <td style={{ color: "var(--accent-cyan)", fontWeight: 700 }}>{item.impressions.toLocaleString()}</td>
                   <td>{item.reach.toLocaleString()}</td>
                   <td>{item.likes.toLocaleString()}</td>
@@ -1994,7 +1994,7 @@ function ContentTablePage() {
       {filteredContents.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem", marginTop: "1.25rem" }}>
           <div style={{ fontSize: "0.88rem", color: "var(--text-muted)" }}>
-            Showing <strong>{startIndex + 1}</strong> ΓÇô <strong>{Math.min(startIndex + itemsPerPage, filteredContents.length)}</strong> of <strong>{filteredContents.length}</strong> contents
+            Showing <strong>{startIndex + 1}</strong> - <strong>{Math.min(startIndex + itemsPerPage, filteredContents.length)}</strong> of <strong>{filteredContents.length}</strong> contents
           </div>
 
           <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
@@ -2042,7 +2042,7 @@ function ContentTablePage() {
                 style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}
                 title="Close"
               >
-                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>Γ£ò</span>
+                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>x</span>
               </button>
             </div>
 
@@ -2134,14 +2134,14 @@ function ContentTablePage() {
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
                   {editingContent.subjectsList.map(name => (
                     <span key={name} className="chip chip-subject" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
-                      ≡ƒæñ {name}
+                       {name}
                       <button 
                         type="button" 
                         onClick={() => handleRemoveEditSubject(name)} 
                         style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold", fontSize: "0.85rem", lineHeight: 1 }}
                         title="Remove subject"
                       >
-                        Γ£ò
+                        x
                       </button>
                     </span>
                   ))}
@@ -2390,7 +2390,7 @@ async function generateDocxReport({ accountName, timeframeLabel, contents, accou
 
           // ---- FOOTER ----
           new Paragraph({ text: "", spacing: { after: 400 } }),
-          new Paragraph({ children: [new TextRun({ text: `SocialVault Pro Analytics Report ΓÇö ${generatedAt}`, size: 18, color: "A0AEC0", italics: true })], alignment: AlignmentType.CENTER }),
+          new Paragraph({ children: [new TextRun({ text: `SocialVault Pro Analytics Report - ${generatedAt}`, size: 18, color: "A0AEC0", italics: true })], alignment: AlignmentType.CENTER }),
         ]
       }]
     });
@@ -2718,7 +2718,7 @@ window.TimeframeAnalyticsPage = function() {
           <span className="stat-value" style={{ color: "var(--accent-primary)" }}>
             {erRate}%
           </span>
-          <span className="stat-change positive">(Total Engagement / Reach) ├ù 100</span>
+          <span className="stat-change positive">(Total Engagement / Reach) x 100</span>
         </div>
       </div>
 
@@ -2739,22 +2739,22 @@ window.TimeframeAnalyticsPage = function() {
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>Γ¥ñ∩╕Å Likes</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}> Likes</span>
               <strong style={{ fontSize: "0.95rem" }}>{totalLikes.toLocaleString()}</strong>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>≡ƒÆ¼ Comments</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}> Comments</span>
               <strong style={{ fontSize: "0.95rem" }}>{totalComments.toLocaleString()}</strong>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>≡ƒöü Shares</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}> Shares</span>
               <strong style={{ fontSize: "0.95rem" }}>{totalShares.toLocaleString()}</strong>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>≡ƒôî Saves</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}> Saves</span>
               <strong style={{ fontSize: "0.95rem" }}>{totalSaves.toLocaleString()}</strong>
             </div>
 
@@ -2766,7 +2766,7 @@ window.TimeframeAnalyticsPage = function() {
       {timeframe === "monthly" && (
         <div style={{ marginTop: "2.5rem" }}>
           <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "1rem" }}>
-            ≡ƒôè Compare Two Months
+             Compare Two Months
           </h2>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "2rem", marginBottom: "1.5rem" }}>
@@ -2774,7 +2774,7 @@ window.TimeframeAnalyticsPage = function() {
             <div className="glass-card" style={{ padding: "1.5rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
                 <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "linear-gradient(135deg, #3B82F6, #06B6D4)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: "1.1rem" }}>
-                  1∩╕ÅΓâú
+                  1
                 </div>
                 <div>
                   <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>First Month</label>
@@ -2828,7 +2828,7 @@ window.TimeframeAnalyticsPage = function() {
             <div className="glass-card" style={{ padding: "1.5rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
                 <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "linear-gradient(135deg, #A855F7, #06B6D4)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: "1.1rem" }}>
-                  2∩╕ÅΓâú
+                  2
                 </div>
                 <div>
                   <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>Second Month</label>
@@ -2881,7 +2881,7 @@ window.TimeframeAnalyticsPage = function() {
             {/* Comparison Insights */}
             <div className="glass-card" style={{ padding: "1.5rem", background: "linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(59, 130, 246, 0.1))", borderLeft: "4px solid rgba(34, 197, 94, 0.5)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-                <div style={{ fontSize: "1.5rem" }}>≡ƒôê</div>
+                <div style={{ fontSize: "1.5rem" }}></div>
                 <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>Change Analysis</h3>
               </div>
 
@@ -2898,15 +2898,15 @@ window.TimeframeAnalyticsPage = function() {
                 return (
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>≡ƒôè Impressions</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}> Impressions</span>
                       <strong style={{ color: impDiff >= 0 ? "var(--accent-emerald)" : "#F43F5E" }}>{impDiff >= 0 ? "+" : ""}{impDiff.toLocaleString()} ({impPercent}%)</strong>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>≡ƒæÑ Reach</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}> Reach</span>
                       <strong style={{ color: reachDiff >= 0 ? "var(--accent-emerald)" : "#F43F5E" }}>{reachDiff >= 0 ? "+" : ""}{reachDiff.toLocaleString()} ({reachPercent}%)</strong>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>≡ƒÆ¼ Engagement</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}> Engagement</span>
                       <strong style={{ color: engDiff >= 0 ? "var(--accent-emerald)" : "#F43F5E" }}>{engDiff >= 0 ? "+" : ""}{engDiff.toLocaleString()} ({engPercent}%)</strong>
                     </div>
                   </div>
@@ -2920,7 +2920,7 @@ window.TimeframeAnalyticsPage = function() {
       {/* Content Type Analytics Section - Bottom of Page */}
       <div style={{ marginTop: "2.5rem" }}>
         <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "1.5rem" }}>
-          ≡ƒÄ¼ Content Type Performance
+           Content Type Performance
         </h2>
 
         {(() => {
@@ -2960,16 +2960,16 @@ window.TimeframeAnalyticsPage = function() {
 
           // Content type icon mapping
           const contentTypeIcons = {
-            "Reels": "≡ƒô╣",
-            "Carousel": "≡ƒÄá",
-            "Vlog": "≡ƒÄÑ",
-            "Video": "≡ƒÄ¼",
-            "Image": "≡ƒô╖",
-            "Story": "≡ƒôû",
-            "Live": "≡ƒö┤",
-            "Post": "≡ƒô¥",
-            "Short": "ΓÅ▒∩╕Å",
-            "Thread": "≡ƒº╡"
+            "Reels": "",
+            "Carousel": "",
+            "Vlog": "",
+            "Video": "",
+            "Image": "",
+            "Story": "",
+            "Live": "",
+            "Post": "",
+            "Short": "",
+            "Thread": ""
           };
 
           return (
@@ -2986,7 +2986,7 @@ window.TimeframeAnalyticsPage = function() {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.25rem" }}>
-                      <div style={{ fontSize: "2rem" }}>{contentTypeIcons[stat.type] || "≡ƒôä"}</div>
+                      <div style={{ width:"36px", height:"36px", borderRadius:"9px", background:"rgba(139,92,246,0.12)", border:"1px solid rgba(139,92,246,0.2)", display:"flex", alignItems:"center", justifyContent:"center" }}><i data-lucide={contentTypeIcons[stat.type] || "file"} style={{ width:"18px", height:"18px", color:"var(--accent-primary)" }}></i></div>
                       <div>
                         <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-main)", margin: 0 }}>{stat.type}</h3>
                         <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.25rem 0 0 0" }}>{stat.count} content{stat.count !== 1 ? "s" : ""}</p>
@@ -3056,7 +3056,7 @@ window.TimeframeAnalyticsPage = function() {
         {/* Top Performing Post by Platform Section */}
         <div style={{ marginTop: "2.5rem" }}>
           <h2 style={{ fontSize: "1.25rem", fontWeight: 800, marginBottom: "1.25rem", color: "var(--text-main)" }}>
-            ≡ƒÅå Top Performing Post by Platform
+            Top Performing Post by Platform
           </h2>
 
           {(() => {
@@ -3320,7 +3320,7 @@ window.HashtagAnalyticsPage = function() {
                 fontSize: "1.8rem",
                 marginBottom: "1rem"
               }}>
-                {index === 0 ? "≡ƒÑç" : index === 1 ? "≡ƒÑê" : "≡ƒÑë"}
+                {index === 0 ? "1" : index === 1 ? "2" : "3"}
               </div>
 
               {/* Hashtag Name */}
@@ -3676,8 +3676,8 @@ function SubjectAnalyticsPage() {
             </select>
 
             <select className="form-select" style={{ width: "auto" }} value={sortOrder} onChange={e => setSortOrder(e.target.value)}>
-              <option value="desc">High ΓåÆ Low (Z-A)</option>
-              <option value="asc">Low ΓåÆ High (A-Z)</option>
+              <option value="desc">High -> Low (Z-A)</option>
+              <option value="asc">Low -> High (A-Z)</option>
             </select>
           </div>
         </div>
@@ -3761,7 +3761,7 @@ function SubjectAnalyticsPage() {
 }
 
 
-// Report Summary Page - Deep Analytics with Per-Platform Breakdown
+// Report Summary Page - Professional Deep Analytics
 function ReportSummaryPage() {
   const { activeAccount, contents } = React.useContext(VaultContext);
 
@@ -3769,7 +3769,6 @@ function ReportSummaryPage() {
     return (
       <div className="page-container">
         <div className="glass-card" style={{ textAlign:"center", padding:"4rem 2rem" }}>
-          <i data-lucide="file-bar-chart" style={{ width:"48px", height:"48px", color:"var(--text-subtle)", marginBottom:"1rem", display:"block", margin:"0 auto 1rem" }}></i>
           <p style={{ color:"var(--text-muted)" }}>No active account selected.</p>
         </div>
       </div>
@@ -3777,238 +3776,231 @@ function ReportSummaryPage() {
   }
 
   const accountContents = React.useMemo(
-    () => contents.filter(c => c.accountId === activeAccount.id),
+    () => contents.filter(function(c) { return c.accountId === activeAccount.id; }),
     [contents, activeAccount.id]
   );
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
-  const fmt = function(n) {
-    if (!n) return "0";
-    if (n >= 1000000) return (n/1000000).toFixed(2) + "M";
-    if (n >= 1000)    return (n/1000).toFixed(1) + "K";
+  function fmt(n) {
+    if (!n && n !== 0) return "0";
+    if (n >= 1000000) return (n / 1000000).toFixed(2) + "M";
+    if (n >= 1000)    return (n / 1000).toFixed(1) + "K";
     return n.toLocaleString();
-  };
-  const fmtFull = function(n) { return (n||0).toLocaleString(); };
-  const fmtDate = function(d) {
+  }
+  function fmtFull(n) { return (n || 0).toLocaleString(); }
+  function fmtDate(d) {
     if (!d) return "-";
-    var parts = d.split("-");
-    return new Date(+parts[0], +parts[1]-1, +parts[2]).toLocaleDateString("en-US", {month:"short", day:"numeric", year:"numeric"});
-  };
-  var calcPct = function(num, den) { return den > 0 ? ((num/den)*100).toFixed(1) : "0.0"; };
-  var calcEr  = function(eng, reach) { return reach > 0 ? ((eng/reach)*100).toFixed(2) : "0.00"; };
-  var calcIr  = function(imp, reach) { return reach > 0 ? (imp/reach).toFixed(2) : "0.00"; };
+    var p = d.split("-");
+    return new Date(+p[0], +p[1]-1, +p[2]).toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" });
+  }
+  function pct(num, den) { return den > 0 ? ((num / den) * 100).toFixed(1) : "0.0"; }
+  function calcEr(eng, reach) { return reach > 0 ? ((eng / reach) * 100).toFixed(2) : "0.00"; }
+  function calcIr(imp, reach) { return reach > 0 ? (imp / reach).toFixed(2) : "0.00"; }
+  function erGrade(er) {
+    var v = parseFloat(er);
+    if (v >= 6)  return { label:"Exceptional",       color:"#10B981", bg:"rgba(16,185,129,0.12)",  border:"rgba(16,185,129,0.3)"  };
+    if (v >= 3)  return { label:"Above Average",     color:"#34D399", bg:"rgba(52,211,153,0.12)",  border:"rgba(52,211,153,0.3)"  };
+    if (v >= 1)  return { label:"Industry Standard", color:"#F59E0B", bg:"rgba(245,158,11,0.12)",  border:"rgba(245,158,11,0.3)"  };
+    return             { label:"Needs Improvement",  color:"#F43F5E", bg:"rgba(244,63,94,0.12)",   border:"rgba(244,63,94,0.3)"   };
+  }
 
   var PCOLORS = { "Instagram":"#E1306C","YouTube":"#FF4444","TikTok":"#25F4EE","X (Twitter)":"#60A5FA","Facebook":"#4B8FE4","Threads":"#E8EAED" };
   var PICONS  = { "Instagram":"instagram","YouTube":"youtube","TikTok":"music-2","X (Twitter)":"twitter","Facebook":"facebook","Threads":"at-sign" };
-  var pColor  = function(p) { return PCOLORS[p] || "var(--accent-primary)"; };
-  var pIcon   = function(p) { return PICONS[p]  || "globe"; };
-  var erInfo  = function(er) {
-    var v = parseFloat(er);
-    if (v >= 6) return { label:"Exceptional",       color:"#10B981" };
-    if (v >= 3) return { label:"Above Average",     color:"#34D399" };
-    if (v >= 1) return { label:"Industry Standard", color:"#F59E0B" };
-    return           { label:"Needs Improvement",  color:"#F43F5E" };
-  };
+  function pColor(p) { return PCOLORS[p] || "var(--accent-primary)"; }
+  function pIcon(p)  { return PICONS[p]  || "globe"; }
+
 
   // ── Combined metrics ─────────────────────────────────────────────────────────
   var combined = React.useMemo(function() {
     var imp=0, reach=0, lik=0, com=0, sha=0, sav=0;
     accountContents.forEach(function(c) {
-      imp   += c.impressions||0;
-      reach += c.reach||0;
-      lik   += c.likes||0;
-      com   += c.comments||0;
-      sha   += c.shares||0;
-      sav   += c.saves||0;
+      imp   += c.impressions||0; reach += c.reach||0;
+      lik   += c.likes||0;       com   += c.comments||0;
+      sha   += c.shares||0;      sav   += c.saves||0;
     });
-    var eng = lik+com+sha+sav;
-    var n   = accountContents.length;
+    var eng  = lik+com+sha+sav;
+    var n    = accountContents.length;
     var dates = accountContents.map(function(c){return c.uploadDate;}).filter(Boolean).sort();
     var statuses = {};
-    accountContents.forEach(function(c){ var s=c.status||"Unknown"; statuses[s]=(statuses[s]||0)+1; });
-    var topContent = accountContents.slice().sort(function(a,b){return (b.impressions||0)-(a.impressions||0);}).slice(0,3);
+    accountContents.forEach(function(c) { var s = c.status||"Unknown"; statuses[s]=(statuses[s]||0)+1; });
+    var sorted = accountContents.slice().sort(function(a,b){return (b.impressions||0)-(a.impressions||0);});
     return {
       imp:imp, reach:reach, lik:lik, com:com, sha:sha, sav:sav, eng:eng,
-      er: calcEr(eng,reach), ir: calcIr(imp,reach),
-      avgImp: n>0?Math.round(imp/n):0, avgReach: n>0?Math.round(reach/n):0, avgEng: n>0?Math.round(eng/n):0,
-      likPct: calcPct(lik,eng), comPct: calcPct(com,eng), shaPct: calcPct(sha,eng), savPct: calcPct(sav,eng),
+      er:calcEr(eng,reach), ir:calcIr(imp,reach),
+      avgImp:  n>0?Math.round(imp/n):0,
+      avgReach:n>0?Math.round(reach/n):0,
+      avgEng:  n>0?Math.round(eng/n):0,
+      likPct:pct(lik,eng), comPct:pct(com,eng), shaPct:pct(sha,eng), savPct:pct(sav,eng),
       count:n, dateFrom:dates[0]||null, dateTo:dates[dates.length-1]||null,
-      statuses:statuses, topContent:topContent
+      statuses:statuses, topContent:sorted.slice(0,3), bottomContent:sorted.slice(-2).reverse(),
+      allSorted:sorted
     };
   }, [accountContents]);
 
-
-  // ── Per-platform metrics ──────────────────────────────────────────────────────
+  // ── Per-platform metrics ─────────────────────────────────────────────────────
   var platformData = React.useMemo(function() {
     var map = {};
     accountContents.forEach(function(c) {
-      var p = c.platform || "Unknown";
+      var p = c.platform||"Unknown";
       if (!map[p]) map[p] = { name:p, posts:[], imp:0, reach:0, lik:0, com:0, sha:0, sav:0 };
       map[p].posts.push(c);
-      map[p].imp   += c.impressions||0;
-      map[p].reach += c.reach||0;
-      map[p].lik   += c.likes||0;
-      map[p].com   += c.comments||0;
-      map[p].sha   += c.shares||0;
-      map[p].sav   += c.saves||0;
+      map[p].imp   += c.impressions||0; map[p].reach += c.reach||0;
+      map[p].lik   += c.likes||0;       map[p].com   += c.comments||0;
+      map[p].sha   += c.shares||0;      map[p].sav   += c.saves||0;
     });
     return Object.values(map).map(function(p) {
       var eng = p.lik+p.com+p.sha+p.sav;
       var n   = p.posts.length;
-      var sortedPosts = p.posts.slice().sort(function(a,b){return (b.impressions||0)-(a.impressions||0);});
-      var pDates = p.posts.map(function(x){return x.uploadDate;}).filter(Boolean).sort();
+      var sp  = p.posts.slice().sort(function(a,b){return (b.impressions||0)-(a.impressions||0);});
+      var ds  = p.posts.map(function(x){return x.uploadDate;}).filter(Boolean).sort();
       return Object.assign({}, p, {
         eng:eng, er:calcEr(eng,p.reach), ir:calcIr(p.imp,p.reach),
-        avgImp: n>0?Math.round(p.imp/n):0,
-        avgReach: n>0?Math.round(p.reach/n):0,
-        avgEng: n>0?Math.round(eng/n):0,
-        likPct:calcPct(p.lik,eng), comPct:calcPct(p.com,eng),
-        shaPct:calcPct(p.sha,eng), savPct:calcPct(p.sav,eng),
-        impShare: calcPct(p.imp, combined.imp||1),
-        reachShare: calcPct(p.reach, combined.reach||1),
-        engShare: calcPct(eng, combined.eng||1),
-        topPost: sortedPosts[0]||null,
-        sortedPosts: sortedPosts,
-        dates: pDates
+        avgImp:  n>0?Math.round(p.imp/n):0,
+        avgReach:n>0?Math.round(p.reach/n):0,
+        avgEng:  n>0?Math.round(eng/n):0,
+        likPct:pct(p.lik,eng), comPct:pct(p.com,eng),
+        shaPct:pct(p.sha,eng), savPct:pct(p.sav,eng),
+        impShare:pct(p.imp, combined.imp||1),
+        reachShare:pct(p.reach, combined.reach||1),
+        engShare:pct(eng, combined.eng||1),
+        topPost: sp[0]||null, worstPost: sp[sp.length-1]||null,
+        sortedPosts:sp, dates:ds
       });
     }).sort(function(a,b){return b.imp-a.imp;});
   }, [accountContents, combined]);
 
-  // ── Subject metrics ───────────────────────────────────────────────────────────
+
+  // ── Content-type analysis ────────────────────────────────────────────────────
+  var contentTypeData = React.useMemo(function() {
+    var map = {};
+    accountContents.forEach(function(c) {
+      var t = c.contentType || "Standard Post";
+      if (!map[t]) map[t] = { type:t, posts:[], imp:0, reach:0, eng:0 };
+      map[t].posts.push(c);
+      map[t].imp   += c.impressions||0;
+      map[t].reach += c.reach||0;
+      map[t].eng   += (c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
+    });
+    return Object.values(map).map(function(t) {
+      var n = t.posts.length;
+      return Object.assign({}, t, {
+        avgImp:  n>0?Math.round(t.imp/n):0,
+        avgReach:n>0?Math.round(t.reach/n):0,
+        avgEng:  n>0?Math.round(t.eng/n):0,
+        er:calcEr(t.eng, t.reach),
+        impShare:pct(t.imp, combined.imp||1)
+      });
+    }).sort(function(a,b){return b.avgImp-a.avgImp;});
+  }, [accountContents, combined]);
+
+  // ── Subject metrics ──────────────────────────────────────────────────────────
   var subjectData = React.useMemo(function() {
     var map = {};
     accountContents.forEach(function(c) {
-      (c.subjects||[]).forEach(function(sub) {
-        if (!map[sub]) map[sub] = { name:sub, count:0, imp:0, eng:0 };
-        map[sub].count += 1;
-        map[sub].imp   += c.impressions||0;
-        map[sub].eng   += (c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
+      (c.subjects||[]).forEach(function(s) {
+        if (!map[s]) map[s] = { name:s, count:0, imp:0, eng:0, posts:[] };
+        map[s].count += 1; map[s].imp += c.impressions||0;
+        map[s].eng   += (c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
+        map[s].posts.push(c);
       });
     });
     return Object.values(map).sort(function(a,b){return b.imp-a.imp;});
   }, [accountContents]);
 
-  var today   = new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
-  var erCombined = erInfo(combined.er);
+  var today      = new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+  var erC        = erGrade(combined.er);
   var maxPlImp   = platformData.length > 0 ? platformData[0].imp : 1;
 
 
   // ── DOCX Export ──────────────────────────────────────────────────────────────
   var handleExportDocx = function() {
-    if (!window.docx) {
-      alert("DOCX library not loaded. Please check your internet connection and reload the page.");
-      return;
+    if (!window.docx) { alert("DOCX library not loaded. Please check your internet connection and reload."); return; }
+    var Document=window.docx.Document, Packer=window.docx.Packer, Paragraph=window.docx.Paragraph,
+        TextRun=window.docx.TextRun, AlignmentType=window.docx.AlignmentType, BorderStyle=window.docx.BorderStyle;
+
+    function H(text, color) {
+      return new Paragraph({ children:[new TextRun({text:text,bold:true,size:26,color:color||"7C3AED"})],
+        spacing:{before:400,after:150}, border:{bottom:{style:BorderStyle.SINGLE,size:4,color:"2D3748"}} });
     }
-    var Document = window.docx.Document;
-    var Packer   = window.docx.Packer;
-    var Paragraph = window.docx.Paragraph;
-    var TextRun   = window.docx.TextRun;
-    var AlignmentType = window.docx.AlignmentType;
-    var BorderStyle   = window.docx.BorderStyle;
-
-    var H = function(text, color) {
-      return new Paragraph({
-        children: [new TextRun({ text:text, bold:true, size:26, color:color||"7C3AED" })],
-        spacing: { before:400, after:150 },
-        border: { bottom:{ style:BorderStyle.SINGLE, size:4, color:"2D3748" } }
-      });
-    };
-    var P = function(text) {
-      return new Paragraph({ children:[new TextRun({text:text,size:20,color:"C9D1D9"})], spacing:{after:140} });
-    };
-    var B = function(label, value) {
-      return new Paragraph({
-        children:[
-          new TextRun({text:label+": ",bold:true,size:20,color:"F0F6FC"}),
-          new TextRun({text:value,size:20,color:"9CA3AF"})
-        ],
-        bullet:{level:0}, spacing:{after:80}
-      });
-    };
-
+    function P(text) { return new Paragraph({children:[new TextRun({text:text,size:20,color:"C9D1D9"})],spacing:{after:140}}); }
+    function B(label, value) {
+      return new Paragraph({children:[new TextRun({text:label+": ",bold:true,size:20,color:"F0F6FC"}),new TextRun({text:value,size:20,color:"9CA3AF"})],bullet:{level:0},spacing:{after:80}});
+    }
     var children = [
-      new Paragraph({ children:[new TextRun({text:"PERFORMANCE ANALYTICS REPORT",bold:true,size:44,color:"7C3AED"})], alignment:AlignmentType.CENTER, spacing:{after:100} }),
-      new Paragraph({ children:[new TextRun({text:activeAccount.name,bold:true,size:30,color:"06B6D4"})], alignment:AlignmentType.CENTER, spacing:{after:80} }),
-      new Paragraph({ children:[new TextRun({text:"Generated: "+today+"  |  Period: "+fmtDate(combined.dateFrom)+" to "+fmtDate(combined.dateTo),size:18,color:"6B7280",italics:true})], alignment:AlignmentType.CENTER, spacing:{after:400} }),
+      new Paragraph({children:[new TextRun({text:"PERFORMANCE ANALYTICS REPORT",bold:true,size:44,color:"7C3AED"})],alignment:AlignmentType.CENTER,spacing:{after:100}}),
+      new Paragraph({children:[new TextRun({text:activeAccount.name,bold:true,size:30,color:"06B6D4"})],alignment:AlignmentType.CENTER,spacing:{after:80}}),
+      new Paragraph({children:[new TextRun({text:"Generated: "+today+" | Period: "+fmtDate(combined.dateFrom)+" to "+fmtDate(combined.dateTo),size:18,color:"6B7280",italics:true})],alignment:AlignmentType.CENTER,spacing:{after:400}}),
       H("EXECUTIVE SUMMARY","06B6D4"),
-      P(activeAccount.name+" has published "+combined.count+" content pieces across "+platformData.length+" platform(s), generating "+fmtFull(combined.imp)+" total impressions and reaching "+fmtFull(combined.reach)+" unique viewers. Overall engagement rate: "+combined.er+"% ("+erCombined.label+")."),
+      P(activeAccount.name+" has published "+combined.count+" content pieces across "+platformData.length+" platform(s), generating "+fmtFull(combined.imp)+" impressions and reaching "+fmtFull(combined.reach)+" unique viewers. Overall ER: "+combined.er+"% ("+erC.label+")."),
       H("COMBINED KEY METRICS","10B981"),
       B("Total Impressions", fmtFull(combined.imp)),
       B("Total Reach", fmtFull(combined.reach)),
       B("Total Engagement", fmtFull(combined.eng)),
       B("Likes / Comments / Shares / Saves", fmtFull(combined.lik)+" / "+fmtFull(combined.com)+" / "+fmtFull(combined.sha)+" / "+fmtFull(combined.sav)),
-      B("Engagement Rate", combined.er+"% - "+erCombined.label),
+      B("Overall Engagement Rate", combined.er+"% - "+erC.label),
       B("Impression/Reach Ratio", combined.ir+"x"),
       B("Avg Impressions/Post", fmtFull(combined.avgImp)),
-      B("Avg Reach/Post", fmtFull(combined.avgReach)),
       B("Avg Engagement/Post", fmtFull(combined.avgEng)),
-      B("Reporting Period", combined.dateFrom ? fmtDate(combined.dateFrom)+" to "+fmtDate(combined.dateTo) : "All time"),
     ];
-
-
-    // Per-platform DOCX sections
     platformData.forEach(function(pl, idx) {
-      var erI = erInfo(pl.er);
-      children.push(H("PLATFORM "+(idx+1)+": "+pl.name.toUpperCase(), "8B5CF6"));
-      children.push(B("Posts Published", ""+pl.posts.length));
-      children.push(B("Total Impressions", fmtFull(pl.imp)+" ("+pl.impShare+"% of all platforms)"));
-      children.push(B("Total Reach", fmtFull(pl.reach)+" ("+pl.reachShare+"% of all platforms)"));
-      children.push(B("Total Engagement", fmtFull(pl.eng)+" ("+pl.engShare+"% of all platforms)"));
-      children.push(B("Likes / Comments / Shares / Saves", fmtFull(pl.lik)+" ("+pl.likPct+"%) / "+fmtFull(pl.com)+" ("+pl.comPct+"%) / "+fmtFull(pl.sha)+" ("+pl.shaPct+"%) / "+fmtFull(pl.sav)+" ("+pl.savPct+"%)"));
-      children.push(B("Engagement Rate", pl.er+"% - "+erI.label+(parseFloat(pl.er)>parseFloat(combined.er)?" (above account avg "+combined.er+"%)":"(below account avg "+combined.er+"%)  ")));
-      children.push(B("Impression/Reach Ratio", pl.ir+"x"));
-      children.push(B("Avg Impressions/Post", fmtFull(pl.avgImp)));
-      children.push(B("Avg Reach/Post", fmtFull(pl.avgReach)));
-      children.push(B("Avg Engagement/Post", fmtFull(pl.avgEng)));
-      if (pl.topPost) {
-        var tpEng = (pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0);
-        children.push(B("Top Post", (pl.topPost.caption||"").substring(0,80)+"... | "+fmtFull(pl.topPost.impressions||0)+" views | ER "+calcEr(tpEng,pl.topPost.reach||0)+"%"));
-      }
-      if (pl.dates.length) children.push(B("Date Range", fmtDate(pl.dates[0])+" to "+fmtDate(pl.dates[pl.dates.length-1])));
-      // All posts table as bullets
-      children.push(new Paragraph({ children:[new TextRun({text:"All Posts:",bold:true,size:20,color:"F0F6FC"})], spacing:{before:160,after:60} }));
+      var erI = erGrade(pl.er);
+      children.push(H("PLATFORM "+(idx+1)+": "+pl.name.toUpperCase(),"8B5CF6"));
+      children.push(B("Posts", ""+pl.posts.length));
+      children.push(B("Impressions", fmtFull(pl.imp)+" ("+pl.impShare+"% of total)"));
+      children.push(B("Reach", fmtFull(pl.reach)));
+      children.push(B("Engagement", fmtFull(pl.eng)));
+      children.push(B("ER%", pl.er+"% - "+erI.label+(parseFloat(pl.er)>parseFloat(combined.er)?" [ABOVE avg "+combined.er+"%]":" [BELOW avg "+combined.er+"%]")));
+      children.push(B("Avg Views/Post", fmtFull(pl.avgImp)));
+      if (pl.topPost)   children.push(B("Top Post",   (pl.topPost.caption||"").substring(0,80)+"... | "+fmtFull(pl.topPost.impressions||0)+" views"));
+      if (pl.worstPost) children.push(B("Worst Post", (pl.worstPost.caption||"").substring(0,80)+"... | "+fmtFull(pl.worstPost.impressions||0)+" views"));
+      children.push(new Paragraph({children:[new TextRun({text:"All Posts:",bold:true,size:20,color:"F0F6FC"})],spacing:{before:120,after:60}}));
       pl.sortedPosts.forEach(function(post, pi) {
-        var pEng = (post.likes||0)+(post.comments||0)+(post.shares||0)+(post.saves||0);
-        children.push(B("#"+(pi+1)+" ("+fmtDate(post.uploadDate)+")", (post.caption||"").substring(0,60)+"... | "+fmtFull(post.impressions||0)+" views | "+fmtFull(post.reach||0)+" reach | "+fmtFull(pEng)+" eng | ER "+calcEr(pEng,post.reach||0)+"%"));
+        var pe=(post.likes||0)+(post.comments||0)+(post.shares||0)+(post.saves||0);
+        children.push(B("#"+(pi+1)+" ("+fmtDate(post.uploadDate)+")", (post.caption||"").substring(0,60)+"... | "+fmtFull(post.impressions||0)+" views | ER "+calcEr(pe,post.reach||0)+"%"));
       });
     });
-
-    if (subjectData.length > 0) {
-      children.push(H("SUBJECT / TALENT PERFORMANCE","EC4899"));
-      subjectData.forEach(function(s) {
-        children.push(B(s.name, s.count+" appearance(s) | "+fmtFull(s.imp)+" impressions ("+calcPct(s.imp,combined.imp||1)+"% of total)"));
+    if (contentTypeData.length > 0) {
+      children.push(H("CONTENT TYPE PERFORMANCE","F59E0B"));
+      contentTypeData.forEach(function(t) {
+        children.push(B(t.type, t.posts.length+" posts | Avg "+fmtFull(t.avgImp)+" views | Avg ER "+t.er+"%"));
       });
     }
-
-    children.push(H("TOP 3 PERFORMING CONTENT","F59E0B"));
+    if (subjectData.length > 0) {
+      children.push(H("SUBJECT PERFORMANCE","EC4899"));
+      subjectData.forEach(function(s) {
+        children.push(B(s.name, s.count+" appearances | "+fmtFull(s.imp)+" impressions ("+pct(s.imp,combined.imp||1)+"% of total)"));
+      });
+    }
+    children.push(H("TOP 3 CONTENT","06B6D4"));
     combined.topContent.forEach(function(c,i) {
-      var eng=(c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
-      children.push(B("#"+(i+1)+" - "+c.platform+" ("+fmtDate(c.uploadDate)+")", (c.caption||"").substring(0,80)+"... | "+fmtFull(c.impressions||0)+" views | "+fmtFull(c.reach||0)+" reach | ER "+calcEr(eng,c.reach||0)+"%"));
+      var e=(c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
+      children.push(B("#"+(i+1)+" - "+c.platform+" ("+fmtDate(c.uploadDate)+")", (c.caption||"").substring(0,80)+"... | "+fmtFull(c.impressions||0)+" views | ER "+calcEr(e,c.reach||0)+"%"));
     });
-
+    if (combined.bottomContent.length > 0) {
+      children.push(H("LOWEST PERFORMING CONTENT (Needs Attention)","F43F5E"));
+      combined.bottomContent.forEach(function(c,i) {
+        var e=(c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
+        children.push(B("#"+(i+1)+" - "+c.platform+" ("+fmtDate(c.uploadDate)+")", (c.caption||"").substring(0,80)+"... | "+fmtFull(c.impressions||0)+" views | ER "+calcEr(e,c.reach||0)+"%"));
+      });
+    }
     children.push(H("STRATEGIC RECOMMENDATIONS","34D399"));
-    var bestPl = platformData[0];
-    children.push(B("1. Best Platform", bestPl ? bestPl.name+" leads with "+fmtFull(bestPl.imp)+" impressions ("+bestPl.impShare+"% of total). Increase posting frequency here." : "Identify top platform and allocate more resources."));
-    children.push(B("2. Replicate Top Performers", "Study format, timing, and hashtags of top posts and build repeatable templates."));
-    children.push(B("3. Improve Engagement Rate", "Current ER: "+combined.er+"% ("+erCombined.label+"). Use polls, Q&A, and interactive captions."));
-    children.push(B("4. Boost Saves and Shares", "Saves ("+combined.savPct+"%) = evergreen value. Shares ("+combined.shaPct+"%) = organic reach. Create how-to and shareable content."));
-    children.push(B("5. Platform Diversification", platformData.length < 3 ? "Expand to more platforms to reduce dependency and grow total audience." : "You have "+platformData.length+" platforms. Reallocate budget from underperformers to top channels."));
-
-    children.push(new Paragraph({ children:[new TextRun({text:"Generated by SocioVault on "+today,size:16,color:"484F58",italics:true})], alignment:AlignmentType.CENTER, spacing:{before:600} }));
-
-    var doc = new Document({ sections:[{ properties:{}, children:children }] });
+    var bestPl = platformData[0], worstPl = platformData[platformData.length-1];
+    children.push(B("1. Best Platform Focus", bestPl ? bestPl.name+" drives "+bestPl.impShare+"% of impressions. Increase posting frequency here." : "Identify top platform and allocate more resources."));
+    children.push(B("2. Underperforming Platform", worstPl && platformData.length>1 ? worstPl.name+" (ER "+worstPl.er+"%, "+worstPl.impShare+"% of impressions) is lagging. Review content strategy or reallocate resources." : "Monitor all platforms for performance drops."));
+    children.push(B("3. Engagement Rate", "Current ER "+combined.er+"% ("+erC.label+"). "+((parseFloat(combined.er)<3)?"Add interactive hooks - polls, Q&A, CTAs in captions.":"Maintain with consistent interactive formats.")));
+    children.push(B("4. Content Type", contentTypeData.length>1 ? "Top type: "+contentTypeData[0].type+" ("+fmtFull(contentTypeData[0].avgImp)+" avg views). Worst: "+contentTypeData[contentTypeData.length-1].type+" ("+fmtFull(contentTypeData[contentTypeData.length-1].avgImp)+" avg views). Shift more budget to "+contentTypeData[0].type+"." : "Diversify content types to find what resonates best."));
+    children.push(B("5. Underperforming Content", combined.bottomContent.length>0 ? "Lowest post: "+fmtFull(combined.bottomContent[0].impressions||0)+" views vs avg "+fmtFull(combined.avgImp)+". Analyse caption, timing, and hashtag strategy." : "All content is performing above threshold."));
+    children.push(new Paragraph({children:[new TextRun({text:"Generated by SocioVault on "+today,size:16,color:"484F58",italics:true})],alignment:AlignmentType.CENTER,spacing:{before:600}}));
+    var doc = new Document({ sections:[{properties:{}, children:children}] });
     Packer.toBlob(doc).then(function(blob) {
-      var url = URL.createObjectURL(blob);
-      var a   = document.createElement("a");
-      a.href     = url;
-      a.download = (activeAccount.name.replace(/\s+/g,"_"))+"_Report_"+(new Date().toISOString().slice(0,10))+".docx";
-      a.click();
-      URL.revokeObjectURL(url);
+      var url=URL.createObjectURL(blob), a=document.createElement("a");
+      a.href=url; a.download=(activeAccount.name.replace(/\s+/g,"_"))+"_Report_"+(new Date().toISOString().slice(0,10))+".docx";
+      a.click(); URL.revokeObjectURL(url);
     });
   };
 
 
-  // ── Render ────────────────────────────────────────────────────────────────────
+  // ── RENDER ───────────────────────────────────────────────────────────────────
   return (
     <div className="page-container">
 
@@ -4016,54 +4008,48 @@ function ReportSummaryPage() {
       <div className="report-hero">
         <div className="report-hero-content">
           <div className="report-title-eyebrow">
-            <i data-lucide="file-bar-chart" style={{ width:"12px", height:"12px" }}></i>
+            <i data-lucide="file-bar-chart" style={{ width:"12px",height:"12px" }}></i>
             Performance Analytics Report
           </div>
           <h1 className="report-hero-title">{activeAccount.name}</h1>
-          <p style={{ color:"var(--text-muted)", fontSize:"0.9rem", marginBottom:"0.5rem" }}>
+          <p style={{ color:"var(--text-muted)",fontSize:"0.9rem",marginBottom:"0.5rem" }}>
             {activeAccount.description || "Social Media Analytics Overview"}
           </p>
           <div className="report-hero-meta">
-            <div className="report-hero-meta-item">
-              <i data-lucide="calendar" style={{ width:"13px", height:"13px" }}></i>
-              <span>{combined.dateFrom ? fmtDate(combined.dateFrom)+" - "+fmtDate(combined.dateTo) : "All-Time"}</span>
-            </div>
-            <div className="report-hero-meta-item">
-              <i data-lucide="layers" style={{ width:"13px", height:"13px" }}></i>
-              <span>{combined.count} content pieces</span>
-            </div>
-            <div className="report-hero-meta-item">
-              <i data-lucide="monitor-smartphone" style={{ width:"13px", height:"13px" }}></i>
-              <span>{platformData.length} platform{platformData.length !== 1 ? "s" : ""}</span>
-            </div>
-            <div className="report-hero-meta-item">
-              <i data-lucide="clock" style={{ width:"13px", height:"13px" }}></i>
-              <span>Generated {today}</span>
-            </div>
+            {[
+              { icon:"calendar",         text: combined.dateFrom ? fmtDate(combined.dateFrom)+" - "+fmtDate(combined.dateTo) : "All-Time" },
+              { icon:"layers",           text: combined.count+" content pieces" },
+              { icon:"monitor-smartphone", text: platformData.length+" platform"+(platformData.length!==1?"s":"") },
+              { icon:"clock",            text: "Generated "+today },
+            ].map(function(m) {
+              return (
+                <div key={m.icon} className="report-hero-meta-item">
+                  <i data-lucide={m.icon} style={{ width:"13px",height:"13px" }}></i>
+                  <span>{m.text}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
-        <div style={{ position:"absolute", top:"1.5rem", right:"1.5rem", display:"flex", gap:"0.6rem" }}>
+        <div style={{ position:"absolute",top:"1.5rem",right:"1.5rem",display:"flex",gap:"0.6rem" }}>
           <button className="btn btn-export btn-sm" onClick={handleExportDocx}>
-            <i data-lucide="download" style={{ width:"13px", height:"13px" }}></i>
-            Export DOCX
+            <i data-lucide="download" style={{ width:"13px",height:"13px" }}></i> Export DOCX
           </button>
           <button className="btn btn-print btn-sm" onClick={function(){ window.print(); }}>
-            <i data-lucide="printer" style={{ width:"13px", height:"13px" }}></i>
-            Print
+            <i data-lucide="printer" style={{ width:"13px",height:"13px" }}></i> Print
           </button>
         </div>
       </div>
 
-
-      {/* COMBINED KPI STRIP */}
+      {/* KPI STRIP */}
       <div className="report-kpi-grid">
         {[
           { label:"Total Impressions",  value:fmt(combined.imp),    sub:fmtFull(combined.imp)+" views",         color:"#06B6D4", g:"linear-gradient(90deg,#06B6D4,#22D3EE)" },
           { label:"Total Reach",        value:fmt(combined.reach),  sub:"unique viewers",                        color:"#8B5CF6", g:"linear-gradient(90deg,#8B5CF6,#A78BFA)" },
           { label:"Total Engagement",   value:fmt(combined.eng),    sub:"likes+comments+shares+saves",          color:"#10B981", g:"linear-gradient(90deg,#10B981,#34D399)" },
-          { label:"Engagement Rate",    value:combined.er+"%",      sub:erCombined.label,                        color:erCombined.color, g:"linear-gradient(90deg,"+erCombined.color+","+erCombined.color+"88)" },
-          { label:"Avg Views / Post",   value:fmt(combined.avgImp), sub:"per content piece",                     color:"#F59E0B", g:"linear-gradient(90deg,#F59E0B,#FCD34D)" },
-          { label:"Imp / Reach Ratio",  value:combined.ir+"x",     sub:parseFloat(combined.ir)>1.5?"Strong retention":"Single-view", color:"#EC4899", g:"linear-gradient(90deg,#EC4899,#F9A8D4)" },
+          { label:"Engagement Rate",    value:combined.er+"%",      sub:erC.label,                               color:erC.color, g:"linear-gradient(90deg,"+erC.color+","+erC.color+"88)" },
+          { label:"Avg Views/Post",     value:fmt(combined.avgImp), sub:"per content piece",                     color:"#F59E0B", g:"linear-gradient(90deg,#F59E0B,#FCD34D)" },
+          { label:"Imp/Reach Ratio",    value:combined.ir+"x",     sub:parseFloat(combined.ir)>1.5?"Strong retention":"Single-view", color:"#EC4899", g:"linear-gradient(90deg,#EC4899,#F9A8D4)" },
         ].map(function(k,i) {
           return (
             <div key={i} className="report-kpi-card">
@@ -4080,41 +4066,38 @@ function ReportSummaryPage() {
       {/* EXECUTIVE SUMMARY */}
       <div className="report-section" style={{ marginBottom:"1.5rem" }}>
         <div className="report-section-head">
-          <div className="report-section-icon" style={{ background:"rgba(6,182,212,0.1)", border:"1px solid rgba(6,182,212,0.2)" }}>
-            <i data-lucide="clipboard-list" style={{ width:"16px", height:"16px", color:"#06B6D4" }}></i>
+          <div className="report-section-icon" style={{ background:"rgba(6,182,212,0.1)",border:"1px solid rgba(6,182,212,0.2)" }}>
+            <i data-lucide="clipboard-list" style={{ width:"16px",height:"16px",color:"#06B6D4" }}></i>
           </div>
           <div className="report-section-label">Executive Summary</div>
         </div>
         <div className="report-section-body insight-prose">
           <p>
             <strong>{activeAccount.name}</strong> has published{" "}
-            <span className="metric-callout metric-callout-primary">{combined.count} pieces</span>{" "}
-            of content across{" "}
+            <span className="metric-callout metric-callout-primary">{combined.count} pieces</span> across{" "}
             <span className="metric-callout metric-callout-cyan">{platformData.length} platform{platformData.length!==1?"s":""}</span>,
-            accumulating{" "}
-            <span className="metric-callout metric-callout-cyan">{fmtFull(combined.imp)} total impressions</span>{" "}
-            and reaching{" "}
+            accumulating <span className="metric-callout metric-callout-cyan">{fmtFull(combined.imp)} impressions</span> and reaching{" "}
             <span className="metric-callout metric-callout-primary">{fmtFull(combined.reach)} unique viewers</span>.
-            The impression-to-reach ratio of <strong>{combined.ir}x</strong> indicates{" "}
-            {parseFloat(combined.ir) > 1.5 ? "strong content retention — viewers consume content multiple times." : "a typical single-view consumption pattern."}
+            Impression-to-reach ratio: <strong>{combined.ir}x</strong> —{" "}
+            {parseFloat(combined.ir)>1.5 ? "strong content retention, viewers consuming multiple times." : "typical single-view pattern; focus on retention hooks."}
           </p>
           <p>
-            Total audience interaction stands at{" "}
-            <span className="metric-callout metric-callout-emerald">{fmtFull(combined.eng)} engagements</span>,
-            yielding an overall engagement rate of{" "}
-            <span className="metric-callout" style={{ background:erCombined.color+"18", color:erCombined.color, border:"1px solid "+erCombined.color+"30" }}>{combined.er}%</span>{" "}
-            — classified as <strong style={{ color:erCombined.color }}>{erCombined.label}</strong>.
-            On average, each post receives <strong>{fmtFull(combined.avgImp)}</strong> views,
-            <strong> {fmtFull(combined.avgReach)}</strong> unique viewers, and
-            <strong> {fmtFull(combined.avgEng)}</strong> interactions.
+            Total engagement: <span className="metric-callout metric-callout-emerald">{fmtFull(combined.eng)}</span>{" "}
+            — overall ER <span className="metric-callout" style={{ background:erC.bg,color:erC.color,border:"1px solid "+erC.border }}>{combined.er}%</span>{" "}
+            (<strong style={{ color:erC.color }}>{erC.label}</strong>).
+            Per post average: <strong>{fmtFull(combined.avgImp)}</strong> views, <strong>{fmtFull(combined.avgEng)}</strong> interactions.
           </p>
-          {platformData.length > 0 && (
-            <p>
-              The strongest platform is{" "}
-              <span className="metric-callout metric-callout-amber">{platformData[0].name}</span>{" "}
-              contributing <strong>{platformData[0].impShare}%</strong> of total impressions
-              across <strong>{platformData[0].posts.length}</strong> post{platformData[0].posts.length!==1?"s":""}.
-              {platformData.length > 1 && " Full per-platform breakdowns are detailed below."}
+          {/* Performance gap highlight */}
+          {combined.allSorted.length >= 2 && (
+            <p style={{ padding:"0.75rem 1rem",background:"rgba(244,63,94,0.06)",borderRadius:"var(--radius-sm)",border:"1px solid rgba(244,63,94,0.15)",marginBottom:0 }}>
+              <strong style={{ color:"#F43F5E" }}>Performance gap: </strong>
+              Your top post ({fmt(combined.allSorted[0].impressions||0)} views) outperforms your lowest ({fmt(combined.allSorted[combined.allSorted.length-1].impressions||0)} views) by{" "}
+              <strong style={{ color:"#F43F5E" }}>
+                {combined.allSorted[combined.allSorted.length-1].impressions > 0
+                  ? Math.round(((combined.allSorted[0].impressions||0)/(combined.allSorted[combined.allSorted.length-1].impressions||1)))+"x"
+                  : "significantly"}
+              </strong>.
+              {" "}Analyse what made the top post successful and apply those learnings to underperforming content.
             </p>
           )}
         </div>
@@ -4124,97 +4107,96 @@ function ReportSummaryPage() {
       {/* COMBINED ENGAGEMENT + STATUS */}
       <div className="report-two-col" style={{ marginBottom:"1.5rem" }}>
 
-        {/* Engagement breakdown */}
         <div className="report-section" style={{ marginBottom:0 }}>
           <div className="report-section-head">
-            <div className="report-section-icon" style={{ background:"rgba(139,92,246,0.1)", border:"1px solid rgba(139,92,246,0.2)" }}>
-              <i data-lucide="bar-chart-2" style={{ width:"16px", height:"16px", color:"var(--accent-primary)" }}></i>
+            <div className="report-section-icon" style={{ background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.2)" }}>
+              <i data-lucide="bar-chart-2" style={{ width:"16px",height:"16px",color:"var(--accent-primary)" }}></i>
             </div>
-            <div className="report-section-label">Combined Engagement Breakdown</div>
+            <div className="report-section-label">Engagement Breakdown</div>
           </div>
           <div className="report-section-body">
             {[
-              { label:"Likes",    icon:"heart",          value:combined.lik, pct:combined.likPct, color:"#F43F5E", g:"linear-gradient(90deg,#F43F5E,#FB7185)" },
-              { label:"Comments", icon:"message-circle", value:combined.com, pct:combined.comPct, color:"#8B5CF6", g:"linear-gradient(90deg,#8B5CF6,#A78BFA)" },
-              { label:"Shares",   icon:"repeat-2",       value:combined.sha, pct:combined.shaPct, color:"#06B6D4", g:"linear-gradient(90deg,#06B6D4,#22D3EE)" },
-              { label:"Saves",    icon:"bookmark",       value:combined.sav, pct:combined.savPct, color:"#10B981", g:"linear-gradient(90deg,#10B981,#34D399)" },
+              { label:"Likes",    icon:"heart",          v:combined.lik, p:combined.likPct, c:"#F43F5E", g:"linear-gradient(90deg,#F43F5E,#FB7185)" },
+              { label:"Comments", icon:"message-circle", v:combined.com, p:combined.comPct, c:"#8B5CF6", g:"linear-gradient(90deg,#8B5CF6,#A78BFA)" },
+              { label:"Shares",   icon:"repeat-2",       v:combined.sha, p:combined.shaPct, c:"#06B6D4", g:"linear-gradient(90deg,#06B6D4,#22D3EE)" },
+              { label:"Saves",    icon:"bookmark",       v:combined.sav, p:combined.savPct, c:"#10B981", g:"linear-gradient(90deg,#10B981,#34D399)" },
             ].map(function(item) {
               return (
                 <div key={item.label} className="engagement-bar-row">
                   <div className="engagement-bar-label">
-                    <i data-lucide={item.icon} style={{ width:"13px", height:"13px", color:item.color, flexShrink:0 }}></i>
+                    <i data-lucide={item.icon} style={{ width:"13px",height:"13px",color:item.c,flexShrink:0 }}></i>
                     {item.label}
                   </div>
                   <div className="engagement-bar-track">
-                    <div className="engagement-bar-fill" style={{ width:item.pct+"%", background:item.g }}></div>
+                    <div className="engagement-bar-fill" style={{ width:item.p+"%",background:item.g }}></div>
                   </div>
-                  <div className="engagement-bar-value">{fmt(item.value)}</div>
-                  <div className="engagement-bar-pct">{item.pct}%</div>
+                  <div className="engagement-bar-value">{fmt(item.v)}</div>
+                  <div className="engagement-bar-pct">{item.p}%</div>
                 </div>
               );
             })}
-            <div style={{ marginTop:"1rem", paddingTop:"0.85rem", borderTop:"1px solid var(--border-color)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <span style={{ fontSize:"0.78rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.04em" }}>Total</span>
-              <span style={{ fontSize:"1.2rem", fontWeight:800, fontFamily:"var(--font-heading)", color:"var(--accent-emerald)" }}>{fmtFull(combined.eng)}</span>
+            <div style={{ marginTop:"1rem",paddingTop:"0.85rem",borderTop:"1px solid var(--border-color)",display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+              <span style={{ fontSize:"0.78rem",color:"var(--text-muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.04em" }}>Total</span>
+              <span style={{ fontSize:"1.2rem",fontWeight:800,fontFamily:"var(--font-heading)",color:"var(--accent-emerald)" }}>{fmtFull(combined.eng)}</span>
             </div>
-            <div style={{ marginTop:"0.85rem", padding:"0.85rem 1rem", background:"rgba(139,92,246,0.06)", borderRadius:"var(--radius-sm)", border:"1px solid rgba(139,92,246,0.1)" }}>
-              <p style={{ fontSize:"0.8rem", color:"var(--text-muted)", lineHeight:1.6, margin:0 }}>
-                <strong style={{ color:"var(--accent-primary-light)" }}>Insight: </strong>
-                {parseFloat(combined.savPct) >= 15
-                  ? "High save rate ("+combined.savPct+"%) signals strong evergreen content value."
-                  : parseFloat(combined.shaPct) >= 15
-                    ? "Strong share rate ("+combined.shaPct+"%) is driving organic amplification."
-                    : parseFloat(combined.comPct) >= 15
-                      ? "Above-average comment rate ("+combined.comPct+"%) shows high conversational engagement."
-                      : "Likes dominate at "+combined.likPct+"%. Use CTAs to convert passive likes into saves and shares."}
+            {/* What's weak */}
+            <div style={{ marginTop:"0.85rem",padding:"0.85rem 1rem",background:"rgba(244,63,94,0.05)",borderRadius:"var(--radius-sm)",border:"1px solid rgba(244,63,94,0.15)" }}>
+              <p style={{ fontSize:"0.8rem",color:"var(--text-muted)",lineHeight:1.6,margin:0 }}>
+                <strong style={{ color:"#F43F5E" }}>Weakest signal: </strong>
+                {parseFloat(combined.savPct) < 10
+                  ? "Save rate ("+combined.savPct+"%) is low — saves are the strongest algorithm signal. Create more how-to, reference, and checklist content."
+                  : parseFloat(combined.shaPct) < 10
+                    ? "Share rate ("+combined.shaPct+"%) is low — shares drive organic reach. Use emotional hooks or surprising facts that compel re-sharing."
+                    : parseFloat(combined.comPct) < 10
+                      ? "Comment rate ("+combined.comPct+"%) is below average — end every post with a direct open-ended question."
+                      : "Engagement mix is healthy. Continue monitoring each metric weekly."}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Content status */}
         <div className="report-section" style={{ marginBottom:0 }}>
           <div className="report-section-head">
-            <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.2)" }}>
-              <i data-lucide="layout-list" style={{ width:"16px", height:"16px", color:"var(--accent-amber)" }}></i>
+            <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.2)" }}>
+              <i data-lucide="layout-list" style={{ width:"16px",height:"16px",color:"var(--accent-amber)" }}></i>
             </div>
-            <div className="report-section-label">Content Status Overview</div>
+            <div className="report-section-label">Content Status</div>
           </div>
           <div className="report-section-body">
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.85rem", marginBottom:"1.25rem" }}>
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.85rem",marginBottom:"1.25rem" }}>
               {[
-                { key:"Uploaded",  label:"Published", color:"#10B981", bg:"linear-gradient(135deg,rgba(16,185,129,0.15),rgba(16,185,129,0.05))",  border:"rgba(16,185,129,0.3)",  icon:"check-circle" },
-                { key:"Scheduled", label:"Scheduled", color:"#06B6D4", bg:"linear-gradient(135deg,rgba(6,182,212,0.15),rgba(6,182,212,0.05))",    border:"rgba(6,182,212,0.3)",   icon:"clock"        },
-                { key:"Privated",  label:"Privated",  color:"#F59E0B", bg:"linear-gradient(135deg,rgba(245,158,11,0.15),rgba(245,158,11,0.05))",  border:"rgba(245,158,11,0.3)",  icon:"eye-off"      },
-                { key:"Deleted",   label:"Archived",  color:"#F43F5E", bg:"linear-gradient(135deg,rgba(244,63,94,0.12),rgba(244,63,94,0.04))",    border:"rgba(244,63,94,0.25)",  icon:"archive"      },
+                { key:"Uploaded",  label:"Published", color:"#10B981",bg:"linear-gradient(135deg,rgba(16,185,129,0.15),rgba(16,185,129,0.05))",border:"rgba(16,185,129,0.3)", icon:"check-circle" },
+                { key:"Scheduled", label:"Scheduled", color:"#06B6D4",bg:"linear-gradient(135deg,rgba(6,182,212,0.15),rgba(6,182,212,0.05))",  border:"rgba(6,182,212,0.3)",  icon:"clock"        },
+                { key:"Privated",  label:"Privated",  color:"#F59E0B",bg:"linear-gradient(135deg,rgba(245,158,11,0.15),rgba(245,158,11,0.05))",border:"rgba(245,158,11,0.3)", icon:"eye-off"      },
+                { key:"Deleted",   label:"Archived",  color:"#F43F5E",bg:"linear-gradient(135deg,rgba(244,63,94,0.12),rgba(244,63,94,0.04))",  border:"rgba(244,63,94,0.25)", icon:"archive"      },
               ].map(function(s) {
-                var count = combined.statuses[s.key] || 0;
+                var count = combined.statuses[s.key]||0;
                 if (count === 0) return null;
                 return (
-                  <div key={s.key} style={{ padding:"1rem", borderRadius:"var(--radius-md)", background:s.bg, border:"1px solid "+s.border }}>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.5rem" }}>
-                      <i data-lucide={s.icon} style={{ width:"15px", height:"15px", color:s.color }}></i>
-                      <span style={{ fontSize:"0.7rem", color:s.color, fontWeight:700 }}>{calcPct(count,combined.count)}%</span>
+                  <div key={s.key} style={{ padding:"1rem",borderRadius:"var(--radius-md)",background:s.bg,border:"1px solid "+s.border }}>
+                    <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"0.5rem" }}>
+                      <i data-lucide={s.icon} style={{ width:"15px",height:"15px",color:s.color }}></i>
+                      <span style={{ fontSize:"0.7rem",color:s.color,fontWeight:700 }}>{pct(count,combined.count)}%</span>
                     </div>
-                    <div style={{ fontSize:"1.6rem", fontWeight:800, fontFamily:"var(--font-heading)", color:s.color, lineHeight:1 }}>{count}</div>
-                    <div style={{ fontSize:"0.72rem", color:"var(--text-muted)", fontWeight:700, marginTop:"0.2rem", textTransform:"uppercase", letterSpacing:"0.04em" }}>{s.label}</div>
+                    <div style={{ fontSize:"1.6rem",fontWeight:800,fontFamily:"var(--font-heading)",color:s.color,lineHeight:1 }}>{count}</div>
+                    <div style={{ fontSize:"0.72rem",color:"var(--text-muted)",fontWeight:700,marginTop:"0.2rem",textTransform:"uppercase",letterSpacing:"0.04em" }}>{s.label}</div>
                   </div>
                 );
               })}
             </div>
-            <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", fontWeight:700, marginBottom:"0.5rem", textTransform:"uppercase", letterSpacing:"0.04em" }}>Publication Rate</div>
+            <div style={{ fontSize:"0.78rem",color:"var(--text-muted)",fontWeight:700,marginBottom:"0.5rem",textTransform:"uppercase",letterSpacing:"0.04em" }}>Publication Rate</div>
             <div className="progress-bar-track progress-bar-track-lg">
-              <div className="progress-bar-fill progress-bar-fill-emerald" style={{ width:calcPct(combined.statuses["Uploaded"]||0, combined.count)+"%" }}></div>
+              <div className="progress-bar-fill progress-bar-fill-emerald" style={{ width:pct(combined.statuses["Uploaded"]||0,combined.count)+"%" }}></div>
             </div>
-            <div style={{ display:"flex", justifyContent:"space-between", marginTop:"0.35rem" }}>
-              <span style={{ fontSize:"0.75rem", color:"var(--accent-emerald)" }}>{combined.statuses["Uploaded"]||0} published</span>
-              <span style={{ fontSize:"0.75rem", color:"var(--text-muted)" }}>{combined.count} total</span>
+            <div style={{ display:"flex",justifyContent:"space-between",marginTop:"0.35rem" }}>
+              <span style={{ fontSize:"0.75rem",color:"var(--accent-emerald)" }}>{combined.statuses["Uploaded"]||0} published</span>
+              <span style={{ fontSize:"0.75rem",color:"var(--text-muted)" }}>{combined.count} total</span>
             </div>
-            <div style={{ marginTop:"1rem", padding:"0.85rem 1rem", background:erCombined.color+"0F", borderRadius:"var(--radius-sm)", border:"1px solid "+erCombined.color+"25" }}>
-              <div style={{ fontSize:"0.72rem", textTransform:"uppercase", letterSpacing:"0.05em", color:"var(--text-subtle)", fontWeight:700, marginBottom:"0.3rem" }}>Overall ER Health</div>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                <span style={{ fontSize:"1.5rem", fontWeight:800, fontFamily:"var(--font-heading)", color:erCombined.color }}>{combined.er}%</span>
-                <span style={{ padding:"0.25rem 0.65rem", borderRadius:"var(--radius-full)", background:erCombined.color+"18", border:"1px solid "+erCombined.color+"30", fontSize:"0.75rem", fontWeight:700, color:erCombined.color }}>{erCombined.label}</span>
+            <div style={{ marginTop:"1rem",padding:"0.85rem 1rem",background:erC.color+"0F",borderRadius:"var(--radius-sm)",border:"1px solid "+erC.color+"25" }}>
+              <div style={{ fontSize:"0.72rem",textTransform:"uppercase",letterSpacing:"0.05em",color:"var(--text-subtle)",fontWeight:700,marginBottom:"0.3rem" }}>Overall ER Health</div>
+              <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+                <span style={{ fontSize:"1.5rem",fontWeight:800,fontFamily:"var(--font-heading)",color:erC.color }}>{combined.er}%</span>
+                <span style={{ padding:"0.25rem 0.65rem",borderRadius:"var(--radius-full)",background:erC.bg,border:"1px solid "+erC.border,fontSize:"0.75rem",fontWeight:700,color:erC.color }}>{erC.label}</span>
               </div>
             </div>
           </div>
@@ -4222,17 +4204,17 @@ function ReportSummaryPage() {
       </div>
 
 
-      {/* CROSS-PLATFORM RANKING (only when >1 platform) */}
+      {/* CROSS-PLATFORM RANKING */}
       {platformData.length > 1 && (
         <div className="report-section" style={{ marginBottom:"1.5rem" }}>
           <div className="report-section-head">
-            <div className="report-section-icon" style={{ background:"rgba(99,102,241,0.1)", border:"1px solid rgba(99,102,241,0.2)" }}>
-              <i data-lucide="bar-chart-horizontal" style={{ width:"16px", height:"16px", color:"#6366F1" }}></i>
+            <div className="report-section-icon" style={{ background:"rgba(99,102,241,0.1)",border:"1px solid rgba(99,102,241,0.2)" }}>
+              <i data-lucide="bar-chart-horizontal" style={{ width:"16px",height:"16px",color:"#6366F1" }}></i>
             </div>
-            <div className="report-section-label">Cross-Platform Ranking</div>
+            <div className="report-section-label">Cross-Platform Comparison</div>
           </div>
           <div className="report-section-body">
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))", gap:"1rem" }}>
+            <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:"1rem",marginBottom:"1.25rem" }}>
               {["Impressions","Reach","Engagement","ER %"].map(function(metric) {
                 var sorted = platformData.slice().sort(function(a,b) {
                   if (metric==="Impressions") return b.imp-a.imp;
@@ -4240,27 +4222,29 @@ function ReportSummaryPage() {
                   if (metric==="Engagement")  return b.eng-a.eng;
                   return parseFloat(b.er)-parseFloat(a.er);
                 });
-                var maxVal = sorted.length > 0 ? (metric==="ER %" ? parseFloat(sorted[0].er) : (metric==="Impressions"?sorted[0].imp : metric==="Reach"?sorted[0].reach : sorted[0].eng)) : 1;
+                var maxVal = sorted.length>0 ? (metric==="ER %"?parseFloat(sorted[0].er) : (metric==="Impressions"?sorted[0].imp : metric==="Reach"?sorted[0].reach : sorted[0].eng)) : 1;
                 return (
-                  <div key={metric} style={{ padding:"1rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.5)", border:"1px solid var(--border-color)" }}>
-                    <div style={{ fontSize:"0.72rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.85rem" }}>{metric} Ranking</div>
+                  <div key={metric} style={{ padding:"1rem",borderRadius:"var(--radius-md)",background:"rgba(7,9,15,0.5)",border:"1px solid var(--border-color)" }}>
+                    <div style={{ fontSize:"0.72rem",color:"var(--text-muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:"0.85rem" }}>{metric} Ranking</div>
                     {sorted.map(function(pl, rank) {
-                      var val = metric==="ER %" ? parseFloat(pl.er) : (metric==="Impressions"?pl.imp : metric==="Reach"?pl.reach : pl.eng);
-                      var dispVal = metric==="ER %" ? pl.er+"%" : fmt(val);
-                      var barPct  = maxVal > 0 ? (val/maxVal)*100 : 0;
-                      var color   = pColor(pl.name);
+                      var val = metric==="ER %"?parseFloat(pl.er) : (metric==="Impressions"?pl.imp : metric==="Reach"?pl.reach : pl.eng);
+                      var disp = metric==="ER %"?pl.er+"%" : fmt(val);
+                      var barPct = maxVal>0?(val/maxVal)*100:0;
+                      var c = pColor(pl.name);
+                      var isLast = rank===sorted.length-1 && sorted.length>1;
                       return (
                         <div key={pl.name} style={{ marginBottom:"0.65rem" }}>
-                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.25rem" }}>
-                            <div style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                              <span style={{ fontSize:"0.68rem", fontWeight:800, color:"var(--text-subtle)", width:"14px" }}>#{rank+1}</span>
-                              <i data-lucide={pIcon(pl.name)} style={{ width:"11px", height:"11px", color:color }}></i>
-                              <span style={{ fontSize:"0.78rem", fontWeight:600, color:"var(--text-secondary)" }}>{pl.name}</span>
+                          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"0.25rem" }}>
+                            <div style={{ display:"flex",alignItems:"center",gap:"0.4rem" }}>
+                              <span style={{ fontSize:"0.68rem",fontWeight:800,color:isLast?"#F43F5E":"var(--text-subtle)",width:"14px" }}>#{rank+1}</span>
+                              <i data-lucide={pIcon(pl.name)} style={{ width:"11px",height:"11px",color:c }}></i>
+                              <span style={{ fontSize:"0.78rem",fontWeight:600,color:isLast?"#F43F5E":"var(--text-secondary)" }}>{pl.name}</span>
+                              {isLast && <span style={{ fontSize:"0.62rem",color:"#F43F5E",fontWeight:700 }}>Lowest</span>}
                             </div>
-                            <span style={{ fontSize:"0.78rem", fontWeight:700, color:color }}>{dispVal}</span>
+                            <span style={{ fontSize:"0.78rem",fontWeight:700,color:c }}>{disp}</span>
                           </div>
                           <div className="progress-bar-track">
-                            <div className="progress-bar-fill" style={{ width:barPct+"%", background:"linear-gradient(90deg,"+color+","+color+"88)" }}></div>
+                            <div className="progress-bar-fill" style={{ width:barPct+"%",background:"linear-gradient(90deg,"+c+","+c+"88)" }}></div>
                           </div>
                         </div>
                       );
@@ -4269,6 +4253,20 @@ function ReportSummaryPage() {
                 );
               })}
             </div>
+            {/* Worst platform call-out */}
+            {platformData.length > 1 && (
+              <div style={{ padding:"0.85rem 1rem",background:"rgba(244,63,94,0.06)",borderRadius:"var(--radius-sm)",border:"1px solid rgba(244,63,94,0.15)" }}>
+                <p style={{ fontSize:"0.8rem",color:"var(--text-muted)",lineHeight:1.6,margin:0 }}>
+                  <strong style={{ color:"#F43F5E" }}>Underperformer alert: </strong>
+                  {platformData[platformData.length-1].name} has the lowest impressions ({fmt(platformData[platformData.length-1].imp)},{" "}
+                  {platformData[platformData.length-1].impShare}% of total) and ER of{" "}
+                  {platformData[platformData.length-1].er}%.
+                  {parseFloat(platformData[platformData.length-1].er) < parseFloat(combined.er)
+                    ? " Consider restructuring content specifically for "+platformData[platformData.length-1].name+"'s algorithm, or reallocating production resources to "+platformData[0].name+"."
+                    : " Despite low volume, the engagement rate is healthy. Consider increasing posting frequency here."}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -4276,340 +4274,240 @@ function ReportSummaryPage() {
 
       {/* PER-PLATFORM DEEP ANALYSIS */}
       {platformData.map(function(pl, plIdx) {
-        var color  = pColor(pl.name);
-        var erI    = erInfo(pl.er);
-        var isTop  = plIdx === 0;
-
+        var color = pColor(pl.name);
+        var erI   = erGrade(pl.er);
         return (
           <div key={pl.name} className="report-section" style={{ marginBottom:"1.5rem" }}>
-
-            {/* Platform header */}
-            <div className="report-section-head" style={{ background:"linear-gradient(135deg,"+color+"10,"+color+"04)", borderBottom:"1px solid "+color+"20" }}>
-              <div style={{ width:"36px", height:"36px", borderRadius:"10px", background:color+"18", border:"1px solid "+color+"35", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                <i data-lucide={pIcon(pl.name)} style={{ width:"16px", height:"16px", color:color }}></i>
+            {/* Header */}
+            <div className="report-section-head" style={{ background:"linear-gradient(135deg,"+color+"10,"+color+"04)",borderBottom:"1px solid "+color+"20" }}>
+              <div style={{ width:"36px",height:"36px",borderRadius:"10px",background:color+"18",border:"1px solid "+color+"35",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                <i data-lucide={pIcon(pl.name)} style={{ width:"16px",height:"16px",color:color }}></i>
               </div>
               <div style={{ flex:1 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:"0.65rem", flexWrap:"wrap" }}>
+                <div style={{ display:"flex",alignItems:"center",gap:"0.65rem",flexWrap:"wrap" }}>
                   <span className="report-section-label" style={{ color:color }}>{pl.name}</span>
-                  <span style={{ fontSize:"0.7rem", color:erI.color, fontWeight:700, padding:"0.15rem 0.5rem", borderRadius:"var(--radius-full)", background:erI.color+"15", border:"1px solid "+erI.color+"30" }}>
-                    ER {pl.er}% — {erI.label}
-                  </span>
-                  {isTop && (
-                    <span style={{ fontSize:"0.68rem", color:"#F59E0B", fontWeight:800, padding:"0.12rem 0.45rem", borderRadius:"var(--radius-full)", background:"rgba(245,158,11,0.12)", border:"1px solid rgba(245,158,11,0.3)" }}>
-                      Top Platform
-                    </span>
-                  )}
+                  <span style={{ fontSize:"0.7rem",color:erI.color,fontWeight:700,padding:"0.15rem 0.5rem",borderRadius:"var(--radius-full)",background:erI.bg,border:"1px solid "+erI.border }}>ER {pl.er}% — {erI.label}</span>
+                  {plIdx===0 && <span style={{ fontSize:"0.68rem",color:"#F59E0B",fontWeight:800,padding:"0.12rem 0.45rem",borderRadius:"var(--radius-full)",background:"rgba(245,158,11,0.12)",border:"1px solid rgba(245,158,11,0.3)" }}>Top Platform</span>}
+                  {plIdx===platformData.length-1 && platformData.length>1 && <span style={{ fontSize:"0.68rem",color:"#F43F5E",fontWeight:800,padding:"0.12rem 0.45rem",borderRadius:"var(--radius-full)",background:"rgba(244,63,94,0.12)",border:"1px solid rgba(244,63,94,0.3)" }}>Needs Attention</span>}
                 </div>
-                <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", marginTop:"0.15rem" }}>
-                  {pl.posts.length} post{pl.posts.length!==1?"s":""}{" "}
-                  {pl.dates.length ? "| "+fmtDate(pl.dates[0])+" - "+fmtDate(pl.dates[pl.dates.length-1]) : ""}
+                <div style={{ fontSize:"0.78rem",color:"var(--text-muted)",marginTop:"0.15rem" }}>
+                  {pl.posts.length} post{pl.posts.length!==1?"s":""}
+                  {pl.dates.length ? "  |  "+fmtDate(pl.dates[0])+" - "+fmtDate(pl.dates[pl.dates.length-1]) : ""}
                 </div>
               </div>
-              <div style={{ textAlign:"right", flexShrink:0 }}>
-                <div style={{ fontSize:"1.4rem", fontWeight:900, fontFamily:"var(--font-heading)", color:color }}>{fmt(pl.imp)}</div>
-                <div style={{ fontSize:"0.7rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.04em" }}>Impressions</div>
+              <div style={{ textAlign:"right",flexShrink:0 }}>
+                <div style={{ fontSize:"1.4rem",fontWeight:900,fontFamily:"var(--font-heading)",color:color }}>{fmt(pl.imp)}</div>
+                <div style={{ fontSize:"0.7rem",color:"var(--text-subtle)",textTransform:"uppercase",letterSpacing:"0.04em" }}>Impressions</div>
               </div>
             </div>
 
             <div className="report-section-body">
-
-              {/* 8-metric KPI row */}
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))", gap:"0.85rem", marginBottom:"1.5rem" }}>
+              {/* 8-metric KPI grid */}
+              <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:"0.85rem",marginBottom:"1.5rem" }}>
                 {[
-                  { label:"Impressions",    value:fmt(pl.imp),      sub:pl.impShare+"% of total",   color:color },
-                  { label:"Reach",          value:fmt(pl.reach),    sub:pl.reachShare+"% of total", color:"var(--accent-primary)" },
-                  { label:"Engagement",     value:fmt(pl.eng),      sub:pl.engShare+"% of total",   color:"var(--accent-emerald)" },
-                  { label:"Eng. Rate",      value:pl.er+"%",        sub:erI.label,                   color:erI.color },
-                  { label:"Imp/Reach",      value:pl.ir+"x",       sub:parseFloat(pl.ir)>1.5?"Retained":"Single-view", color:"#EC4899" },
-                  { label:"Avg Views/Post", value:fmt(pl.avgImp),   sub:"per post",                  color:"#F59E0B" },
-                  { label:"Avg Reach/Post", value:fmt(pl.avgReach), sub:"per post",                  color:"var(--accent-primary)" },
-                  { label:"Avg Eng/Post",   value:fmt(pl.avgEng),   sub:"per post",                  color:"var(--accent-emerald)" },
+                  { label:"Impressions",    value:fmt(pl.imp),      sub:pl.impShare+"% of total",    c:color },
+                  { label:"Reach",          value:fmt(pl.reach),    sub:pl.reachShare+"% of total",  c:"var(--accent-primary)" },
+                  { label:"Engagement",     value:fmt(pl.eng),      sub:pl.engShare+"% of total",    c:"var(--accent-emerald)" },
+                  { label:"Eng. Rate",      value:pl.er+"%",        sub:erI.label,                    c:erI.color },
+                  { label:"Imp/Reach",      value:pl.ir+"x",       sub:parseFloat(pl.ir)>1.5?"Retained":"Single-view", c:"#EC4899" },
+                  { label:"Avg Views/Post", value:fmt(pl.avgImp),   sub:"per post",                   c:"#F59E0B" },
+                  { label:"Avg Reach/Post", value:fmt(pl.avgReach), sub:"per post",                   c:"var(--accent-primary)" },
+                  { label:"Avg Eng/Post",   value:fmt(pl.avgEng),   sub:"per post",                   c:"var(--accent-emerald)" },
                 ].map(function(k, ki) {
                   return (
-                    <div key={ki} style={{ padding:"0.85rem 1rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.5)", border:"1px solid "+color+"18" }}>
-                      <div style={{ fontSize:"0.68rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.05em", fontWeight:700, marginBottom:"0.4rem" }}>{k.label}</div>
-                      <div style={{ fontSize:"1.15rem", fontWeight:800, fontFamily:"var(--font-heading)", color:k.color, lineHeight:1, marginBottom:"0.2rem" }}>{k.value}</div>
-                      <div style={{ fontSize:"0.7rem", color:"var(--text-subtle)" }}>{k.sub}</div>
+                    <div key={ki} style={{ padding:"0.85rem 1rem",borderRadius:"var(--radius-md)",background:"rgba(7,9,15,0.5)",border:"1px solid "+color+"18" }}>
+                      <div style={{ fontSize:"0.68rem",color:"var(--text-subtle)",textTransform:"uppercase",letterSpacing:"0.05em",fontWeight:700,marginBottom:"0.4rem" }}>{k.label}</div>
+                      <div style={{ fontSize:"1.15rem",fontWeight:800,fontFamily:"var(--font-heading)",color:k.c,lineHeight:1,marginBottom:"0.2rem" }}>{k.value}</div>
+                      <div style={{ fontSize:"0.7rem",color:"var(--text-subtle)" }}>{k.sub}</div>
                     </div>
                   );
                 })}
               </div>
 
 
-              {/* Engagement mix + share of total */}
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.25rem", marginBottom:"1.5rem" }}>
-
-                <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.4)", border:"1px solid "+color+"15" }}>
-                  <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"1rem" }}>Engagement Mix</div>
+              {/* Engagement mix + share of total + narrative */}
+              <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:"1.25rem",marginBottom:"1.5rem" }}>
+                {/* Engagement mix */}
+                <div style={{ padding:"1.1rem 1.25rem",borderRadius:"var(--radius-md)",background:"rgba(7,9,15,0.4)",border:"1px solid "+color+"15" }}>
+                  <div style={{ fontSize:"0.75rem",color:"var(--text-muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:"1rem" }}>Engagement Mix</div>
                   {[
-                    { label:"Likes",    icon:"heart",          value:pl.lik, pct:pl.likPct, color:"#F43F5E", g:"linear-gradient(90deg,#F43F5E,#FB7185)" },
-                    { label:"Comments", icon:"message-circle", value:pl.com, pct:pl.comPct, color:"#8B5CF6", g:"linear-gradient(90deg,#8B5CF6,#A78BFA)" },
-                    { label:"Shares",   icon:"repeat-2",       value:pl.sha, pct:pl.shaPct, color:"#06B6D4", g:"linear-gradient(90deg,#06B6D4,#22D3EE)" },
-                    { label:"Saves",    icon:"bookmark",       value:pl.sav, pct:pl.savPct, color:"#10B981", g:"linear-gradient(90deg,#10B981,#34D399)" },
+                    { label:"Likes",    icon:"heart",          v:pl.lik, p:pl.likPct, c:"#F43F5E", g:"linear-gradient(90deg,#F43F5E,#FB7185)" },
+                    { label:"Comments", icon:"message-circle", v:pl.com, p:pl.comPct, c:"#8B5CF6", g:"linear-gradient(90deg,#8B5CF6,#A78BFA)" },
+                    { label:"Shares",   icon:"repeat-2",       v:pl.sha, p:pl.shaPct, c:"#06B6D4", g:"linear-gradient(90deg,#06B6D4,#22D3EE)" },
+                    { label:"Saves",    icon:"bookmark",       v:pl.sav, p:pl.savPct, c:"#10B981", g:"linear-gradient(90deg,#10B981,#34D399)" },
                   ].map(function(item) {
                     return (
                       <div key={item.label} className="engagement-bar-row">
-                        <div className="engagement-bar-label">
-                          <i data-lucide={item.icon} style={{ width:"13px", height:"13px", color:item.color, flexShrink:0 }}></i>
-                          {item.label}
-                        </div>
-                        <div className="engagement-bar-track">
-                          <div className="engagement-bar-fill" style={{ width:item.pct+"%", background:item.g }}></div>
-                        </div>
-                        <div className="engagement-bar-value">{fmt(item.value)}</div>
-                        <div className="engagement-bar-pct">{item.pct}%</div>
+                        <div className="engagement-bar-label"><i data-lucide={item.icon} style={{ width:"13px",height:"13px",color:item.c,flexShrink:0 }}></i>{item.label}</div>
+                        <div className="engagement-bar-track"><div className="engagement-bar-fill" style={{ width:item.p+"%",background:item.g }}></div></div>
+                        <div className="engagement-bar-value">{fmt(item.v)}</div>
+                        <div className="engagement-bar-pct">{item.p}%</div>
                       </div>
                     );
                   })}
                 </div>
-
-                <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.4)", border:"1px solid "+color+"15" }}>
-                  <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"1rem" }}>Share of All-Platform Total</div>
-                  {[
-                    { label:"Impressions", val:pl.imp,   share:pl.impShare,   c:color },
-                    { label:"Reach",       val:pl.reach, share:pl.reachShare, c:"var(--accent-primary)" },
-                    { label:"Engagement",  val:pl.eng,   share:pl.engShare,   c:"var(--accent-emerald)" },
-                  ].map(function(s) {
-                    return (
-                      <div key={s.label} style={{ marginBottom:"0.85rem" }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.3rem" }}>
-                          <span style={{ fontSize:"0.78rem", fontWeight:600, color:"var(--text-secondary)" }}>{s.label}</span>
-                          <div style={{ display:"flex", gap:"0.5rem", alignItems:"center" }}>
-                            <span style={{ fontSize:"0.78rem", fontWeight:700, color:s.c }}>{fmt(s.val)}</span>
-                            <span style={{ fontSize:"0.7rem", color:"var(--text-muted)", background:"rgba(255,255,255,0.05)", padding:"0.1rem 0.4rem", borderRadius:"4px" }}>{s.share}%</span>
-                          </div>
-                        </div>
-                        <div className="progress-bar-track">
-                          <div className="progress-bar-fill" style={{ width:s.share+"%", background:"linear-gradient(90deg,"+s.c+","+s.c+"88)" }}></div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <div style={{ marginTop:"0.85rem", padding:"0.75rem", background:color+"08", borderRadius:"var(--radius-sm)", border:"1px solid "+color+"18" }}>
-                    <p style={{ fontSize:"0.78rem", color:"var(--text-muted)", lineHeight:1.6, margin:0 }}>
-                      <strong style={{ color:color }}>Platform insight: </strong>
-                      {parseFloat(pl.er) > parseFloat(combined.er)
-                        ? pl.name+" ER ("+pl.er+"%) exceeds account average ("+combined.er+"%) — prioritise this platform."
-                        : pl.name+" ER ("+pl.er+"%) is below account average ("+combined.er+"%). Test new content formats and posting times."}
+                {/* Platform narrative */}
+                <div style={{ padding:"1.1rem 1.25rem",borderRadius:"var(--radius-md)",background:"rgba(7,9,15,0.4)",border:"1px solid "+color+"15" }}>
+                  <div style={{ fontSize:"0.75rem",color:"var(--text-muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:"0.85rem" }}>Platform Analysis</div>
+                  <div className="insight-prose" style={{ fontSize:"0.82rem" }}>
+                    <p><strong style={{ color:color }}>{pl.name}</strong> contributes <strong>{pl.impShare}%</strong> of impressions and <strong>{pl.engShare}%</strong> of engagement.</p>
+                    <p>{parseFloat(pl.er) > parseFloat(combined.er)
+                      ? "ER of "+pl.er+"% exceeds account average ("+combined.er+"%) — this platform generates the highest audience return per view."
+                      : "ER of "+pl.er+"% is below account average ("+combined.er+"%). Review content format, caption length, posting times, and hashtag strategy for this platform."}</p>
+                    <p>{parseFloat(pl.ir) > 1.5
+                      ? "Imp/Reach ratio "+pl.ir+"x — viewers are rewatching. Strong hook and replay-worthy content."
+                      : "Imp/Reach ratio "+pl.ir+"x — most viewers see content once. Improve hook strength and thumbnail quality to increase replays."}</p>
+                    {/* Weakest engagement on this platform */}
+                    <p style={{ padding:"0.6rem 0.75rem",background:"rgba(244,63,94,0.06)",borderRadius:"var(--radius-sm)",border:"1px solid rgba(244,63,94,0.15)",marginBottom:0 }}>
+                      <strong style={{ color:"#F43F5E" }}>Weakness: </strong>
+                      {parseFloat(pl.savPct) < 10
+                        ? "Low save rate ("+pl.savPct+"%) on "+pl.name+". Add evergreen value — step-by-step guides, templates, or 'save for later' hooks."
+                        : parseFloat(pl.shaPct) < 10
+                          ? "Low share rate ("+pl.shaPct+"%) on "+pl.name+". Try shareable formats — opinion takes, surprising stats, or relatable humour."
+                          : "Comment rate ("+pl.comPct+"%) could improve. Pose a question at the end of every "+pl.name+" caption."}
                     </p>
                   </div>
                 </div>
+              </div>
+
+
+              {/* Top post + worst post side by side */}
+              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"1rem",marginBottom:"1.5rem" }}>
+                {pl.topPost && (
+                  <div style={{ padding:"1.1rem 1.25rem",borderRadius:"var(--radius-md)",background:"linear-gradient(135deg,rgba(245,158,11,0.08),rgba(245,158,11,0.03))",border:"1px solid rgba(245,158,11,0.25)" }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:"0.5rem",marginBottom:"0.6rem" }}>
+                      <i data-lucide="award" style={{ width:"14px",height:"14px",color:"#F59E0B" }}></i>
+                      <span style={{ fontSize:"0.72rem",color:"#F59E0B",fontWeight:800,textTransform:"uppercase",letterSpacing:"0.05em" }}>Best Post</span>
+                    </div>
+                    <p style={{ fontSize:"0.82rem",color:"var(--text-secondary)",lineHeight:1.5,marginBottom:"0.75rem" }}>"{(pl.topPost.caption||"").substring(0,90)}{pl.topPost.caption&&pl.topPost.caption.length>90?"...":""}"</p>
+                    <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"0.5rem" }}>
+                      {[{l:"Views",v:fmt(pl.topPost.impressions||0),c:"var(--accent-cyan)"},{l:"Reach",v:fmt(pl.topPost.reach||0),c:"var(--text-main)"},{l:"ER",v:calcEr((pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0),pl.topPost.reach||0)+"%",c:erGrade(calcEr((pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0),pl.topPost.reach||0)).color}].map(function(m){return(
+                        <div key={m.l} style={{ textAlign:"center" }}>
+                          <div style={{ fontSize:"0.62rem",color:"var(--text-subtle)",textTransform:"uppercase",letterSpacing:"0.04em",fontWeight:600 }}>{m.l}</div>
+                          <div style={{ fontSize:"0.92rem",fontWeight:800,fontFamily:"var(--font-heading)",color:m.c }}>{m.v}</div>
+                        </div>
+                      );})}
+                    </div>
+                  </div>
+                )}
+                {pl.worstPost && pl.worstPost !== pl.topPost && (
+                  <div style={{ padding:"1.1rem 1.25rem",borderRadius:"var(--radius-md)",background:"linear-gradient(135deg,rgba(244,63,94,0.07),rgba(244,63,94,0.02))",border:"1px solid rgba(244,63,94,0.2)" }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:"0.5rem",marginBottom:"0.6rem" }}>
+                      <i data-lucide="alert-triangle" style={{ width:"14px",height:"14px",color:"#F43F5E" }}></i>
+                      <span style={{ fontSize:"0.72rem",color:"#F43F5E",fontWeight:800,textTransform:"uppercase",letterSpacing:"0.05em" }}>Lowest Post — Needs Review</span>
+                    </div>
+                    <p style={{ fontSize:"0.82rem",color:"var(--text-secondary)",lineHeight:1.5,marginBottom:"0.75rem" }}>"{(pl.worstPost.caption||"").substring(0,90)}{pl.worstPost.caption&&pl.worstPost.caption.length>90?"...":""}"</p>
+                    <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"0.5rem",marginBottom:"0.6rem" }}>
+                      {[{l:"Views",v:fmt(pl.worstPost.impressions||0),c:"#F43F5E"},{l:"Reach",v:fmt(pl.worstPost.reach||0),c:"var(--text-muted)"},{l:"ER",v:calcEr((pl.worstPost.likes||0)+(pl.worstPost.comments||0)+(pl.worstPost.shares||0)+(pl.worstPost.saves||0),pl.worstPost.reach||0)+"%",c:"#F43F5E"}].map(function(m){return(
+                        <div key={m.l} style={{ textAlign:"center" }}>
+                          <div style={{ fontSize:"0.62rem",color:"var(--text-subtle)",textTransform:"uppercase",letterSpacing:"0.04em",fontWeight:600 }}>{m.l}</div>
+                          <div style={{ fontSize:"0.92rem",fontWeight:800,fontFamily:"var(--font-heading)",color:m.c }}>{m.v}</div>
+                        </div>
+                      );})}
+                    </div>
+                    <p style={{ fontSize:"0.75rem",color:"var(--text-muted)",lineHeight:1.55,margin:0 }}>
+                      <strong style={{ color:"#F43F5E" }}>Action: </strong>
+                      {pl.topPost && pl.worstPost.impressions > 0
+                        ? "This post got "+Math.round((pl.topPost.impressions||0)/(pl.worstPost.impressions||1))+"x fewer views than your best. Compare posting times, caption structure, and hashtags."
+                        : "Review caption quality, hashtags, and posting time. Consider rescheduling with improved copy."}
+                    </p>
+                  </div>
+                )}
               </div>
 
 
               {/* All posts table */}
-              <div style={{ marginBottom:"1.5rem" }}>
-                <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.85rem" }}>
-                  All {pl.posts.length} Post{pl.posts.length!==1?"s":""} on {pl.name} — sorted by views
-                </div>
-                <div style={{ borderRadius:"var(--radius-md)", border:"1px solid "+color+"20", overflow:"hidden" }}>
-                  <table className="custom-table" style={{ fontSize:"0.79rem" }}>
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>Date</th>
-                        <th>Caption</th>
-                        <th style={{ color:"var(--accent-cyan)" }}>Views</th>
-                        <th>Reach</th>
-                        <th style={{ color:"var(--accent-emerald)" }}>Eng.</th>
-                        <th>Likes</th>
-                        <th>Cmts</th>
-                        <th>Shares</th>
-                        <th>Saves</th>
-                        <th style={{ color:"var(--accent-primary)" }}>ER%</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pl.sortedPosts.map(function(post, pi) {
-                        var postEng = (post.likes||0)+(post.comments||0)+(post.shares||0)+(post.saves||0);
-                        var postEr  = calcEr(postEng, post.reach||0);
-                        var erC     = erInfo(postEr).color;
-                        return (
-                          <tr key={post.id||pi} style={pi===0 ? { background:color+"0A" } : {}}>
-                            <td style={{ fontWeight:700, color:pi===0?color:"var(--text-subtle)" }}>{pi===0?"#1 Top":"#"+(pi+1)}</td>
-                            <td style={{ whiteSpace:"nowrap", color:"var(--text-muted)" }}>{fmtDate(post.uploadDate)}</td>
-                            <td style={{ maxWidth:"180px" }}>
-                              <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block", maxWidth:"180px" }} title={post.caption||""}>
-                                {(post.caption||"-").substring(0,55)}{post.caption && post.caption.length>55?"...":""}
-                              </span>
-                            </td>
-                            <td style={{ fontWeight:700, color:"var(--accent-cyan)" }}>{fmt(post.impressions||0)}</td>
-                            <td>{fmt(post.reach||0)}</td>
-                            <td style={{ fontWeight:700, color:"var(--accent-emerald)" }}>{fmt(postEng)}</td>
-                            <td>{fmt(post.likes||0)}</td>
-                            <td>{fmt(post.comments||0)}</td>
-                            <td>{fmt(post.shares||0)}</td>
-                            <td>{fmt(post.saves||0)}</td>
-                            <td style={{ fontWeight:700, color:erC }}>{postEr}%</td>
-                            <td><span className={"badge badge-"+((post.status||"uploaded").toLowerCase())}>{post.status||"-"}</span></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+              <div style={{ fontSize:"0.75rem",color:"var(--text-muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:"0.75rem" }}>
+                All {pl.posts.length} Post{pl.posts.length!==1?"s":""} — sorted by views
               </div>
-
-
-              {/* Top post + platform analysis narrative */}
-              {pl.topPost && (
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1rem" }}>
-
-                  <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"linear-gradient(135deg,rgba(245,158,11,0.08),rgba(245,158,11,0.03))", border:"1px solid rgba(245,158,11,0.25)" }}>
-                    <div style={{ fontSize:"0.72rem", color:"#F59E0B", fontWeight:800, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.75rem" }}>
-                      Top Post on {pl.name}
-                    </div>
-                    <p style={{ fontSize:"0.82rem", color:"var(--text-secondary)", lineHeight:1.55, marginBottom:"0.85rem" }}>
-                      "{(pl.topPost.caption||"No caption").substring(0,100)}{pl.topPost.caption && pl.topPost.caption.length>100?"...":""}"
-                    </p>
-                    {(pl.topPost.hashtags||[]).length > 0 && (
-                      <div style={{ display:"flex", gap:"0.3rem", flexWrap:"wrap", marginBottom:"0.85rem" }}>
-                        {pl.topPost.hashtags.slice(0,5).map(function(t){ return <span key={t} className="chip" style={{ fontSize:"0.7rem", padding:"0.12rem 0.45rem" }}>{t}</span>; })}
-                      </div>
-                    )}
-                    <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"0.5rem", paddingTop:"0.75rem", borderTop:"1px solid rgba(255,255,255,0.06)" }}>
-                      {[
-                        { label:"Views",  value:fmt(pl.topPost.impressions||0), color:"var(--accent-cyan)" },
-                        { label:"Reach",  value:fmt(pl.topPost.reach||0),       color:"var(--text-main)" },
-                        { label:"ER",     value:calcEr((pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0), pl.topPost.reach||0)+"%", color:erInfo(calcEr((pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0),pl.topPost.reach||0)).color },
-                        { label:"Likes",  value:fmt(pl.topPost.likes||0),       color:"#FB7185" },
-                        { label:"Shares", value:fmt(pl.topPost.shares||0),      color:"var(--accent-cyan)" },
-                        { label:"Saves",  value:fmt(pl.topPost.saves||0),       color:"var(--accent-emerald)" },
-                      ].map(function(m) {
-                        return (
-                          <div key={m.label} style={{ display:"flex", flexDirection:"column", gap:"0.15rem", alignItems:"center" }}>
-                            <span style={{ fontSize:"0.68rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.04em", fontWeight:600 }}>{m.label}</span>
-                            <span style={{ fontSize:"0.95rem", fontWeight:800, fontFamily:"var(--font-heading)", color:m.color }}>{m.value}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.4)", border:"1px solid "+color+"15" }}>
-                    <div style={{ fontSize:"0.72rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.85rem" }}>Platform Analysis</div>
-                    <div className="insight-prose" style={{ fontSize:"0.82rem" }}>
-                      <p>
-                        <strong style={{ color:color }}>{pl.name}</strong> accounts for{" "}
-                        <span className="metric-callout metric-callout-amber">{pl.impShare}% of impressions</span>{" "}
-                        and <span className="metric-callout metric-callout-emerald">{pl.engShare}% of engagement</span>{" "}
-                        across {pl.posts.length} post{pl.posts.length!==1?"s":""}.
-                      </p>
-                      <p>
-                        {parseFloat(pl.er) > parseFloat(combined.er)
-                          ? "At "+pl.er+"% ER, this platform outperforms the account average of "+combined.er+"%, making it the highest-return platform relative to audience size."
-                          : "At "+pl.er+"% ER, this platform sits below the account average of "+combined.er+"%. Review content format, posting frequency, and caption strategy."}
-                      </p>
-                      <p>
-                        The impression-to-reach ratio of <strong>{pl.ir}x</strong>{" "}
-                        {parseFloat(pl.ir) > 1.5
-                          ? "suggests viewers rewatch content or the algorithm redistributes it to existing followers."
-                          : "indicates most viewers see the content once — invest in stronger hooks and thumbnails."}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
+              <div style={{ borderRadius:"var(--radius-md)",border:"1px solid "+color+"20",overflow:"hidden" }}>
+                <table className="custom-table" style={{ fontSize:"0.79rem" }}>
+                  <thead>
+                    <tr>
+                      <th>#</th><th>Date</th><th>Caption</th>
+                      <th style={{ color:"var(--accent-cyan)" }}>Views</th>
+                      <th>Reach</th>
+                      <th style={{ color:"var(--accent-emerald)" }}>Eng.</th>
+                      <th>Likes</th><th>Cmts</th><th>Shares</th><th>Saves</th>
+                      <th style={{ color:"var(--accent-primary)" }}>ER%</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pl.sortedPosts.map(function(post, pi) {
+                      var pe = (post.likes||0)+(post.comments||0)+(post.shares||0)+(post.saves||0);
+                      var er = calcEr(pe, post.reach||0);
+                      var isBest  = pi===0;
+                      var isWorst = pi===pl.sortedPosts.length-1 && pl.sortedPosts.length>1;
+                      return (
+                        <tr key={post.id||pi} style={{ background:isBest?color+"0A":isWorst?"rgba(244,63,94,0.04)":"" }}>
+                          <td style={{ fontWeight:700,color:isBest?color:isWorst?"#F43F5E":"var(--text-subtle)" }}>{isBest?"Best":isWorst?"Low":"#"+(pi+1)}</td>
+                          <td style={{ whiteSpace:"nowrap",color:"var(--text-muted)" }}>{fmtDate(post.uploadDate)}</td>
+                          <td><span style={{ overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",display:"block",maxWidth:"170px" }} title={post.caption||""}>{(post.caption||"-").substring(0,55)}{post.caption&&post.caption.length>55?"...":""}</span></td>
+                          <td style={{ fontWeight:700,color:"var(--accent-cyan)" }}>{fmt(post.impressions||0)}</td>
+                          <td>{fmt(post.reach||0)}</td>
+                          <td style={{ fontWeight:700,color:"var(--accent-emerald)" }}>{fmt(pe)}</td>
+                          <td>{fmt(post.likes||0)}</td>
+                          <td>{fmt(post.comments||0)}</td>
+                          <td>{fmt(post.shares||0)}</td>
+                          <td>{fmt(post.saves||0)}</td>
+                          <td style={{ fontWeight:700,color:erGrade(er).color }}>{er}%</td>
+                          <td><span className={"badge badge-"+((post.status||"uploaded").toLowerCase())}>{post.status||"-"}</span></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         );
       })}
 
 
-      {/* SUBJECT PERFORMANCE */}
-      {subjectData.length > 0 && (
+      {/* CONTENT TYPE ANALYSIS */}
+      {contentTypeData.length > 0 && (
         <div className="report-section" style={{ marginBottom:"1.5rem" }}>
           <div className="report-section-head">
-            <div className="report-section-icon" style={{ background:"rgba(236,72,153,0.1)", border:"1px solid rgba(236,72,153,0.2)" }}>
-              <i data-lucide="users" style={{ width:"16px", height:"16px", color:"#EC4899" }}></i>
+            <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.2)" }}>
+              <i data-lucide="film" style={{ width:"16px",height:"16px",color:"var(--accent-amber)" }}></i>
             </div>
-            <div className="report-section-label">Subject &amp; Talent Performance</div>
+            <div className="report-section-label">Content Type Performance</div>
           </div>
           <div className="report-section-body">
-            {subjectData.map(function(s, si) {
-              var gradients = [
-                "linear-gradient(135deg,#8B5CF6,#06B6D4)",
-                "linear-gradient(135deg,#10B981,#06B6D4)",
-                "linear-gradient(135deg,#F59E0B,#EF4444)",
-                "linear-gradient(135deg,#EC4899,#8B5CF6)",
-                "linear-gradient(135deg,#6366F1,#06B6D4)"
-              ];
-              var initials = s.name.split(" ").map(function(n){return n[0]||"";}).join("").toUpperCase().slice(0,2);
-              var share    = calcPct(s.imp, combined.imp||1);
-              var barPct   = subjectData[0].imp > 0 ? (s.imp/subjectData[0].imp)*100 : 0;
-              return (
-                <div key={s.name} className="subject-person-row">
-                  <div className="subject-avatar" style={{ background:gradients[si%gradients.length] }}>{initials}</div>
-                  <div className="subject-info">
-                    <div className="subject-name">{s.name}</div>
-                    <div className="subject-meta">{s.count} appearance{s.count!==1?"s":""} — {share}% of total impressions</div>
-                  </div>
-                  <div style={{ textAlign:"right", marginRight:"1rem", flexShrink:0 }}>
-                    <div style={{ fontSize:"1.05rem", fontWeight:800, fontFamily:"var(--font-heading)", color:"var(--text-main)" }}>{fmt(s.imp)}</div>
-                    <div style={{ fontSize:"0.72rem", color:"var(--text-muted)" }}>impressions</div>
-                  </div>
-                  <div className="subject-bar-wrap">
-                    <div className="progress-bar-track">
-                      <div className="progress-bar-fill" style={{ width:barPct+"%", background:gradients[si%gradients.length] }}></div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* TOP 3 CONTENT */}
-      {combined.topContent.length > 0 && (
-        <div className="report-section" style={{ marginBottom:"1.5rem" }}>
-          <div className="report-section-head">
-            <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.2)" }}>
-              <i data-lucide="award" style={{ width:"16px", height:"16px", color:"var(--accent-amber)" }}></i>
-            </div>
-            <div className="report-section-label">Top 3 Performing Content (All Platforms)</div>
-          </div>
-          <div className="report-section-body">
-            <div className="podium-grid">
-              {combined.topContent.map(function(content, idx) {
-                var eng     = (content.likes||0)+(content.comments||0)+(content.shares||0)+(content.saves||0);
-                var postEr  = calcEr(eng, content.reach||0);
-                var color   = pColor(content.platform);
-                var badgeClasses = ["podium-rank-badge podium-rank-badge-1","podium-rank-badge podium-rank-badge-2","podium-rank-badge podium-rank-badge-3"];
-                var cardClasses  = ["podium-card podium-card-1","podium-card podium-card-2","podium-card podium-card-3"];
-                var rankLabels   = ["#1 Best","#2","#3"];
+            <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:"1rem",marginBottom:"1.25rem" }}>
+              {contentTypeData.map(function(ct, cti) {
+                var isBest  = cti===0;
+                var isWorst = cti===contentTypeData.length-1 && contentTypeData.length>1;
+                var erI = erGrade(ct.er);
                 return (
-                  <div key={content.id||idx} className={cardClasses[idx]}>
-                    <div className={badgeClasses[idx]}>{rankLabels[idx]}</div>
-                    <div style={{ fontSize:"2rem", marginBottom:"0.75rem", display:"block" }}>{idx===0?"(1st)":idx===1?"(2nd)":"(3rd)"}</div>
-                    <div className="podium-platform-tag">
-                      <i data-lucide={pIcon(content.platform)} style={{ width:"11px", height:"11px", color:color }}></i>
-                      <span style={{ color:color }}>{content.platform}</span>
-                      <span style={{ color:"var(--text-subtle)" }}>—</span>
-                      <span>{fmtDate(content.uploadDate)}</span>
-                    </div>
-                    <p className="podium-caption">{content.caption||"No caption"}</p>
-                    {(content.hashtags||[]).length > 0 && (
-                      <div style={{ display:"flex", flexWrap:"wrap", gap:"0.3rem", marginBottom:"0.85rem" }}>
-                        {content.hashtags.slice(0,4).map(function(t){ return <span key={t} className="chip" style={{ fontSize:"0.7rem", padding:"0.12rem 0.45rem" }}>{t}</span>; })}
-                        {content.hashtags.length > 4 && <span style={{ fontSize:"0.72rem", color:"var(--text-subtle)" }}>+{content.hashtags.length-4} more</span>}
+                  <div key={ct.type} style={{ padding:"1.1rem",borderRadius:"var(--radius-md)",border:"1px solid "+(isBest?"rgba(6,182,212,0.3)":isWorst?"rgba(244,63,94,0.25)":"var(--border-color)"),background:isBest?"linear-gradient(135deg,rgba(6,182,212,0.08),rgba(6,182,212,0.03))":isWorst?"linear-gradient(135deg,rgba(244,63,94,0.06),rgba(244,63,94,0.02))":"rgba(7,9,15,0.5)" }}>
+                    <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"0.75rem" }}>
+                      <span style={{ fontWeight:700,fontSize:"0.9rem",color:isBest?"var(--accent-cyan)":isWorst?"#F43F5E":"var(--text-main)" }}>{ct.type}</span>
+                      <div style={{ display:"flex",gap:"0.35rem" }}>
+                        {isBest  && <span style={{ fontSize:"0.62rem",fontWeight:800,color:"var(--accent-cyan)",padding:"0.12rem 0.4rem",borderRadius:"4px",background:"rgba(6,182,212,0.12)",border:"1px solid rgba(6,182,212,0.25)" }}>Best</span>}
+                        {isWorst && <span style={{ fontSize:"0.62rem",fontWeight:800,color:"#F43F5E",padding:"0.12rem 0.4rem",borderRadius:"4px",background:"rgba(244,63,94,0.12)",border:"1px solid rgba(244,63,94,0.25)" }}>Lowest</span>}
                       </div>
+                    </div>
+                    <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.6rem",marginBottom:"0.75rem" }}>
+                      {[{l:"Posts",v:""+ct.posts.length,c:"var(--text-muted)"},{l:"Avg Views",v:fmt(ct.avgImp),c:"var(--accent-cyan)"},{l:"Avg ER%",v:ct.er+"%",c:erI.color},{l:"Impressions",v:fmt(ct.imp),c:"var(--text-main)"}].map(function(m){return(
+                        <div key={m.l} style={{ padding:"0.5rem 0.65rem",borderRadius:"6px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)" }}>
+                          <div style={{ fontSize:"0.65rem",color:"var(--text-subtle)",textTransform:"uppercase",letterSpacing:"0.04em",fontWeight:600,marginBottom:"0.2rem" }}>{m.l}</div>
+                          <div style={{ fontSize:"0.92rem",fontWeight:800,fontFamily:"var(--font-heading)",color:m.c }}>{m.v}</div>
+                        </div>
+                      );})}
+                    </div>
+                    {isBest && (
+                      <p style={{ fontSize:"0.75rem",color:"var(--text-muted)",lineHeight:1.55,margin:0,padding:"0.6rem 0.75rem",background:"rgba(6,182,212,0.05)",borderRadius:"6px",border:"1px solid rgba(6,182,212,0.12)" }}>
+                        <strong style={{ color:"var(--accent-cyan)" }}>Suggestion: </strong>
+                        {ct.type} content averages {fmt(ct.avgImp)} views — your best-performing format. Increase production frequency and test variations of this format.
+                      </p>
                     )}
-                    <div className="podium-metrics-strip">
-                      <div className="podium-metric"><span className="podium-metric-lbl">Views</span><span className="podium-metric-val" style={{ color:"var(--accent-cyan)" }}>{fmt(content.impressions||0)}</span></div>
-                      <div className="podium-metric"><span className="podium-metric-lbl">Reach</span><span className="podium-metric-val">{fmt(content.reach||0)}</span></div>
-                      <div className="podium-metric"><span className="podium-metric-lbl">Eng.</span><span className="podium-metric-val" style={{ color:"var(--accent-emerald)" }}>{fmt(eng)}</span></div>
-                      <div className="podium-metric"><span className="podium-metric-lbl">Likes</span><span className="podium-metric-val" style={{ color:"#FB7185" }}>{fmt(content.likes||0)}</span></div>
-                      <div className="podium-metric"><span className="podium-metric-lbl">Shares</span><span className="podium-metric-val" style={{ color:"var(--accent-cyan)" }}>{fmt(content.shares||0)}</span></div>
-                      <div className="podium-metric"><span className="podium-metric-lbl">Saves</span><span className="podium-metric-val" style={{ color:"var(--accent-emerald)" }}>{fmt(content.saves||0)}</span></div>
-                    </div>
-                    {content.reach > 0 && (
-                      <div style={{ marginTop:"0.75rem", paddingTop:"0.65rem", borderTop:"1px solid rgba(255,255,255,0.06)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                        <span style={{ fontSize:"0.72rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.05em", fontWeight:600 }}>Post ER</span>
-                        <span style={{ fontSize:"0.95rem", fontWeight:800, fontFamily:"var(--font-heading)", color:erInfo(postEr).color }}>{postEr}%</span>
-                      </div>
+                    {isWorst && contentTypeData.length > 1 && (
+                      <p style={{ fontSize:"0.75rem",color:"var(--text-muted)",lineHeight:1.55,margin:0,padding:"0.6rem 0.75rem",background:"rgba(244,63,94,0.05)",borderRadius:"6px",border:"1px solid rgba(244,63,94,0.12)" }}>
+                        <strong style={{ color:"#F43F5E" }}>Action: </strong>
+                        {ct.type} averages only {fmt(ct.avgImp)} views vs {fmt(contentTypeData[0].avgImp)} for {contentTypeData[0].type}. Consider reducing {ct.type} output or significantly revising its execution strategy.
+                      </p>
                     )}
                   </div>
                 );
@@ -4619,82 +4517,236 @@ function ReportSummaryPage() {
         </div>
       )}
 
-
-      {/* STRATEGIC RECOMMENDATIONS */}
-      <div className="report-section">
-        <div className="report-section-head">
-          <div className="report-section-icon" style={{ background:"rgba(52,211,153,0.1)", border:"1px solid rgba(52,211,153,0.2)" }}>
-            <i data-lucide="target" style={{ width:"16px", height:"16px", color:"var(--accent-emerald)" }}></i>
+      {/* SUBJECT PERFORMANCE */}
+      {subjectData.length > 0 && (
+        <div className="report-section" style={{ marginBottom:"1.5rem" }}>
+          <div className="report-section-head">
+            <div className="report-section-icon" style={{ background:"rgba(236,72,153,0.1)",border:"1px solid rgba(236,72,153,0.2)" }}>
+              <i data-lucide="users" style={{ width:"16px",height:"16px",color:"#EC4899" }}></i>
+            </div>
+            <div className="report-section-label">Subject & Talent Performance</div>
           </div>
-          <div className="report-section-label">Strategic Recommendations</div>
-        </div>
-        <div className="report-section-body">
-          <div style={{ display:"flex", flexDirection:"column", gap:"0.75rem" }}>
-            {[
-              {
-                title: "Double Down on " + (platformData[0] ? platformData[0].name : "Your Best Platform"),
-                body:  platformData[0]
-                  ? platformData[0].name+" leads with "+fmtFull(platformData[0].imp)+" impressions ("+platformData[0].impShare+"% of total) across "+platformData[0].posts.length+" post"+(platformData[0].posts.length!==1?"s":"")+". Increase posting frequency, test Reels/Shorts, and repurpose top content here to compound reach."
-                  : "Identify the platform generating the most reach and allocate additional content resources to maximise returns."
-              },
-              {
-                title: "Replicate Top-Performing Formats",
-                body:  combined.topContent[0]
-                  ? "Your current #1 post generated "+fmt(combined.topContent[0].impressions||0)+" views. Study its format, posting time, caption structure, and hashtag clusters to build a repeatable content template."
-                  : "Identify your top post and build a repeatable content template around its format, timing, and hashtags."
-              },
-              {
-                title: "Elevate Engagement Rate from " + combined.er + "%",
-                body:  parseFloat(combined.er) < 3
-                  ? "Current ER ("+combined.er+"%) is "+erCombined.label+". Introduce interactive hooks — polls, question stickers, pinned comments — in the first 3 seconds of video or the first line of captions to drive higher interaction."
-                  : "Current ER ("+combined.er+"%) is "+erCombined.label+". Maintain this by consistently testing new interactive formats: Q&A sessions, reaction videos, and challenge posts tend to amplify interaction spikes."
-              },
-              {
-                title: "Optimise Engagement Type Mix",
-                body:  "Saves ("+combined.savPct+"%) are the highest-value algorithmic signal — produce more how-to, reference, and checklist content. Shares ("+combined.shaPct+"%) amplify organic distribution — emotional or surprising content maximises share velocity. "
-                  + (parseFloat(combined.comPct) < 10 ? "Comment rate ("+combined.comPct+"%) is low — end content with a direct open-ended question to stimulate discussion." : "Comment engagement ("+combined.comPct+"%) is healthy — reply to comments promptly to signal algorithm activity.")
-              },
-              {
-                title: platformData.length < 3 ? "Expand Your Platform Mix" : "Optimise Cross-Platform Allocation",
-                body:  platformData.length < 3
-                  ? "You're currently on "+platformData.length+" platform"+(platformData.length!==1?"s":"")+". Expanding to additional platforms (e.g. TikTok, YouTube Shorts, LinkedIn depending on niche) reduces dependency risk and grows total addressable audience."
-                  : "You operate across "+platformData.length+" platforms. "+(platformData[platformData.length-1] ? platformData[platformData.length-1].name+" has the lowest impressions ("+fmt(platformData[platformData.length-1].imp)+"). Consider whether resources there are better reallocated to "+platformData[0].name+"." : "Audit each platform's ROI and reallocate budget from underperformers to top channels.")
-              }
-            ].map(function(rec, ri) {
+          <div className="report-section-body">
+            {subjectData.map(function(s, si) {
+              var grads = ["linear-gradient(135deg,#8B5CF6,#06B6D4)","linear-gradient(135deg,#10B981,#06B6D4)","linear-gradient(135deg,#F59E0B,#EF4444)","linear-gradient(135deg,#EC4899,#8B5CF6)","linear-gradient(135deg,#6366F1,#06B6D4)"];
+              var initials = s.name.split(" ").map(function(n){return n[0]||"";}).join("").toUpperCase().slice(0,2);
+              var sharePct = pct(s.imp, combined.imp||1);
+              var barPct   = subjectData[0].imp > 0 ? (s.imp/subjectData[0].imp)*100 : 0;
+              var isTop    = si===0;
+              var isLow    = si===subjectData.length-1 && subjectData.length>1;
               return (
-                <div key={ri} className="recommendation-card">
-                  <div className="recommendation-number">{ri+1}</div>
-                  <div>
-                    <div className="recommendation-title">{rec.title}</div>
-                    <div className="recommendation-text">{rec.body}</div>
+                <div key={s.name} className="subject-person-row" style={{ background:isLow?"rgba(244,63,94,0.03)":"" }}>
+                  <div className="subject-avatar" style={{ background:grads[si%grads.length] }}>{initials}</div>
+                  <div className="subject-info">
+                    <div style={{ display:"flex",alignItems:"center",gap:"0.4rem" }}>
+                      <div className="subject-name">{s.name}</div>
+                      {isTop && <span style={{ fontSize:"0.62rem",fontWeight:800,color:"#F59E0B",padding:"0.1rem 0.35rem",borderRadius:"4px",background:"rgba(245,158,11,0.12)",border:"1px solid rgba(245,158,11,0.25)" }}>Top</span>}
+                      {isLow && <span style={{ fontSize:"0.62rem",fontWeight:800,color:"#F43F5E",padding:"0.1rem 0.35rem",borderRadius:"4px",background:"rgba(244,63,94,0.12)",border:"1px solid rgba(244,63,94,0.25)" }}>Lowest</span>}
+                    </div>
+                    <div className="subject-meta">{s.count} appearance{s.count!==1?"s":""} — {sharePct}% of total impressions</div>
+                  </div>
+                  <div style={{ textAlign:"right",marginRight:"1rem",flexShrink:0 }}>
+                    <div style={{ fontSize:"1.05rem",fontWeight:800,fontFamily:"var(--font-heading)",color:isLow?"#F43F5E":"var(--text-main)" }}>{fmt(s.imp)}</div>
+                    <div style={{ fontSize:"0.72rem",color:"var(--text-muted)" }}>impressions</div>
+                  </div>
+                  <div className="subject-bar-wrap">
+                    <div className="progress-bar-track">
+                      <div className="progress-bar-fill" style={{ width:barPct+"%",background:isLow?"linear-gradient(90deg,#F43F5E,#F97316)":grads[si%grads.length] }}></div>
+                    </div>
                   </div>
                 </div>
               );
             })}
+            {subjectData.length > 1 && (
+              <div style={{ marginTop:"1rem",padding:"0.85rem 1rem",background:"rgba(244,63,94,0.05)",borderRadius:"var(--radius-sm)",border:"1px solid rgba(244,63,94,0.15)" }}>
+                <p style={{ fontSize:"0.8rem",color:"var(--text-muted)",lineHeight:1.6,margin:0 }}>
+                  <strong style={{ color:"#F43F5E" }}>Talent gap: </strong>
+                  {subjectData[0].name} drives {pct(subjectData[0].imp,combined.imp||1)}% of impressions vs {subjectData[subjectData.length-1].name} at {pct(subjectData[subjectData.length-1].imp,combined.imp||1)}%.
+                  Consider increasing {subjectData[0].name}'s content frequency and testing collaborative formats between subjects to cross-pollinate audiences.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+
+      {/* TOP 3 + BOTTOM 3 */}
+      <div className="report-two-col" style={{ marginBottom:"1.5rem" }}>
+
+        {combined.topContent.length > 0 && (
+          <div className="report-section" style={{ marginBottom:0 }}>
+            <div className="report-section-head">
+              <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.2)" }}>
+                <i data-lucide="award" style={{ width:"16px",height:"16px",color:"var(--accent-amber)" }}></i>
+              </div>
+              <div className="report-section-label">Top 3 Performing Content</div>
+            </div>
+            <div className="report-section-body" style={{ padding:"1rem" }}>
+              {combined.topContent.map(function(c, i) {
+                var eng = (c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
+                var col = pColor(c.platform);
+                var ranks = ["1st","2nd","3rd"];
+                return (
+                  <div key={c.id||i} style={{ padding:"0.85rem",borderRadius:"var(--radius-md)",border:"1px solid "+(i===0?"rgba(245,158,11,0.3)":"var(--border-color)"),background:i===0?"linear-gradient(135deg,rgba(245,158,11,0.07),rgba(245,158,11,0.02))":"rgba(7,9,15,0.4)",marginBottom:"0.75rem" }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:"0.5rem",marginBottom:"0.5rem" }}>
+                      <span style={{ fontSize:"0.72rem",fontWeight:800,color:i===0?"#F59E0B":"var(--text-muted)",padding:"0.12rem 0.45rem",borderRadius:"4px",background:i===0?"rgba(245,158,11,0.15)":"rgba(255,255,255,0.05)",border:i===0?"1px solid rgba(245,158,11,0.3)":"1px solid var(--border-color)" }}>{ranks[i]}</span>
+                      <i data-lucide={pIcon(c.platform)} style={{ width:"12px",height:"12px",color:col }}></i>
+                      <span style={{ fontSize:"0.78rem",fontWeight:600,color:col }}>{c.platform}</span>
+                      <span style={{ fontSize:"0.72rem",color:"var(--text-muted)" }}>{fmtDate(c.uploadDate)}</span>
+                    </div>
+                    <p style={{ fontSize:"0.82rem",color:"var(--text-secondary)",lineHeight:1.5,marginBottom:"0.6rem" }}>"{(c.caption||"").substring(0,80)}{c.caption&&c.caption.length>80?"...":""}"</p>
+                    <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"0.4rem" }}>
+                      {[{l:"Views",v:fmt(c.impressions||0),c:"var(--accent-cyan)"},{l:"Reach",v:fmt(c.reach||0),c:"var(--text-main)"},{l:"Eng.",v:fmt(eng),c:"var(--accent-emerald)"},{l:"ER",v:calcEr(eng,c.reach||0)+"%",c:erGrade(calcEr(eng,c.reach||0)).color}].map(function(m){return(
+                        <div key={m.l} style={{ textAlign:"center",padding:"0.4rem",borderRadius:"6px",background:"rgba(255,255,255,0.03)" }}>
+                          <div style={{ fontSize:"0.6rem",color:"var(--text-subtle)",textTransform:"uppercase",letterSpacing:"0.04em",fontWeight:600 }}>{m.l}</div>
+                          <div style={{ fontSize:"0.85rem",fontWeight:800,fontFamily:"var(--font-heading)",color:m.c }}>{m.v}</div>
+                        </div>
+                      );})}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {combined.bottomContent.length > 0 && (
+          <div className="report-section" style={{ marginBottom:0 }}>
+            <div className="report-section-head">
+              <div className="report-section-icon" style={{ background:"rgba(244,63,94,0.1)",border:"1px solid rgba(244,63,94,0.2)" }}>
+                <i data-lucide="alert-triangle" style={{ width:"16px",height:"16px",color:"#F43F5E" }}></i>
+              </div>
+              <div className="report-section-label">Lowest Performing — Needs Attention</div>
+            </div>
+            <div className="report-section-body" style={{ padding:"1rem" }}>
+              {combined.bottomContent.map(function(c, i) {
+                var eng = (c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
+                var col = pColor(c.platform);
+                return (
+                  <div key={c.id||i} style={{ padding:"0.85rem",borderRadius:"var(--radius-md)",border:"1px solid rgba(244,63,94,0.2)",background:"linear-gradient(135deg,rgba(244,63,94,0.06),rgba(244,63,94,0.02))",marginBottom:"0.75rem" }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:"0.5rem",marginBottom:"0.5rem" }}>
+                      <i data-lucide="alert-triangle" style={{ width:"11px",height:"11px",color:"#F43F5E",flexShrink:0 }}></i>
+                      <i data-lucide={pIcon(c.platform)} style={{ width:"11px",height:"11px",color:col }}></i>
+                      <span style={{ fontSize:"0.78rem",fontWeight:600,color:col }}>{c.platform}</span>
+                      <span style={{ fontSize:"0.72rem",color:"var(--text-muted)" }}>{fmtDate(c.uploadDate)}</span>
+                    </div>
+                    <p style={{ fontSize:"0.82rem",color:"var(--text-secondary)",lineHeight:1.5,marginBottom:"0.6rem" }}>"{(c.caption||"").substring(0,80)}{c.caption&&c.caption.length>80?"...":""}"</p>
+                    <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"0.4rem",marginBottom:"0.6rem" }}>
+                      {[{l:"Views",v:fmt(c.impressions||0),c:"#F43F5E"},{l:"Reach",v:fmt(c.reach||0),c:"var(--text-muted)"},{l:"Eng.",v:fmt(eng),c:"var(--text-muted)"},{l:"ER",v:calcEr(eng,c.reach||0)+"%",c:erGrade(calcEr(eng,c.reach||0)).color}].map(function(m){return(
+                        <div key={m.l} style={{ textAlign:"center",padding:"0.4rem",borderRadius:"6px",background:"rgba(244,63,94,0.04)" }}>
+                          <div style={{ fontSize:"0.6rem",color:"var(--text-subtle)",textTransform:"uppercase",letterSpacing:"0.04em",fontWeight:600 }}>{m.l}</div>
+                          <div style={{ fontSize:"0.85rem",fontWeight:800,fontFamily:"var(--font-heading)",color:m.c }}>{m.v}</div>
+                        </div>
+                      );})}
+                    </div>
+                    <p style={{ fontSize:"0.75rem",color:"var(--text-muted)",lineHeight:1.55,margin:0,padding:"0.5rem 0.65rem",background:"rgba(244,63,94,0.05)",borderRadius:"6px",border:"1px solid rgba(244,63,94,0.15)" }}>
+                      <strong style={{ color:"#F43F5E" }}>Action: </strong>
+                      {combined.avgImp > 0
+                        ? "This post reached "+Math.round(((c.impressions||0)/combined.avgImp)*100)+"% of account average. Review: caption hook (first line), posting time, hashtag relevance, and thumbnail/cover image."
+                        : "Analyse caption, posting time, and hashtags. Compare with your top posts to identify structural differences."}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+
+      {/* STRATEGIC RECOMMENDATIONS */}
+      <div className="report-section">
+        <div className="report-section-head">
+          <div className="report-section-icon" style={{ background:"rgba(52,211,153,0.1)",border:"1px solid rgba(52,211,153,0.2)" }}>
+            <i data-lucide="target" style={{ width:"16px",height:"16px",color:"var(--accent-emerald)" }}></i>
+          </div>
+          <div className="report-section-label">Strategic Recommendations</div>
+        </div>
+        <div className="report-section-body">
+          <div style={{ display:"flex",flexDirection:"column",gap:"0.75rem" }}>
+            {(function() {
+              var recs = [];
+              var bestPl  = platformData[0];
+              var worstPl = platformData.length > 1 ? platformData[platformData.length-1] : null;
+              var bestCt  = contentTypeData[0];
+              var worstCt = contentTypeData.length > 1 ? contentTypeData[contentTypeData.length-1] : null;
+
+              recs.push({
+                color:"var(--accent-emerald)",
+                title:"Double Down on "+( bestPl ? bestPl.name : "Your Best Platform"),
+                body: bestPl
+                  ? bestPl.name+" contributes "+bestPl.impShare+"% of all impressions with an ER of "+bestPl.er+"%. Increase posting frequency to at least "+(bestPl.posts.length*2)+" posts/month and test Reels/Shorts/Stories to compound reach."
+                  : "Identify your highest-reach platform and focus content production there."
+              });
+
+              if (worstPl) recs.push({
+                color:"#F43F5E",
+                title: worstPl.name+" Underperforming — Fix or Reallocate",
+                body: worstPl.name+" has the lowest impressions ("+fmt(worstPl.imp)+", "+worstPl.impShare+"% of total) and ER of "+worstPl.er+"% vs account average "+combined.er+"%. "
+                  + (parseFloat(worstPl.er) < 1
+                    ? "Engagement is critically low. Either run a content audit with fresh formats, or shift production budget to "+bestPl.name+"."
+                    : "Test 3 new content formats over the next month specifically optimised for "+worstPl.name+"'s algorithm before deciding to reallocate budget.")
+              });
+
+              recs.push({
+                color: parseFloat(combined.er) < 3 ? "#F43F5E" : "var(--accent-emerald)",
+                title: parseFloat(combined.er) < 3 ? "Engagement Rate ("+combined.er+"%) Needs Improvement" : "Maintain "+combined.er+"% Engagement Rate",
+                body: parseFloat(combined.er) < 3
+                  ? "Current ER is "+erC.label+". Top tactics: (1) end every caption with a direct question, (2) use polls/quizzes in first 3 seconds of video, (3) reply to every comment within 1 hour of posting to trigger algorithm re-distribution."
+                  : "ER of "+combined.er+"% is "+erC.label+". Sustain by rotating interactive formats monthly. Watch for any drop below 3% as an early warning signal."
+              });
+
+              if (bestCt) recs.push({
+                color:"#F59E0B",
+                title: bestCt.type+" Content Outperforms — Scale It",
+                body: bestCt.type+" averages "+fmt(bestCt.avgImp)+" views per post"+(worstCt?" vs "+fmt(worstCt.avgImp)+" for "+worstCt.type+" (your lowest format)":"")+". Increase "+bestCt.type+" production to at least 60% of your content mix. Template the format, hooks, and CTA structure for faster production."
+              });
+
+              recs.push({
+                color:"var(--accent-primary)",
+                title:"Fix the "+Math.round(((combined.allSorted[0]&&combined.allSorted[0].impressions||0)/Math.max(combined.allSorted[combined.allSorted.length-1]&&combined.allSorted[combined.allSorted.length-1].impressions||1,1)))+"x Performance Gap",
+                body: combined.allSorted.length >= 2
+                  ? "Your top post got "+fmt(combined.allSorted[0].impressions||0)+" views vs "+fmt(combined.allSorted[combined.allSorted.length-1].impressions||0)+" for your lowest. Conduct a content audit: compare posting times, caption length, hashtag count, and content format between the top and bottom posts. Apply top-post patterns to future content."
+                  : "Study what made your best content successful and apply those elements to future posts."
+              });
+
+              recs.push({
+                color:"#06B6D4",
+                title:"Optimise Save Rate ("+combined.savPct+"%)",
+                body: parseFloat(combined.savPct) < 15
+                  ? "Saves are the highest-value algorithmic signal yet you're at "+combined.savPct+"%. Create 'reference' content: step-by-step guides, checklists, templates, or resources people will want to return to. Add 'Save this for later' as a CTA in captions."
+                  : "Save rate ("+combined.savPct+"%) is strong. Continue producing evergreen reference content and repurpose top-saved posts into series or carousels."
+              });
+
+              return recs.map(function(rec, ri) {
+                return (
+                  <div key={ri} className="recommendation-card">
+                    <div className="recommendation-number" style={{ color:rec.color,background:rec.color+"12",border:"1px solid "+rec.color+"25" }}>{ri+1}</div>
+                    <div>
+                      <div className="recommendation-title">{rec.title}</div>
+                      <div className="recommendation-text">{rec.body}</div>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
       </div>
 
       {/* FOOTER */}
-      <div style={{ marginTop:"2.5rem", paddingTop:"1.5rem", borderTop:"1px solid var(--border-subtle)", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:"1rem" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:"0.6rem" }}>
-          <div style={{ width:"24px", height:"24px", borderRadius:"7px", background:"var(--gradient-primary)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <i data-lucide="layers" style={{ width:"12px", height:"12px", color:"#fff" }}></i>
+      <div style={{ marginTop:"2.5rem",paddingTop:"1.5rem",borderTop:"1px solid var(--border-subtle)",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"1rem" }}>
+        <div style={{ display:"flex",alignItems:"center",gap:"0.6rem" }}>
+          <div style={{ width:"24px",height:"24px",borderRadius:"7px",background:"var(--gradient-primary)",display:"flex",alignItems:"center",justifyContent:"center" }}>
+            <i data-lucide="layers" style={{ width:"12px",height:"12px",color:"#fff" }}></i>
           </div>
-          <span style={{ fontSize:"0.8rem", fontWeight:700, color:"var(--text-muted)" }}>SocioVault</span>
+          <span style={{ fontSize:"0.8rem",fontWeight:700,color:"var(--text-muted)" }}>SocioVault</span>
         </div>
-        <div style={{ fontSize:"0.76rem", color:"var(--text-subtle)" }}>
-          Report generated on {today} — {combined.count} content pieces across {platformData.length} platform{platformData.length!==1?"s":""}
-        </div>
-        <div style={{ display:"flex", gap:"0.5rem" }}>
-          <button className="btn btn-export btn-sm" onClick={handleExportDocx}>
-            <i data-lucide="download" style={{ width:"12px", height:"12px" }}></i>
-            Export DOCX
-          </button>
-          <button className="btn btn-print btn-sm" onClick={function(){ window.print(); }}>
-            <i data-lucide="printer" style={{ width:"12px", height:"12px" }}></i>
-            Print
-          </button>
+        <div style={{ fontSize:"0.76rem",color:"var(--text-subtle)" }}>Report generated on {today} — {combined.count} pieces across {platformData.length} platform{platformData.length!==1?"s":""}</div>
+        <div style={{ display:"flex",gap:"0.5rem" }}>
+          <button className="btn btn-export btn-sm" onClick={handleExportDocx}><i data-lucide="download" style={{ width:"12px",height:"12px" }}></i> Export DOCX</button>
+          <button className="btn btn-print btn-sm" onClick={function(){ window.print(); }}><i data-lucide="printer" style={{ width:"12px",height:"12px" }}></i> Print</button>
         </div>
       </div>
 
@@ -4744,18 +4796,18 @@ function CollaboratorsPage() {
             <i data-lucide="link" style={{ width: "18px", height: "18px", color: "#fff" }}></i>
           </div>
           <div>
-            <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "0.1rem" }}>≡ƒöù Shareable Vault Link</h3>
+            <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "0.1rem" }}> Shareable Vault Link</h3>
             <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Anyone with this link who is on the collaborators list can access this vault</p>
           </div>
         </div>
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
           <input type="text" className="form-input" readOnly value={shareLink} style={{ flex: 1, fontSize: "0.82rem" }} onClick={e => e.target.select()} />
           <button onClick={handleCopy} className={`btn ${copied ? "btn-secondary" : "btn-primary"}`} style={{ whiteSpace: "nowrap", minWidth: "110px" }}>
-            {copied ? "Γ£à Copied!" : "≡ƒôï Copy Link"}
+            {copied ? "[OK] Copied!" : " Copy Link"}
           </button>
         </div>
         <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.75rem", background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "0.6rem 0.75rem" }}>
-          Γä╣∩╕Å <strong>How it works:</strong> First add the collaborator's email below, then share this link with them. When they open the link and log in, the vault will automatically appear in their account.
+          i <strong>How it works:</strong> First add the collaborator's email below, then share this link with them. When they open the link and log in, the vault will automatically appear in their account.
         </p>
       </div>
 
@@ -4766,7 +4818,7 @@ function CollaboratorsPage() {
             <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, var(--accent-emerald), var(--accent-cyan))", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <i data-lucide="user-plus" style={{ width: "18px", height: "18px", color: "#fff" }}></i>
             </div>
-            <h3 style={{ fontSize: "1.05rem", fontWeight: 700 }}>Γ£ë∩╕Å Invite Collaborator</h3>
+            <h3 style={{ fontSize: "1.05rem", fontWeight: 700 }}>+ Invite Collaborator</h3>
           </div>
           <form onSubmit={handleInvite} style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <input
@@ -4791,7 +4843,7 @@ function CollaboratorsPage() {
 
       {/* Collaborators Table */}
       <div className="glass-card">
-        <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "1rem" }}>≡ƒæÑ Vault Members ({1 + (activeAccount.collaborators || []).length})</h3>
+        <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "1rem" }}> Vault Members ({1 + (activeAccount.collaborators || []).length})</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
           {/* Owner row */}
           <div style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.75rem 1rem", background: "rgba(255,255,255,0.04)", borderRadius: "10px", border: "1px solid var(--border-color)" }}>
@@ -4799,7 +4851,7 @@ function CollaboratorsPage() {
               {activeAccount.ownerEmail.charAt(0).toUpperCase()}
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: "0.92rem" }}>≡ƒææ {activeAccount.ownerEmail}</div>
+              <div style={{ fontWeight: 600, fontSize: "0.92rem" }}> {activeAccount.ownerEmail}</div>
               <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Account Owner</div>
             </div>
             <span className="badge badge-uploaded">Owner</span>
@@ -4811,8 +4863,8 @@ function CollaboratorsPage() {
                 {c.email.charAt(0).toUpperCase()}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: "0.92rem" }}>≡ƒæñ {c.email}</div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Joined {c.joinedAt || "ΓÇö"}</div>
+                <div style={{ fontWeight: 600, fontSize: "0.92rem" }}> {c.email}</div>
+                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Joined {c.joinedAt || "-"}</div>
               </div>
               <span className="badge badge-scheduled">{c.role}</span>
               {isOwner && (
