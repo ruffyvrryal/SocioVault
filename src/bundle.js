@@ -3988,6 +3988,16 @@ function ReportSummaryPage() {
   function pct(num,den)     { return den>0 ? ((num/den)*100).toFixed(1) : "0.0"; }
   function calcEr(eng,reach){ return reach>0 ? ((eng/reach)*100).toFixed(2) : "0.00"; }
   function calcIr(imp,reach){ return reach>0 ? (imp/reach).toFixed(2) : "0.00"; }
+  // ── Impression health tier ─────────────────────────────────────────────────
+  // danger=0, warning=1-99, safe=100-999, good=1000-9999, fyp=10000+
+  function impHealth(n) {
+    if (!n || n === 0) return { tier:"danger",  label:"Danger",  color:"#F43F5E", cls:"imp-badge-danger",  desc:"Zero impressions — critically dangerous for account health" };
+    if (n < 100)       return { tier:"warning", label:"Warning", color:"#F59E0B", cls:"imp-badge-warning", desc:"Below 100 impressions — not good, needs immediate attention" };
+    if (n < 1000)      return { tier:"safe",    label:"Safe",    color:"#34D399", cls:"imp-badge-safe",    desc:"100–999 impressions — safe range" };
+    if (n < 10000)     return { tier:"good",    label:"Good",    color:"#22D3EE", cls:"imp-badge-good",    desc:"1K–9.9K impressions — good performance" };
+    return                    { tier:"fyp",     label:"FYP",     color:"#A78BFA", cls:"imp-badge-fyp",     desc:"10K+ impressions — excellent, FYP / viral reach" };
+  }
+
   function erGrade(er) {
     var v = parseFloat(er);
     if (v>=6) return {label:"Exceptional",      color:"#10B981",bg:"rgba(16,185,129,0.12)", border:"rgba(16,185,129,0.3)"};
@@ -4025,7 +4035,14 @@ function ReportSummaryPage() {
       likPct:pct(lik,eng), comPct:pct(com,eng), shaPct:pct(sha,eng), savPct:pct(sav,eng),
       count:n, dateFrom:dates[0]||null, dateTo:dates[dates.length-1]||null,
       statuses, topContent:sorted.slice(0,3), bottomContent:sorted.slice(-2).reverse(),
-      allSorted:sorted
+      allSorted:sorted,
+      impTiers: {
+        danger:  sorted.filter(function(c){ return !c.impressions || c.impressions===0; }).length,
+        warning: sorted.filter(function(c){ return c.impressions>0 && c.impressions<100; }).length,
+        safe:    sorted.filter(function(c){ return c.impressions>=100 && c.impressions<1000; }).length,
+        good:    sorted.filter(function(c){ return c.impressions>=1000 && c.impressions<10000; }).length,
+        fyp:     sorted.filter(function(c){ return c.impressions>=10000; }).length
+      }
     };
   }, [accountContents]);
 
@@ -4152,53 +4169,85 @@ function ReportSummaryPage() {
     var toneCtx     = brief.tone     ? " Match the "+brief.tone+" tone your audience expects." : "";
     var pillarCtx   = brief.pillars  ? " Content pillars to lean into: "+brief.pillars+"." : "";
 
-    // 1 — Best platform
-    recs.push({num:"1",color:"var(--accent-emerald)",
+    var recCounter = 1;
+
+    // 0 — Impression health alert (injected first if danger/warning posts exist)
+    var dangerCount  = combined.impTiers.danger;
+    var warningCount = combined.impTiers.warning;
+    if (dangerCount > 0 || warningCount > 0) {
+      var healthColor = dangerCount > 0 ? "#F43F5E" : "#F59E0B";
+      var healthTitle = dangerCount > 0
+        ? "CRITICAL: "+dangerCount+" Post"+(dangerCount>1?"s":""+" With Zero Impressions — Account Health at Risk")
+        : "WARNING: "+warningCount+" Post"+(warningCount>1?"s":"")+" Below 100 Impressions";
+      var healthBody = "";
+      if (dangerCount > 0) {
+        healthBody += dangerCount+" post"+(dangerCount>1?"s":"")+" have zero impressions. "
+          +"This is dangerous for your account — the algorithm interprets dead content as a signal of poor account quality, which suppresses distribution of future posts. "
+          +"Immediate actions: (1) delete or archive zero-impression posts, (2) check if they violate platform guidelines, (3) audit posting times and hashtag sets.";
+      }
+      if (warningCount > 0) {
+        if (healthBody) healthBody += " Additionally, ";
+        healthBody += warningCount+" post"+(warningCount>1?"s":"")+" have under 100 impressions. "
+          +"This indicates the content was not distributed by the algorithm. Likely causes: wrong posting time, oversaturated hashtags, weak hook, or engagement bait. "
+          +"Review and reschedule with improved captions.";
+      }
+      if (brief.audience) healthBody += " Ensure content resonates directly with "+brief.audience+".";
+      recs.push({ num:""+recCounter, color:healthColor, title:healthTitle, body:healthBody, urgent:true });
+      recCounter++;
+    }
+    // Best platform
+    recs.push({num:""+recCounter, color:"var(--accent-emerald)",
       title:"Scale "+( bestPl ? bestPl.name : "Your Best Platform"),
       body: bestPl
         ? bestPl.name+" drives "+bestPl.impShare+"% of impressions"+nicheCtx+" with ER "+bestPl.er+"%. Increase posting frequency to at least "+(bestPl.posts.length*2)+" posts/month."+toneCtx+goalCtx
         : "Identify the platform generating most reach and concentrate content production there."
     });
+    recCounter++;
 
-    // 2 — Underperforming platform (only if there is one)
-    if (worstPl) recs.push({num:"2",color:"#F43F5E",
-      title:worstPl.name+" Is Underperforming — Fix or Reallocate",
-      body: worstPl.name+" delivers only "+worstPl.impShare+"% of impressions with ER "+worstPl.er+"% (account avg "+combined.er+"%)."+audCtx
-        +(parseFloat(worstPl.er)<1
-          ? " Engagement is critically low. Run a 4-week content experiment with 3 new formats before deciding to cut this platform."
-          : " Test posting time, caption structure, and hashtag sets tailored specifically for "+worstPl.name+"'s algorithm.")
-    });
+    // Underperforming platform
+    if (worstPl) {
+      recs.push({num:""+recCounter, color:"#F43F5E",
+        title:worstPl.name+" Is Underperforming — Fix or Reallocate",
+        body: worstPl.name+" delivers only "+worstPl.impShare+"% of impressions with ER "+worstPl.er+"% (account avg "+combined.er+"%)."+audCtx
+          +(parseFloat(worstPl.er)<1
+            ? " Engagement is critically low. Run a 4-week content experiment with 3 new formats before deciding to cut this platform."
+            : " Test posting time, caption structure, and hashtag sets tailored specifically for "+worstPl.name+"'s algorithm.")
+      });
+      recCounter++;
+    }
 
-    // 3 — Engagement rate vs goal
-    recs.push({num: worstPl ? "3" : "2", color: parseFloat(combined.er)<3?"#F43F5E":"var(--accent-emerald)",
+    // Engagement rate
+    recs.push({num:""+recCounter, color: parseFloat(combined.er)<3?"#F43F5E":"var(--accent-emerald)",
       title: parseFloat(combined.er)<3 ? "Engagement Rate ("+combined.er+"%) Needs Improvement" : "Sustain "+combined.er+"% ER",
       body: parseFloat(combined.er)<3
         ? "Current ER is "+erC.label+". Tactics"+nicheCtx+": (1) end every caption with a direct question"+audCtx+", (2) use interactive features like polls and stickers in the first 3 seconds, (3) reply to comments within 1 hour to trigger algorithm re-distribution."+goalCtx
         : "ER "+combined.er+"% ("+erC.label+"). Maintain with rotating interactive formats."+goalCtx+" Watch for drops below 3% as an early warning signal."
     });
+    recCounter++;
 
-    // 4 — Content type
-    var recNum4 = worstPl ? "4" : "3";
-    if (bestCt) recs.push({num:recNum4, color:"#F59E0B",
-      title: bestCt.type+" Content Outperforms — Scale It",
-      body: bestCt.type+" averages "+fmt(bestCt.avgImp)+" views/post"
-        +(worstCt ? " vs "+fmt(worstCt.avgImp)+" for "+worstCt.type+" (your weakest format)" : "")
-        +". Shift at least 60% of content production to "+bestCt.type+"."+pillarCtx+toneCtx
-    });
+    // Content type
+    if (bestCt) {
+      recs.push({num:""+recCounter, color:"#F59E0B",
+        title: bestCt.type+" Content Outperforms — Scale It",
+        body: bestCt.type+" averages "+fmt(bestCt.avgImp)+" views/post"
+          +(worstCt ? " vs "+fmt(worstCt.avgImp)+" for "+worstCt.type+" (your weakest format)" : "")
+          +". Shift at least 60% of content production to "+bestCt.type+"."+pillarCtx+toneCtx
+      });
+      recCounter++;
+    }
 
-    // 5 — Saves / algo signal
-    var recNum5 = worstPl ? "5" : bestCt ? "4" : "3";
-    recs.push({num:recNum5, color:"#06B6D4",
+    // Saves / algo signal
+    recs.push({num:""+recCounter, color:"#06B6D4",
       title: parseFloat(combined.savPct)<15 ? "Boost Save Rate ("+combined.savPct+"%) — Strongest Algo Signal" : "Saves Are Strong — Compound It",
       body: parseFloat(combined.savPct)<15
         ? "Save rate is "+combined.savPct+"%. Saves are the highest-value algorithmic signal. Create evergreen reference content"+nicheCtx+": step-by-step guides, checklists, templates, and resources people bookmark."+audCtx+" Add 'Save this for later' as a CTA."
         : "Save rate "+combined.savPct+"% is strong. Convert top-saved posts into series, carousels, or short-form repost editions to extend their life."
     });
+    recCounter++;
 
-    // 6 — Brief-specific goal rec (only shown when brief has goals set)
+    // Brief goal rec
     if (brief.goals) {
-      var recNum6 = String(parseInt(recNum5)+1);
-      recs.push({num:recNum6, color:"var(--accent-primary)",
+      recs.push({num:""+recCounter, color:"var(--accent-primary)",
         title:"Align Analytics to Your Goal",
         body: "Your stated goal is: \""+brief.goals+"\". "
           +(combined.count<10
@@ -4206,15 +4255,15 @@ function ReportSummaryPage() {
             : "With "+combined.count+" posts of data, the next lever is testing: run 2-week experiments changing one variable at a time — posting time, caption format, or hook style — and measure ER change.")
           +(brief.audience ? " Consistently frame content around the needs and pain points of "+brief.audience+"." : "")
       });
+      recCounter++;
     }
 
-    // 7 — Performance gap rec
+    // Performance gap rec
     if (combined.allSorted.length >= 2) {
       var topImp   = combined.allSorted[0].impressions||0;
       var lowImp   = combined.allSorted[combined.allSorted.length-1].impressions||0;
       var gapMulti = lowImp>0 ? Math.round(topImp/lowImp) : null;
-      var recNumG  = String(parseInt(recNum5)+( brief.goals ? 2 : 1 ));
-      recs.push({num:recNumG, color:"var(--accent-primary)",
+      recs.push({num:""+recCounter, color:"var(--accent-primary)",
         title:"Close the "+( gapMulti ? gapMulti+"x" : "Large")+" Performance Gap",
         body: "Your best post earned "+fmt(topImp)+" views; your lowest earned "+fmt(lowImp)
           +". Audit the structural differences: hook length, posting time, hashtag volume, caption CTA, and thumbnail."+pillarCtx
@@ -4795,7 +4844,7 @@ function ReportSummaryPage() {
                 <table className="custom-table" style={{ fontSize:"0.79rem" }}>
                   <thead>
                     <tr>
-                      <th>#</th><th>Date</th><th>Caption</th>
+                      <th>Health / #</th><th>Date</th><th>Caption</th>
                       <th style={{ color:"var(--accent-cyan)" }}>Views</th>
                       <th>Reach</th>
                       <th style={{ color:"var(--accent-emerald)" }}>Eng.</th>
@@ -5039,10 +5088,38 @@ function ReportSummaryPage() {
         </div>
         <div className="report-section-body">
           <div style={{ display:"flex", flexDirection:"column", gap:"0.75rem" }}>
+            {/* Impression health summary strip */}
+            {combined.count > 0 && (
+              <div className="imp-health-strip">
+                {[
+                  { tier:"danger",  label:"Danger (0)",     count:combined.impTiers.danger,  color:"#F43F5E", bg:"rgba(244,63,94,0.1)"  },
+                  { tier:"warning", label:"Warning (<100)", count:combined.impTiers.warning, color:"#F59E0B", bg:"rgba(245,158,11,0.1)" },
+                  { tier:"safe",    label:"Safe (100+)",    count:combined.impTiers.safe,    color:"#34D399", bg:"rgba(52,211,153,0.1)" },
+                  { tier:"good",    label:"Good (1K+)",     count:combined.impTiers.good,    color:"#22D3EE", bg:"rgba(6,182,212,0.1)"  },
+                  { tier:"fyp",     label:"FYP (10K+)",     count:combined.impTiers.fyp,     color:"#A78BFA", bg:"rgba(139,92,246,0.1)" },
+                ].map(function(t){ return (
+                  <div key={t.tier} className="imp-health-item" style={{ background:t.bg, border:"1px solid "+t.color+"25" }}>
+                    <div className="imp-health-count" style={{ color:t.color }}>{t.count}</div>
+                    <div className="imp-health-label">{t.label}</div>
+                  </div>
+                ); })}
+                <div style={{ flex:1, display:"flex", alignItems:"center", paddingLeft:"0.5rem" }}>
+                  <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", lineHeight:1.55 }}>
+                    <strong style={{ color:"var(--text-secondary)" }}>Content Health Overview</strong> —
+                    {combined.impTiers.danger > 0 && <span style={{ color:"#F43F5E", fontWeight:700 }}> {combined.impTiers.danger} post{combined.impTiers.danger>1?"s":""} at CRITICAL risk.</span>}
+                    {combined.impTiers.warning > 0 && <span style={{ color:"#F59E0B", fontWeight:700 }}> {combined.impTiers.warning} post{combined.impTiers.warning>1?"s":""} need attention.</span>}
+                    {combined.impTiers.fyp > 0 && <span style={{ color:"#A78BFA", fontWeight:700 }}> {combined.impTiers.fyp} FYP-level post{combined.impTiers.fyp>1?"s":""}.</span>}
+                    {combined.impTiers.danger===0 && combined.impTiers.warning===0 && <span style={{ color:"#34D399", fontWeight:700 }}> All posts are in safe range or above.</span>}
+                  </div>
+                </div>
+              </div>
+            )}
             {buildRecs().map(function(rec){
               return (
-                <div key={rec.num} className="recommendation-card">
-                  <div className="recommendation-number" style={{ color:rec.color, background:rec.color+"12", border:"1px solid "+rec.color+"25" }}>{rec.num}</div>
+                <div key={rec.num} className="recommendation-card" style={rec.urgent ? { border:"1px solid "+rec.color+"40", background:rec.color+"08" } : {}}>
+                  <div className="recommendation-number" style={{ color:rec.color, background:rec.color+"12", border:"1px solid "+rec.color+"25" }}>
+                    {rec.urgent ? "!" : rec.num}
+                  </div>
                   <div>
                     <div className="recommendation-title">{rec.title}</div>
                     <div className="recommendation-text">{rec.body}</div>
