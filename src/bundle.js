@@ -4193,7 +4193,11 @@ function ReportSummaryPage() {
   async function generateAiAnalysis(combined, platformData, contentTypeData, subjectData, brief, fmt, fmtFull, fmtDate, calcEr, pct) {
     var key = aiKey.trim();
     if (!key) { setAiError("Please enter your Gemini API key first. Get one free at aistudio.google.com/app/apikey"); return; }
-    if (!key.startsWith("AIza")) { setAiError("Invalid API key format. Gemini keys must start with 'AIza...' (usually 39+ characters). Double-check you copied the full key from aistudio.google.com/app/apikey and didn't accidentally include quotes or spaces."); return; }
+    // Accept both formats: AIza... (old format) and AQ.... (new Google AI Studio format)
+    if (!key.startsWith("AIza") && !key.startsWith("AQ.")) { 
+      setAiError("Invalid API key format. Keys should start with 'AIza' or 'AQ.'. Double-check you copied the full key from aistudio.google.com/app/apikey."); 
+      return; 
+    }
     if (key.length < 30) { setAiError("Your API key seems too short ("+key.length+" chars). Gemini keys are usually 39+ characters. Make sure you copied the complete key."); return; }
 
     setAiLoading(true); setAiOutput(""); setAiError("");
@@ -5448,7 +5452,7 @@ function ReportSummaryPage() {
                 type={aiKeyVisible ? "text" : "password"}
                 className="ai-key-input"
                 style={{ paddingLeft:"2.25rem", paddingRight:"2.5rem" }}
-                placeholder="Paste your Gemini API key (AIza...)"
+                placeholder="Paste your Gemini API key (AIza... or AQ....)"
                 value={aiKey}
                 onChange={function(e){ saveAiKey(e.target.value); }}
               />
@@ -5488,7 +5492,7 @@ function ReportSummaryPage() {
                 <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color:"var(--accent-primary-light)", textDecoration:"underline" }}>aistudio.google.com/app/apikey</a></li>
                 <li>Sign in with your Google account</li>
                 <li>Click "Create API Key" → "Create new secret key in new project"</li>
-                <li>Copy the key (should start with <code style={{color:"#10B981", background:"rgba(16,185,129,0.1)", padding:"0.1rem 0.3rem", borderRadius:"3px"}}>AIza</code>)</li>
+                <li>Copy the key (starts with <code style={{color:"#10B981", background:"rgba(16,185,129,0.1)", padding:"0.1rem 0.3rem", borderRadius:"3px"}}>AIza</code> or <code style={{color:"#06B6D4", background:"rgba(6,182,212,0.1)", padding:"0.1rem 0.3rem", borderRadius:"3px"}}>AQ.</code>)</li>
                 <li>Paste it here — your key is stored only in your browser, never sent to SocioVault servers</li>
               </ol>
               <div style={{marginTop:"0.5rem", color:"#F59E0B"}}>⚠️ Free tier: 15 requests/minute, 1,500/day</div>
