@@ -4007,14 +4007,6 @@ function ReportSummaryPage() {
       </div>
     );
   }
-    return (
-      <div className="page-container">
-        <div className="glass-card" style={{ textAlign:"center", padding:"4rem 2rem" }}>
-          <p style={{ color:"var(--text-muted)" }}>No active account selected.</p>
-        </div>
-      </div>
-    );
-  }
 
   // Resolved brief — what is actually saved on the account object
   var brief = {
