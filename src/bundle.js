@@ -3903,8 +3903,22 @@ function SubjectAnalyticsPage() {
 
 
 // Report Summary Page - Professional Deep Analytics
+// ReportSummaryPage v4 — with Account Brief Vault
 function ReportSummaryPage() {
-  const { activeAccount, contents } = React.useContext(VaultContext);
+  const { activeAccount, contents, editAccount, canEdit } = React.useContext(VaultContext);
+
+  // ── Account Brief state ────────────────────────────────────────────────────
+  const [briefOpen,    setBriefOpen]    = React.useState(false);
+  const [briefSaving,  setBriefSaving]  = React.useState(false);
+  const [briefSaved,   setBriefSaved]   = React.useState(false);
+
+  // Draft fields (separate from saved so user can cancel)
+  const [draftNiche,    setDraftNiche]    = React.useState("");
+  const [draftGoals,    setDraftGoals]    = React.useState("");
+  const [draftAudience, setDraftAudience] = React.useState("");
+  const [draftTone,     setDraftTone]     = React.useState("");
+  const [draftPillars,  setDraftPillars]  = React.useState("");
+  const [draftContext,  setDraftContext]  = React.useState("");
 
   if (!activeAccount) {
     return (
@@ -3916,299 +3930,537 @@ function ReportSummaryPage() {
     );
   }
 
-  const accountContents = React.useMemo(
-    () => contents.filter(function(c) { return c.accountId === activeAccount.id; }),
-    [contents, activeAccount.id]
-  );
+  // Resolved brief — what is actually saved on the account object
+  var brief = {
+    niche:    activeAccount.brief_niche    || "",
+    goals:    activeAccount.brief_goals    || "",
+    audience: activeAccount.brief_audience || "",
+    tone:     activeAccount.brief_tone     || "",
+    pillars:  activeAccount.brief_pillars  || "",
+    context:  activeAccount.brief_context  || ""
+  };
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
+  var hasBrief = brief.niche || brief.goals || brief.audience || brief.tone || brief.pillars || brief.context;
+
+  // Open brief editor – pre-fill drafts from saved values
+  function openBrief() {
+    setDraftNiche(brief.niche);
+    setDraftGoals(brief.goals);
+    setDraftAudience(brief.audience);
+    setDraftTone(brief.tone);
+    setDraftPillars(brief.pillars);
+    setDraftContext(brief.context);
+    setBriefOpen(true);
+  }
+
+  function cancelBrief() { setBriefOpen(false); }
+
+  async function saveBrief() {
+    setBriefSaving(true);
+    await editAccount(activeAccount.id, {
+      brief_niche:    draftNiche.trim(),
+      brief_goals:    draftGoals.trim(),
+      brief_audience: draftAudience.trim(),
+      brief_tone:     draftTone.trim(),
+      brief_pillars:  draftPillars.trim(),
+      brief_context:  draftContext.trim()
+    });
+    setBriefSaving(false);
+    setBriefSaved(true);
+    setBriefOpen(false);
+    setTimeout(function() { setBriefSaved(false); }, 2500);
+  }
+
+
+  // ── Data helpers ─────────────────────────────────────────────────────────────
   function fmt(n) {
     if (!n && n !== 0) return "0";
-    if (n >= 1000000) return (n / 1000000).toFixed(2) + "M";
-    if (n >= 1000)    return (n / 1000).toFixed(1) + "K";
+    if (n >= 1000000) return (n/1000000).toFixed(2)+"M";
+    if (n >= 1000)    return (n/1000).toFixed(1)+"K";
     return n.toLocaleString();
   }
-  function fmtFull(n) { return (n || 0).toLocaleString(); }
+  function fmtFull(n) { return (n||0).toLocaleString(); }
   function fmtDate(d) {
     if (!d) return "-";
     var p = d.split("-");
-    return new Date(+p[0], +p[1]-1, +p[2]).toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" });
+    return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
   }
-  function pct(num, den) { return den > 0 ? ((num / den) * 100).toFixed(1) : "0.0"; }
-  function calcEr(eng, reach) { return reach > 0 ? ((eng / reach) * 100).toFixed(2) : "0.00"; }
-  function calcIr(imp, reach) { return reach > 0 ? (imp / reach).toFixed(2) : "0.00"; }
+  function pct(num,den)     { return den>0 ? ((num/den)*100).toFixed(1) : "0.0"; }
+  function calcEr(eng,reach){ return reach>0 ? ((eng/reach)*100).toFixed(2) : "0.00"; }
+  function calcIr(imp,reach){ return reach>0 ? (imp/reach).toFixed(2) : "0.00"; }
   function erGrade(er) {
     var v = parseFloat(er);
-    if (v >= 6)  return { label:"Exceptional",       color:"#10B981", bg:"rgba(16,185,129,0.12)",  border:"rgba(16,185,129,0.3)"  };
-    if (v >= 3)  return { label:"Above Average",     color:"#34D399", bg:"rgba(52,211,153,0.12)",  border:"rgba(52,211,153,0.3)"  };
-    if (v >= 1)  return { label:"Industry Standard", color:"#F59E0B", bg:"rgba(245,158,11,0.12)",  border:"rgba(245,158,11,0.3)"  };
-    return             { label:"Needs Improvement",  color:"#F43F5E", bg:"rgba(244,63,94,0.12)",   border:"rgba(244,63,94,0.3)"   };
+    if (v>=6) return {label:"Exceptional",      color:"#10B981",bg:"rgba(16,185,129,0.12)", border:"rgba(16,185,129,0.3)"};
+    if (v>=3) return {label:"Above Average",    color:"#34D399",bg:"rgba(52,211,153,0.12)", border:"rgba(52,211,153,0.3)"};
+    if (v>=1) return {label:"Industry Standard",color:"#F59E0B",bg:"rgba(245,158,11,0.12)", border:"rgba(245,158,11,0.3)"};
+    return         {label:"Needs Improvement",  color:"#F43F5E",bg:"rgba(244,63,94,0.12)",  border:"rgba(244,63,94,0.3)"};
   }
+  var PCOLORS = {"Instagram":"#E1306C","YouTube":"#FF4444","TikTok":"#25F4EE","X (Twitter)":"#60A5FA","Facebook":"#4B8FE4","Threads":"#E8EAED"};
+  var PICONS  = {"Instagram":"instagram","YouTube":"youtube","TikTok":"music-2","X (Twitter)":"twitter","Facebook":"facebook","Threads":"at-sign"};
+  function pColor(p){ return PCOLORS[p]||"var(--accent-primary)"; }
+  function pIcon(p) { return PICONS[p] ||"globe"; }
 
-  var PCOLORS = { "Instagram":"#E1306C","YouTube":"#FF4444","TikTok":"#25F4EE","X (Twitter)":"#60A5FA","Facebook":"#4B8FE4","Threads":"#E8EAED" };
-  var PICONS  = { "Instagram":"instagram","YouTube":"youtube","TikTok":"music-2","X (Twitter)":"twitter","Facebook":"facebook","Threads":"at-sign" };
-  function pColor(p) { return PCOLORS[p] || "var(--accent-primary)"; }
-  function pIcon(p)  { return PICONS[p]  || "globe"; }
 
+  const accountContents = React.useMemo(
+    function() { return contents.filter(function(c){return c.accountId===activeAccount.id;}); },
+    [contents,activeAccount.id]
+  );
 
   // ── Combined metrics ─────────────────────────────────────────────────────────
   var combined = React.useMemo(function() {
-    var imp=0, reach=0, lik=0, com=0, sha=0, sav=0;
-    accountContents.forEach(function(c) {
-      imp   += c.impressions||0; reach += c.reach||0;
-      lik   += c.likes||0;       com   += c.comments||0;
-      sha   += c.shares||0;      sav   += c.saves||0;
+    var imp=0,reach=0,lik=0,com=0,sha=0,sav=0;
+    accountContents.forEach(function(c){
+      imp+=c.impressions||0; reach+=c.reach||0;
+      lik+=c.likes||0; com+=c.comments||0; sha+=c.shares||0; sav+=c.saves||0;
     });
-    var eng  = lik+com+sha+sav;
-    var n    = accountContents.length;
-    var dates = accountContents.map(function(c){return c.uploadDate;}).filter(Boolean).sort();
-    var statuses = {};
-    accountContents.forEach(function(c) { var s = c.status||"Unknown"; statuses[s]=(statuses[s]||0)+1; });
-    var sorted = accountContents.slice().sort(function(a,b){return (b.impressions||0)-(a.impressions||0);});
+    var eng=lik+com+sha+sav; var n=accountContents.length;
+    var dates=accountContents.map(function(c){return c.uploadDate;}).filter(Boolean).sort();
+    var statuses={};
+    accountContents.forEach(function(c){var s=c.status||"Unknown";statuses[s]=(statuses[s]||0)+1;});
+    var sorted=accountContents.slice().sort(function(a,b){return (b.impressions||0)-(a.impressions||0);});
     return {
-      imp:imp, reach:reach, lik:lik, com:com, sha:sha, sav:sav, eng:eng,
+      imp,reach,lik,com,sha,sav,eng,
       er:calcEr(eng,reach), ir:calcIr(imp,reach),
-      avgImp:  n>0?Math.round(imp/n):0,
-      avgReach:n>0?Math.round(reach/n):0,
-      avgEng:  n>0?Math.round(eng/n):0,
+      avgImp:n>0?Math.round(imp/n):0, avgReach:n>0?Math.round(reach/n):0, avgEng:n>0?Math.round(eng/n):0,
       likPct:pct(lik,eng), comPct:pct(com,eng), shaPct:pct(sha,eng), savPct:pct(sav,eng),
       count:n, dateFrom:dates[0]||null, dateTo:dates[dates.length-1]||null,
-      statuses:statuses, topContent:sorted.slice(0,3), bottomContent:sorted.slice(-2).reverse(),
+      statuses, topContent:sorted.slice(0,3), bottomContent:sorted.slice(-2).reverse(),
       allSorted:sorted
     };
   }, [accountContents]);
 
   // ── Per-platform metrics ─────────────────────────────────────────────────────
   var platformData = React.useMemo(function() {
-    var map = {};
-    accountContents.forEach(function(c) {
-      var p = c.platform||"Unknown";
-      if (!map[p]) map[p] = { name:p, posts:[], imp:0, reach:0, lik:0, com:0, sha:0, sav:0 };
+    var map={};
+    accountContents.forEach(function(c){
+      var p=c.platform||"Unknown";
+      if (!map[p]) map[p]={name:p,posts:[],imp:0,reach:0,lik:0,com:0,sha:0,sav:0};
       map[p].posts.push(c);
-      map[p].imp   += c.impressions||0; map[p].reach += c.reach||0;
-      map[p].lik   += c.likes||0;       map[p].com   += c.comments||0;
-      map[p].sha   += c.shares||0;      map[p].sav   += c.saves||0;
+      map[p].imp+=c.impressions||0; map[p].reach+=c.reach||0;
+      map[p].lik+=c.likes||0; map[p].com+=c.comments||0; map[p].sha+=c.shares||0; map[p].sav+=c.saves||0;
     });
-    return Object.values(map).map(function(p) {
-      var eng = p.lik+p.com+p.sha+p.sav;
-      var n   = p.posts.length;
-      var sp  = p.posts.slice().sort(function(a,b){return (b.impressions||0)-(a.impressions||0);});
-      var ds  = p.posts.map(function(x){return x.uploadDate;}).filter(Boolean).sort();
-      return Object.assign({}, p, {
-        eng:eng, er:calcEr(eng,p.reach), ir:calcIr(p.imp,p.reach),
-        avgImp:  n>0?Math.round(p.imp/n):0,
-        avgReach:n>0?Math.round(p.reach/n):0,
-        avgEng:  n>0?Math.round(eng/n):0,
-        likPct:pct(p.lik,eng), comPct:pct(p.com,eng),
-        shaPct:pct(p.sha,eng), savPct:pct(p.sav,eng),
-        impShare:pct(p.imp, combined.imp||1),
-        reachShare:pct(p.reach, combined.reach||1),
-        engShare:pct(eng, combined.eng||1),
-        topPost: sp[0]||null, worstPost: sp[sp.length-1]||null,
-        sortedPosts:sp, dates:ds
+    return Object.values(map).map(function(p){
+      var eng=p.lik+p.com+p.sha+p.sav; var n=p.posts.length;
+      var sp=p.posts.slice().sort(function(a,b){return (b.impressions||0)-(a.impressions||0);});
+      var ds=p.posts.map(function(x){return x.uploadDate;}).filter(Boolean).sort();
+      return Object.assign({},p,{
+        eng,er:calcEr(eng,p.reach),ir:calcIr(p.imp,p.reach),
+        avgImp:n>0?Math.round(p.imp/n):0, avgReach:n>0?Math.round(p.reach/n):0, avgEng:n>0?Math.round(eng/n):0,
+        likPct:pct(p.lik,eng), comPct:pct(p.com,eng), shaPct:pct(p.sha,eng), savPct:pct(p.sav,eng),
+        impShare:pct(p.imp,combined.imp||1), reachShare:pct(p.reach,combined.reach||1), engShare:pct(eng,combined.eng||1),
+        topPost:sp[0]||null, worstPost:sp[sp.length-1]||null, sortedPosts:sp, dates:ds
       });
     }).sort(function(a,b){return b.imp-a.imp;});
-  }, [accountContents, combined]);
+  }, [accountContents,combined]);
 
 
-  // ── Content-type analysis ────────────────────────────────────────────────────
+  // ── Content type + subject metrics ────────────────────────────────────────────
   var contentTypeData = React.useMemo(function() {
-    var map = {};
-    accountContents.forEach(function(c) {
-      var t = c.contentType || "Standard Post";
-      if (!map[t]) map[t] = { type:t, posts:[], imp:0, reach:0, eng:0 };
-      map[t].posts.push(c);
-      map[t].imp   += c.impressions||0;
-      map[t].reach += c.reach||0;
-      map[t].eng   += (c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
+    var map={};
+    accountContents.forEach(function(c){
+      var t=c.contentType||"Standard Post";
+      if (!map[t]) map[t]={type:t,posts:[],imp:0,reach:0,eng:0};
+      map[t].posts.push(c); map[t].imp+=c.impressions||0; map[t].reach+=c.reach||0;
+      map[t].eng+=(c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
     });
-    return Object.values(map).map(function(t) {
-      var n = t.posts.length;
-      return Object.assign({}, t, {
-        avgImp:  n>0?Math.round(t.imp/n):0,
-        avgReach:n>0?Math.round(t.reach/n):0,
-        avgEng:  n>0?Math.round(t.eng/n):0,
-        er:calcEr(t.eng, t.reach),
-        impShare:pct(t.imp, combined.imp||1)
-      });
+    return Object.values(map).map(function(t){
+      var n=t.posts.length;
+      return Object.assign({},t,{avgImp:n>0?Math.round(t.imp/n):0,avgEng:n>0?Math.round(t.eng/n):0,er:calcEr(t.eng,t.reach)});
     }).sort(function(a,b){return b.avgImp-a.avgImp;});
-  }, [accountContents, combined]);
+  }, [accountContents,combined]);
 
-  // ── Subject metrics ──────────────────────────────────────────────────────────
   var subjectData = React.useMemo(function() {
-    var map = {};
-    accountContents.forEach(function(c) {
-      (c.subjects||[]).forEach(function(s) {
-        if (!map[s]) map[s] = { name:s, count:0, imp:0, eng:0, posts:[] };
-        map[s].count += 1; map[s].imp += c.impressions||0;
-        map[s].eng   += (c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
-        map[s].posts.push(c);
+    var map={};
+    accountContents.forEach(function(c){
+      (c.subjects||[]).forEach(function(s){
+        if (!map[s]) map[s]={name:s,count:0,imp:0,eng:0};
+        map[s].count+=1; map[s].imp+=c.impressions||0;
+        map[s].eng+=(c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
       });
     });
     return Object.values(map).sort(function(a,b){return b.imp-a.imp;});
   }, [accountContents]);
 
-  var today      = new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
-  var erC        = erGrade(combined.er);
-  var maxPlImp   = platformData.length > 0 ? platformData[0].imp : 1;
+  var today    = new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+  var erC      = erGrade(combined.er);
+  var bestPl   = platformData[0]||null;
+  var worstPl  = platformData.length>1 ? platformData[platformData.length-1] : null;
+  var bestCt   = contentTypeData[0]||null;
+  var worstCt  = contentTypeData.length>1 ? contentTypeData[contentTypeData.length-1] : null;
 
 
   // ── DOCX Export ──────────────────────────────────────────────────────────────
-  var handleExportDocx = function() {
+  function handleExportDocx() {
     if (!window.docx) { alert("DOCX library not loaded. Please check your internet connection and reload."); return; }
-    var Document=window.docx.Document, Packer=window.docx.Packer, Paragraph=window.docx.Paragraph,
-        TextRun=window.docx.TextRun, AlignmentType=window.docx.AlignmentType, BorderStyle=window.docx.BorderStyle;
-
-    function H(text, color) {
-      return new Paragraph({ children:[new TextRun({text:text,bold:true,size:26,color:color||"7C3AED"})],
-        spacing:{before:400,after:150}, border:{bottom:{style:BorderStyle.SINGLE,size:4,color:"2D3748"}} });
-    }
-    function P(text) { return new Paragraph({children:[new TextRun({text:text,size:20,color:"C9D1D9"})],spacing:{after:140}}); }
-    function B(label, value) {
-      return new Paragraph({children:[new TextRun({text:label+": ",bold:true,size:20,color:"F0F6FC"}),new TextRun({text:value,size:20,color:"9CA3AF"})],bullet:{level:0},spacing:{after:80}});
-    }
-    var children = [
+    var Document=window.docx.Document,Packer=window.docx.Packer,Paragraph=window.docx.Paragraph,
+        TextRun=window.docx.TextRun,AlignmentType=window.docx.AlignmentType,BorderStyle=window.docx.BorderStyle;
+    function H(text,color){ return new Paragraph({children:[new TextRun({text,bold:true,size:26,color:color||"7C3AED"})],spacing:{before:400,after:150},border:{bottom:{style:BorderStyle.SINGLE,size:4,color:"2D3748"}}}); }
+    function P(text){ return new Paragraph({children:[new TextRun({text,size:20,color:"C9D1D9"})],spacing:{after:140}}); }
+    function B(label,value){ return new Paragraph({children:[new TextRun({text:label+": ",bold:true,size:20,color:"F0F6FC"}),new TextRun({text:value,size:20,color:"9CA3AF"})],bullet:{level:0},spacing:{after:80}}); }
+    var children=[
       new Paragraph({children:[new TextRun({text:"PERFORMANCE ANALYTICS REPORT",bold:true,size:44,color:"7C3AED"})],alignment:AlignmentType.CENTER,spacing:{after:100}}),
       new Paragraph({children:[new TextRun({text:activeAccount.name,bold:true,size:30,color:"06B6D4"})],alignment:AlignmentType.CENTER,spacing:{after:80}}),
-      new Paragraph({children:[new TextRun({text:"Generated: "+today+" | Period: "+fmtDate(combined.dateFrom)+" to "+fmtDate(combined.dateTo),size:18,color:"6B7280",italics:true})],alignment:AlignmentType.CENTER,spacing:{after:400}}),
-      H("EXECUTIVE SUMMARY","06B6D4"),
-      P(activeAccount.name+" has published "+combined.count+" content pieces across "+platformData.length+" platform(s), generating "+fmtFull(combined.imp)+" impressions and reaching "+fmtFull(combined.reach)+" unique viewers. Overall ER: "+combined.er+"% ("+erC.label+")."),
-      H("COMBINED KEY METRICS","10B981"),
-      B("Total Impressions", fmtFull(combined.imp)),
-      B("Total Reach", fmtFull(combined.reach)),
-      B("Total Engagement", fmtFull(combined.eng)),
-      B("Likes / Comments / Shares / Saves", fmtFull(combined.lik)+" / "+fmtFull(combined.com)+" / "+fmtFull(combined.sha)+" / "+fmtFull(combined.sav)),
-      B("Overall Engagement Rate", combined.er+"% - "+erC.label),
-      B("Impression/Reach Ratio", combined.ir+"x"),
-      B("Avg Impressions/Post", fmtFull(combined.avgImp)),
-      B("Avg Engagement/Post", fmtFull(combined.avgEng)),
+      new Paragraph({children:[new TextRun({text:"Generated: "+today+" | Period: "+fmtDate(combined.dateFrom)+" to "+fmtDate(combined.dateTo),size:18,color:"6B7280",italics:true})],alignment:AlignmentType.CENTER,spacing:{after:300}}),
     ];
-    platformData.forEach(function(pl, idx) {
-      var erI = erGrade(pl.er);
+    if (hasBrief) {
+      children.push(H("ACCOUNT BRIEF","06B6D4"));
+      if (brief.niche)    children.push(B("Niche / Industry", brief.niche));
+      if (brief.goals)    children.push(B("Goals", brief.goals));
+      if (brief.audience) children.push(B("Target Audience", brief.audience));
+      if (brief.tone)     children.push(B("Content Tone", brief.tone));
+      if (brief.pillars)  children.push(B("Content Pillars", brief.pillars));
+      if (brief.context)  children.push(B("Additional Context", brief.context));
+    }
+    children.push(H("COMBINED KEY METRICS","10B981"));
+    children.push(B("Total Impressions",fmtFull(combined.imp)));
+    children.push(B("Total Reach",fmtFull(combined.reach)));
+    children.push(B("Total Engagement",fmtFull(combined.eng)));
+    children.push(B("Likes / Comments / Shares / Saves",fmtFull(combined.lik)+" / "+fmtFull(combined.com)+" / "+fmtFull(combined.sha)+" / "+fmtFull(combined.sav)));
+    children.push(B("Overall ER%",combined.er+"% - "+erC.label));
+    children.push(B("Avg Views/Post",fmtFull(combined.avgImp)));
+    platformData.forEach(function(pl,idx){
+      var erI=erGrade(pl.er);
       children.push(H("PLATFORM "+(idx+1)+": "+pl.name.toUpperCase(),"8B5CF6"));
-      children.push(B("Posts", ""+pl.posts.length));
-      children.push(B("Impressions", fmtFull(pl.imp)+" ("+pl.impShare+"% of total)"));
-      children.push(B("Reach", fmtFull(pl.reach)));
-      children.push(B("Engagement", fmtFull(pl.eng)));
-      children.push(B("ER%", pl.er+"% - "+erI.label+(parseFloat(pl.er)>parseFloat(combined.er)?" [ABOVE avg "+combined.er+"%]":" [BELOW avg "+combined.er+"%]")));
-      children.push(B("Avg Views/Post", fmtFull(pl.avgImp)));
-      if (pl.topPost)   children.push(B("Top Post",   (pl.topPost.caption||"").substring(0,80)+"... | "+fmtFull(pl.topPost.impressions||0)+" views"));
-      if (pl.worstPost) children.push(B("Worst Post", (pl.worstPost.caption||"").substring(0,80)+"... | "+fmtFull(pl.worstPost.impressions||0)+" views"));
-      children.push(new Paragraph({children:[new TextRun({text:"All Posts:",bold:true,size:20,color:"F0F6FC"})],spacing:{before:120,after:60}}));
-      pl.sortedPosts.forEach(function(post, pi) {
+      children.push(B("Posts",""+pl.posts.length));
+      children.push(B("Impressions",fmtFull(pl.imp)+" ("+pl.impShare+"% of total)"));
+      children.push(B("ER%",pl.er+"% - "+erI.label));
+      children.push(B("Avg Views/Post",fmtFull(pl.avgImp)));
+      pl.sortedPosts.forEach(function(post,pi){
         var pe=(post.likes||0)+(post.comments||0)+(post.shares||0)+(post.saves||0);
-        children.push(B("#"+(pi+1)+" ("+fmtDate(post.uploadDate)+")", (post.caption||"").substring(0,60)+"... | "+fmtFull(post.impressions||0)+" views | ER "+calcEr(pe,post.reach||0)+"%"));
+        children.push(B("#"+(pi+1)+" ("+fmtDate(post.uploadDate)+")",(post.caption||"").substring(0,60)+"... | "+fmtFull(post.impressions||0)+" views | ER "+calcEr(pe,post.reach||0)+"%"));
       });
     });
-    if (contentTypeData.length > 0) {
-      children.push(H("CONTENT TYPE PERFORMANCE","F59E0B"));
-      contentTypeData.forEach(function(t) {
-        children.push(B(t.type, t.posts.length+" posts | Avg "+fmtFull(t.avgImp)+" views | Avg ER "+t.er+"%"));
-      });
-    }
-    if (subjectData.length > 0) {
-      children.push(H("SUBJECT PERFORMANCE","EC4899"));
-      subjectData.forEach(function(s) {
-        children.push(B(s.name, s.count+" appearances | "+fmtFull(s.imp)+" impressions ("+pct(s.imp,combined.imp||1)+"% of total)"));
-      });
-    }
-    children.push(H("TOP 3 CONTENT","06B6D4"));
-    combined.topContent.forEach(function(c,i) {
-      var e=(c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
-      children.push(B("#"+(i+1)+" - "+c.platform+" ("+fmtDate(c.uploadDate)+")", (c.caption||"").substring(0,80)+"... | "+fmtFull(c.impressions||0)+" views | ER "+calcEr(e,c.reach||0)+"%"));
-    });
-    if (combined.bottomContent.length > 0) {
-      children.push(H("LOWEST PERFORMING CONTENT (Needs Attention)","F43F5E"));
-      combined.bottomContent.forEach(function(c,i) {
-        var e=(c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
-        children.push(B("#"+(i+1)+" - "+c.platform+" ("+fmtDate(c.uploadDate)+")", (c.caption||"").substring(0,80)+"... | "+fmtFull(c.impressions||0)+" views | ER "+calcEr(e,c.reach||0)+"%"));
-      });
-    }
     children.push(H("STRATEGIC RECOMMENDATIONS","34D399"));
-    var bestPl = platformData[0], worstPl = platformData[platformData.length-1];
-    children.push(B("1. Best Platform Focus", bestPl ? bestPl.name+" drives "+bestPl.impShare+"% of impressions. Increase posting frequency here." : "Identify top platform and allocate more resources."));
-    children.push(B("2. Underperforming Platform", worstPl && platformData.length>1 ? worstPl.name+" (ER "+worstPl.er+"%, "+worstPl.impShare+"% of impressions) is lagging. Review content strategy or reallocate resources." : "Monitor all platforms for performance drops."));
-    children.push(B("3. Engagement Rate", "Current ER "+combined.er+"% ("+erC.label+"). "+((parseFloat(combined.er)<3)?"Add interactive hooks - polls, Q&A, CTAs in captions.":"Maintain with consistent interactive formats.")));
-    children.push(B("4. Content Type", contentTypeData.length>1 ? "Top type: "+contentTypeData[0].type+" ("+fmtFull(contentTypeData[0].avgImp)+" avg views). Worst: "+contentTypeData[contentTypeData.length-1].type+" ("+fmtFull(contentTypeData[contentTypeData.length-1].avgImp)+" avg views). Shift more budget to "+contentTypeData[0].type+"." : "Diversify content types to find what resonates best."));
-    children.push(B("5. Underperforming Content", combined.bottomContent.length>0 ? "Lowest post: "+fmtFull(combined.bottomContent[0].impressions||0)+" views vs avg "+fmtFull(combined.avgImp)+". Analyse caption, timing, and hashtag strategy." : "All content is performing above threshold."));
+    buildRecs().forEach(function(rec){ children.push(P(rec.num+". "+rec.title+": "+rec.body)); });
     children.push(new Paragraph({children:[new TextRun({text:"Generated by SocioVault on "+today,size:16,color:"484F58",italics:true})],alignment:AlignmentType.CENTER,spacing:{before:600}}));
-    var doc = new Document({ sections:[{properties:{}, children:children}] });
-    Packer.toBlob(doc).then(function(blob) {
-      var url=URL.createObjectURL(blob), a=document.createElement("a");
+    var doc=new Document({sections:[{properties:{},children}]});
+    Packer.toBlob(doc).then(function(blob){
+      var url=URL.createObjectURL(blob),a=document.createElement("a");
       a.href=url; a.download=(activeAccount.name.replace(/\s+/g,"_"))+"_Report_"+(new Date().toISOString().slice(0,10))+".docx";
       a.click(); URL.revokeObjectURL(url);
     });
-  };
+  }
 
 
-  // ── RENDER ───────────────────────────────────────────────────────────────────
+  // ── Context-aware recommendations builder ─────────────────────────────────────
+  // Uses brief fields to personalise every recommendation
+  function buildRecs() {
+    var recs = [];
+    var nicheCtx    = brief.niche    ? " for a "+brief.niche+" account" : "";
+    var goalCtx     = brief.goals    ? " Aligns with your stated goal: \""+brief.goals+"\"." : "";
+    var audCtx      = brief.audience ? " Your target audience is "+brief.audience+"." : "";
+    var toneCtx     = brief.tone     ? " Match the "+brief.tone+" tone your audience expects." : "";
+    var pillarCtx   = brief.pillars  ? " Content pillars to lean into: "+brief.pillars+"." : "";
+
+    // 1 — Best platform
+    recs.push({num:"1",color:"var(--accent-emerald)",
+      title:"Scale "+( bestPl ? bestPl.name : "Your Best Platform"),
+      body: bestPl
+        ? bestPl.name+" drives "+bestPl.impShare+"% of impressions"+nicheCtx+" with ER "+bestPl.er+"%. Increase posting frequency to at least "+(bestPl.posts.length*2)+" posts/month."+toneCtx+goalCtx
+        : "Identify the platform generating most reach and concentrate content production there."
+    });
+
+    // 2 — Underperforming platform (only if there is one)
+    if (worstPl) recs.push({num:"2",color:"#F43F5E",
+      title:worstPl.name+" Is Underperforming — Fix or Reallocate",
+      body: worstPl.name+" delivers only "+worstPl.impShare+"% of impressions with ER "+worstPl.er+"% (account avg "+combined.er+"%)."+audCtx
+        +(parseFloat(worstPl.er)<1
+          ? " Engagement is critically low. Run a 4-week content experiment with 3 new formats before deciding to cut this platform."
+          : " Test posting time, caption structure, and hashtag sets tailored specifically for "+worstPl.name+"'s algorithm.")
+    });
+
+    // 3 — Engagement rate vs goal
+    recs.push({num: worstPl ? "3" : "2", color: parseFloat(combined.er)<3?"#F43F5E":"var(--accent-emerald)",
+      title: parseFloat(combined.er)<3 ? "Engagement Rate ("+combined.er+"%) Needs Improvement" : "Sustain "+combined.er+"% ER",
+      body: parseFloat(combined.er)<3
+        ? "Current ER is "+erC.label+". Tactics"+nicheCtx+": (1) end every caption with a direct question"+audCtx+", (2) use interactive features like polls and stickers in the first 3 seconds, (3) reply to comments within 1 hour to trigger algorithm re-distribution."+goalCtx
+        : "ER "+combined.er+"% ("+erC.label+"). Maintain with rotating interactive formats."+goalCtx+" Watch for drops below 3% as an early warning signal."
+    });
+
+    // 4 — Content type
+    var recNum4 = worstPl ? "4" : "3";
+    if (bestCt) recs.push({num:recNum4, color:"#F59E0B",
+      title: bestCt.type+" Content Outperforms — Scale It",
+      body: bestCt.type+" averages "+fmt(bestCt.avgImp)+" views/post"
+        +(worstCt ? " vs "+fmt(worstCt.avgImp)+" for "+worstCt.type+" (your weakest format)" : "")
+        +". Shift at least 60% of content production to "+bestCt.type+"."+pillarCtx+toneCtx
+    });
+
+    // 5 — Saves / algo signal
+    var recNum5 = worstPl ? "5" : bestCt ? "4" : "3";
+    recs.push({num:recNum5, color:"#06B6D4",
+      title: parseFloat(combined.savPct)<15 ? "Boost Save Rate ("+combined.savPct+"%) — Strongest Algo Signal" : "Saves Are Strong — Compound It",
+      body: parseFloat(combined.savPct)<15
+        ? "Save rate is "+combined.savPct+"%. Saves are the highest-value algorithmic signal. Create evergreen reference content"+nicheCtx+": step-by-step guides, checklists, templates, and resources people bookmark."+audCtx+" Add 'Save this for later' as a CTA."
+        : "Save rate "+combined.savPct+"% is strong. Convert top-saved posts into series, carousels, or short-form repost editions to extend their life."
+    });
+
+    // 6 — Brief-specific goal rec (only shown when brief has goals set)
+    if (brief.goals) {
+      var recNum6 = String(parseInt(recNum5)+1);
+      recs.push({num:recNum6, color:"var(--accent-primary)",
+        title:"Align Analytics to Your Goal",
+        body: "Your stated goal is: \""+brief.goals+"\". "
+          +(combined.count<10
+            ? "With only "+combined.count+" posts, focus on publishing frequency before optimising individual metrics."
+            : "With "+combined.count+" posts of data, the next lever is testing: run 2-week experiments changing one variable at a time — posting time, caption format, or hook style — and measure ER change.")
+          +(brief.audience ? " Consistently frame content around the needs and pain points of "+brief.audience+"." : "")
+      });
+    }
+
+    // 7 — Performance gap rec
+    if (combined.allSorted.length >= 2) {
+      var topImp   = combined.allSorted[0].impressions||0;
+      var lowImp   = combined.allSorted[combined.allSorted.length-1].impressions||0;
+      var gapMulti = lowImp>0 ? Math.round(topImp/lowImp) : null;
+      var recNumG  = String(parseInt(recNum5)+( brief.goals ? 2 : 1 ));
+      recs.push({num:recNumG, color:"var(--accent-primary)",
+        title:"Close the "+( gapMulti ? gapMulti+"x" : "Large")+" Performance Gap",
+        body: "Your best post earned "+fmt(topImp)+" views; your lowest earned "+fmt(lowImp)
+          +". Audit the structural differences: hook length, posting time, hashtag volume, caption CTA, and thumbnail."+pillarCtx
+          +" Apply the top-post formula to your next 3 pieces and measure the delta."
+      });
+    }
+
+    return recs;
+  }
+
+
+  // ── RENDER ────────────────────────────────────────────────────────────────────
   return (
     <div className="page-container">
 
-      {/* HERO */}
-      <div className="report-hero">
-        <div className="report-hero-content">
-          <div className="report-title-eyebrow">
-            <i data-lucide="file-bar-chart" style={{ width:"12px",height:"12px" }}></i>
-            Performance Analytics Report
+      {/* ══ ACCOUNT BRIEF VAULT ════════════════════════════════════════════════ */}
+      <div style={{
+        marginBottom:"1.75rem", borderRadius:"var(--radius-lg)",
+        border: hasBrief ? "1px solid rgba(139,92,246,0.35)" : "1px dashed rgba(255,255,255,0.12)",
+        background: hasBrief ? "linear-gradient(135deg,rgba(139,92,246,0.07),rgba(6,182,212,0.04))" : "rgba(255,255,255,0.02)",
+        overflow:"hidden"
+      }}>
+        {/* Header row */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"1rem 1.5rem", borderBottom: hasBrief ? "1px solid rgba(139,92,246,0.15)" : "none", gap:"1rem", flexWrap:"wrap" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>
+            <div style={{ width:"36px", height:"36px", borderRadius:"10px", background:"linear-gradient(135deg,#8B5CF6,#06B6D4)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 4px 12px rgba(139,92,246,0.3)" }}>
+              <i data-lucide="book-open" style={{ width:"16px", height:"16px", color:"#fff" }}></i>
+            </div>
+            <div>
+              <div style={{ fontWeight:700, fontSize:"0.95rem", color:"var(--text-main)" }}>Account Brief</div>
+              <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", marginTop:"0.1rem" }}>
+                {hasBrief ? "Your account context is set — recommendations are personalised to this brief." : "Describe your account goals, niche, and audience to get personalised recommendations."}
+              </div>
+            </div>
+            {briefSaved && (
+              <span style={{ display:"inline-flex", alignItems:"center", gap:"0.35rem", fontSize:"0.75rem", fontWeight:700, color:"#10B981", padding:"0.2rem 0.6rem", borderRadius:"var(--radius-full)", background:"rgba(16,185,129,0.12)", border:"1px solid rgba(16,185,129,0.3)" }}>
+                <i data-lucide="check" style={{ width:"11px", height:"11px" }}></i> Saved
+              </span>
+            )}
           </div>
-          <h1 className="report-hero-title">{activeAccount.name}</h1>
-          <p style={{ color:"var(--text-muted)",fontSize:"0.9rem",marginBottom:"0.5rem" }}>
-            {activeAccount.description || "Social Media Analytics Overview"}
-          </p>
-          <div className="report-hero-meta">
+          {canEdit && (
+            <button onClick={briefOpen ? cancelBrief : openBrief} className="btn btn-secondary btn-sm"
+              style={{ gap:"0.4rem" }}>
+              <i data-lucide={briefOpen ? "x" : (hasBrief ? "pencil" : "plus")} style={{ width:"13px", height:"13px" }}></i>
+              {briefOpen ? "Cancel" : (hasBrief ? "Edit Brief" : "Add Brief")}
+            </button>
+          )}
+        </div>
+
+
+        {/* SAVED BRIEF DISPLAY */}
+        {hasBrief && !briefOpen && (
+          <div style={{ padding:"1.25rem 1.5rem", display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))", gap:"1rem" }}>
             {[
-              { icon:"calendar",         text: combined.dateFrom ? fmtDate(combined.dateFrom)+" - "+fmtDate(combined.dateTo) : "All-Time" },
-              { icon:"layers",           text: combined.count+" content pieces" },
-              { icon:"monitor-smartphone", text: platformData.length+" platform"+(platformData.length!==1?"s":"") },
-              { icon:"clock",            text: "Generated "+today },
-            ].map(function(m) {
+              { icon:"tag",          label:"Niche / Industry",    value:brief.niche    },
+              { icon:"target",       label:"Goals",               value:brief.goals    },
+              { icon:"users",        label:"Target Audience",     value:brief.audience },
+              { icon:"mic-2",        label:"Content Tone",        value:brief.tone     },
+              { icon:"columns",      label:"Content Pillars",     value:brief.pillars  },
+              { icon:"message-square", label:"Additional Context",value:brief.context  },
+            ].filter(function(f){ return !!f.value; }).map(function(field) {
               return (
-                <div key={m.icon} className="report-hero-meta-item">
-                  <i data-lucide={m.icon} style={{ width:"13px",height:"13px" }}></i>
-                  <span>{m.text}</span>
+                <div key={field.label} style={{ display:"flex", gap:"0.65rem", alignItems:"flex-start" }}>
+                  <div style={{ width:"28px", height:"28px", borderRadius:"7px", background:"rgba(139,92,246,0.1)", border:"1px solid rgba(139,92,246,0.2)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:"0.1rem" }}>
+                    <i data-lucide={field.icon} style={{ width:"12px", height:"12px", color:"var(--accent-primary)" }}></i>
+                  </div>
+                  <div>
+                    <div style={{ fontSize:"0.7rem", fontWeight:700, color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.2rem" }}>{field.label}</div>
+                    <div style={{ fontSize:"0.85rem", color:"var(--text-secondary)", lineHeight:1.55 }}>{field.value}</div>
+                  </div>
                 </div>
               );
             })}
           </div>
+        )}
+
+        {/* EMPTY STATE */}
+        {!hasBrief && !briefOpen && (
+          <div style={{ padding:"1.5rem", display:"flex", alignItems:"center", justifyContent:"center", gap:"1.25rem", flexWrap:"wrap" }}>
+            {["Niche / Industry","Goals","Target Audience","Content Tone","Content Pillars"].map(function(label) {
+              return (
+                <div key={label} style={{ display:"flex", alignItems:"center", gap:"0.4rem", fontSize:"0.78rem", color:"var(--text-subtle)" }}>
+                  <div style={{ width:"6px", height:"6px", borderRadius:"50%", background:"rgba(139,92,246,0.3)" }}></div>
+                  {label}
+                </div>
+              );
+            })}
+            {canEdit && (
+              <button onClick={openBrief} className="btn btn-primary btn-sm" style={{ gap:"0.4rem" }}>
+                <i data-lucide="plus" style={{ width:"12px", height:"12px" }}></i>
+                Fill in Brief
+              </button>
+            )}
+          </div>
+        )}
+
+
+        {/* BRIEF EDIT FORM */}
+        {briefOpen && (
+          <div style={{ padding:"1.5rem", borderTop:"1px solid rgba(139,92,246,0.15)" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))", gap:"1.1rem", marginBottom:"1.25rem" }}>
+
+              {/* Niche */}
+              <div className="form-group" style={{ margin:0 }}>
+                <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
+                  <i data-lucide="tag" style={{ width:"11px", height:"11px" }}></i> Niche / Industry
+                </label>
+                <input type="text" className="form-input" placeholder="e.g. Tech & Lifestyle, Beauty, Finance..."
+                  value={draftNiche} onChange={function(e){ setDraftNiche(e.target.value); }} />
+              </div>
+
+              {/* Target Audience */}
+              <div className="form-group" style={{ margin:0 }}>
+                <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
+                  <i data-lucide="users" style={{ width:"11px", height:"11px" }}></i> Target Audience
+                </label>
+                <input type="text" className="form-input" placeholder="e.g. Tech-savvy millennials aged 22-35..."
+                  value={draftAudience} onChange={function(e){ setDraftAudience(e.target.value); }} />
+              </div>
+
+              {/* Content Tone */}
+              <div className="form-group" style={{ margin:0 }}>
+                <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
+                  <i data-lucide="mic-2" style={{ width:"11px", height:"11px" }}></i> Content Tone
+                </label>
+                <input type="text" className="form-input" placeholder="e.g. Educational, Entertaining, Professional..."
+                  value={draftTone} onChange={function(e){ setDraftTone(e.target.value); }} />
+              </div>
+
+              {/* Content Pillars */}
+              <div className="form-group" style={{ margin:0 }}>
+                <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
+                  <i data-lucide="columns" style={{ width:"11px", height:"11px" }}></i> Content Pillars
+                </label>
+                <input type="text" className="form-input" placeholder="e.g. Product reviews, tutorials, behind-the-scenes..."
+                  value={draftPillars} onChange={function(e){ setDraftPillars(e.target.value); }} />
+              </div>
+
+              {/* Goals — full width */}
+              <div className="form-group" style={{ margin:0, gridColumn:"1 / -1" }}>
+                <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
+                  <i data-lucide="target" style={{ width:"11px", height:"11px" }}></i> Goals & Objectives
+                </label>
+                <textarea className="form-textarea" rows={3}
+                  placeholder="e.g. Grow to 500K followers by Dec 2026. Increase brand deal revenue by 40%. Build authority in AI & gadget space..."
+                  value={draftGoals} onChange={function(e){ setDraftGoals(e.target.value); }}
+                  style={{ resize:"vertical", minHeight:"72px" }} />
+              </div>
+
+              {/* Additional Context — full width */}
+              <div className="form-group" style={{ margin:0, gridColumn:"1 / -1" }}>
+                <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
+                  <i data-lucide="message-square" style={{ width:"11px", height:"11px" }}></i> Additional Context
+                  <span style={{ fontSize:"0.68rem", color:"var(--text-subtle)", fontWeight:400, marginLeft:"0.25rem" }}>(optional — anything else the analysis should know)</span>
+                </label>
+                <textarea className="form-textarea" rows={3}
+                  placeholder="e.g. This account monetises through brand sponsorships and affiliate links. Main competitors are XYZ. We have a team of 3 editors..."
+                  value={draftContext} onChange={function(e){ setDraftContext(e.target.value); }}
+                  style={{ resize:"vertical", minHeight:"72px" }} />
+              </div>
+
+            </div>
+
+            {/* Form actions */}
+            <div style={{ display:"flex", gap:"0.75rem", alignItems:"center", justifyContent:"flex-end" }}>
+              <button onClick={cancelBrief} className="btn btn-secondary btn-sm">Cancel</button>
+              <button onClick={saveBrief} className="btn btn-primary btn-sm" disabled={briefSaving}
+                style={{ gap:"0.45rem", minWidth:"110px" }}>
+                {briefSaving
+                  ? <><i data-lucide="loader-2" style={{ width:"13px", height:"13px" }}></i> Saving...</>
+                  : <><i data-lucide="save" style={{ width:"13px", height:"13px" }}></i> Save Brief</>
+                }
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
+      {/* ══ END ACCOUNT BRIEF ══════════════════════════════════════════════════ */}
+
+
+      {/* ══ REPORT HERO ═══════════════════════════════════════════════════════ */}
+      <div className="report-hero">
+        <div className="report-hero-content">
+          <div className="report-title-eyebrow">
+            <i data-lucide="file-bar-chart" style={{ width:"12px", height:"12px" }}></i>
+            Performance Analytics Report
+          </div>
+          <h1 className="report-hero-title">{activeAccount.name}</h1>
+          <p style={{ color:"var(--text-muted)", fontSize:"0.9rem", marginBottom:"0.5rem" }}>
+            {activeAccount.description || "Social Media Analytics Overview"}
+            {hasBrief && brief.niche && (
+              <span style={{ marginLeft:"0.5rem", fontSize:"0.78rem", color:"var(--accent-primary-light)", background:"rgba(139,92,246,0.1)", padding:"0.1rem 0.5rem", borderRadius:"var(--radius-full)", border:"1px solid rgba(139,92,246,0.2)" }}>
+                {brief.niche}
+              </span>
+            )}
+          </p>
+          <div className="report-hero-meta">
+            {[
+              { icon:"calendar",          text: combined.dateFrom ? fmtDate(combined.dateFrom)+" - "+fmtDate(combined.dateTo) : "All-Time" },
+              { icon:"layers",            text: combined.count+" content pieces" },
+              { icon:"monitor-smartphone",text: platformData.length+" platform"+(platformData.length!==1?"s":"") },
+              { icon:"clock",             text: "Generated "+today },
+            ].map(function(m){ return (
+              <div key={m.icon} className="report-hero-meta-item">
+                <i data-lucide={m.icon} style={{ width:"13px", height:"13px" }}></i>
+                <span>{m.text}</span>
+              </div>
+            ); })}
+          </div>
         </div>
-        <div style={{ position:"absolute",top:"1.5rem",right:"1.5rem",display:"flex",gap:"0.6rem" }}>
+        <div style={{ position:"absolute", top:"1.5rem", right:"1.5rem", display:"flex", gap:"0.6rem" }}>
           <button className="btn btn-export btn-sm" onClick={handleExportDocx}>
-            <i data-lucide="download" style={{ width:"13px",height:"13px" }}></i> Export DOCX
+            <i data-lucide="download" style={{ width:"13px", height:"13px" }}></i> Export DOCX
           </button>
           <button className="btn btn-print btn-sm" onClick={function(){ window.print(); }}>
-            <i data-lucide="printer" style={{ width:"13px",height:"13px" }}></i> Print
+            <i data-lucide="printer" style={{ width:"13px", height:"13px" }}></i> Print
           </button>
         </div>
       </div>
 
-      {/* KPI STRIP */}
+      {/* ══ KPI STRIP ════════════════════════════════════════════════════════ */}
       <div className="report-kpi-grid">
         {[
-          { label:"Total Impressions",  value:fmt(combined.imp),    sub:fmtFull(combined.imp)+" views",         color:"#06B6D4", g:"linear-gradient(90deg,#06B6D4,#22D3EE)" },
-          { label:"Total Reach",        value:fmt(combined.reach),  sub:"unique viewers",                        color:"#8B5CF6", g:"linear-gradient(90deg,#8B5CF6,#A78BFA)" },
-          { label:"Total Engagement",   value:fmt(combined.eng),    sub:"likes+comments+shares+saves",          color:"#10B981", g:"linear-gradient(90deg,#10B981,#34D399)" },
-          { label:"Engagement Rate",    value:combined.er+"%",      sub:erC.label,                               color:erC.color, g:"linear-gradient(90deg,"+erC.color+","+erC.color+"88)" },
-          { label:"Avg Views/Post",     value:fmt(combined.avgImp), sub:"per content piece",                     color:"#F59E0B", g:"linear-gradient(90deg,#F59E0B,#FCD34D)" },
-          { label:"Imp/Reach Ratio",    value:combined.ir+"x",     sub:parseFloat(combined.ir)>1.5?"Strong retention":"Single-view", color:"#EC4899", g:"linear-gradient(90deg,#EC4899,#F9A8D4)" },
-        ].map(function(k,i) {
-          return (
-            <div key={i} className="report-kpi-card">
-              <div className="kpi-accent-bar" style={{ background:k.g }}></div>
-              <div className="report-kpi-label">{k.label}</div>
-              <div className="report-kpi-value" style={{ color:k.color }}>{k.value}</div>
-              <div className="report-kpi-sub">{k.sub}</div>
-            </div>
-          );
-        })}
+          { label:"Total Impressions", value:fmt(combined.imp),    sub:fmtFull(combined.imp)+" views",  color:"#06B6D4", g:"linear-gradient(90deg,#06B6D4,#22D3EE)" },
+          { label:"Total Reach",       value:fmt(combined.reach),  sub:"unique viewers",                 color:"#8B5CF6", g:"linear-gradient(90deg,#8B5CF6,#A78BFA)" },
+          { label:"Total Engagement",  value:fmt(combined.eng),    sub:"likes+comments+shares+saves",   color:"#10B981", g:"linear-gradient(90deg,#10B981,#34D399)" },
+          { label:"Engagement Rate",   value:combined.er+"%",      sub:erC.label,                        color:erC.color, g:"linear-gradient(90deg,"+erC.color+","+erC.color+"88)" },
+          { label:"Avg Views/Post",    value:fmt(combined.avgImp), sub:"per content piece",              color:"#F59E0B", g:"linear-gradient(90deg,#F59E0B,#FCD34D)" },
+          { label:"Imp/Reach Ratio",   value:combined.ir+"x",     sub:parseFloat(combined.ir)>1.5?"Strong retention":"Single-view", color:"#EC4899", g:"linear-gradient(90deg,#EC4899,#F9A8D4)" },
+        ].map(function(k,i){ return (
+          <div key={i} className="report-kpi-card">
+            <div className="kpi-accent-bar" style={{ background:k.g }}></div>
+            <div className="report-kpi-label">{k.label}</div>
+            <div className="report-kpi-value" style={{ color:k.color }}>{k.value}</div>
+            <div className="report-kpi-sub">{k.sub}</div>
+          </div>
+        ); })}
       </div>
 
 
-      {/* EXECUTIVE SUMMARY */}
+      {/* ══ EXECUTIVE SUMMARY ════════════════════════════════════════════════ */}
       <div className="report-section" style={{ marginBottom:"1.5rem" }}>
         <div className="report-section-head">
-          <div className="report-section-icon" style={{ background:"rgba(6,182,212,0.1)",border:"1px solid rgba(6,182,212,0.2)" }}>
-            <i data-lucide="clipboard-list" style={{ width:"16px",height:"16px",color:"#06B6D4" }}></i>
+          <div className="report-section-icon" style={{ background:"rgba(6,182,212,0.1)", border:"1px solid rgba(6,182,212,0.2)" }}>
+            <i data-lucide="clipboard-list" style={{ width:"16px", height:"16px", color:"#06B6D4" }}></i>
           </div>
           <div className="report-section-label">Executive Summary</div>
         </div>
@@ -4219,39 +4471,47 @@ function ReportSummaryPage() {
             <span className="metric-callout metric-callout-cyan">{platformData.length} platform{platformData.length!==1?"s":""}</span>,
             accumulating <span className="metric-callout metric-callout-cyan">{fmtFull(combined.imp)} impressions</span> and reaching{" "}
             <span className="metric-callout metric-callout-primary">{fmtFull(combined.reach)} unique viewers</span>.
-            Impression-to-reach ratio: <strong>{combined.ir}x</strong> —{" "}
-            {parseFloat(combined.ir)>1.5 ? "strong content retention, viewers consuming multiple times." : "typical single-view pattern; focus on retention hooks."}
+            Impression-to-reach ratio <strong>{combined.ir}x</strong> —{" "}
+            {parseFloat(combined.ir)>1.5 ? "strong content retention; viewers return multiple times." : "typical single-view pattern; focus on hook strength to extend dwell time."}
           </p>
           <p>
-            Total engagement: <span className="metric-callout metric-callout-emerald">{fmtFull(combined.eng)}</span>{" "}
-            — overall ER <span className="metric-callout" style={{ background:erC.bg,color:erC.color,border:"1px solid "+erC.border }}>{combined.er}%</span>{" "}
+            Total engagement:{" "}
+            <span className="metric-callout metric-callout-emerald">{fmtFull(combined.eng)}</span> — ER{" "}
+            <span className="metric-callout" style={{ background:erC.bg, color:erC.color, border:"1px solid "+erC.border }}>{combined.er}%</span>{" "}
             (<strong style={{ color:erC.color }}>{erC.label}</strong>).
-            Per post average: <strong>{fmtFull(combined.avgImp)}</strong> views, <strong>{fmtFull(combined.avgEng)}</strong> interactions.
+            Per-post average: <strong>{fmtFull(combined.avgImp)}</strong> views, <strong>{fmtFull(combined.avgEng)}</strong> interactions.
           </p>
-          {/* Performance gap highlight */}
+          {hasBrief && (
+            <p style={{ padding:"0.75rem 1rem", background:"rgba(139,92,246,0.06)", borderRadius:"var(--radius-sm)", border:"1px solid rgba(139,92,246,0.15)", marginBottom:0 }}>
+              <strong style={{ color:"var(--accent-primary-light)" }}>Brief context: </strong>
+              {brief.niche ? "This is a "+brief.niche+" account" : "This account"}{brief.audience ? " targeting "+brief.audience : ""}.
+              {brief.goals ? " Goal: "+brief.goals+"." : ""}
+              {brief.tone  ? " The content tone is "+brief.tone+"." : ""}
+              {" "}The recommendations below are tailored to this brief.
+            </p>
+          )}
           {combined.allSorted.length >= 2 && (
-            <p style={{ padding:"0.75rem 1rem",background:"rgba(244,63,94,0.06)",borderRadius:"var(--radius-sm)",border:"1px solid rgba(244,63,94,0.15)",marginBottom:0 }}>
+            <p style={{ padding:"0.75rem 1rem", background:"rgba(244,63,94,0.06)", borderRadius:"var(--radius-sm)", border:"1px solid rgba(244,63,94,0.15)", marginBottom:0 }}>
               <strong style={{ color:"#F43F5E" }}>Performance gap: </strong>
-              Your top post ({fmt(combined.allSorted[0].impressions||0)} views) outperforms your lowest ({fmt(combined.allSorted[combined.allSorted.length-1].impressions||0)} views) by{" "}
-              <strong style={{ color:"#F43F5E" }}>
-                {combined.allSorted[combined.allSorted.length-1].impressions > 0
-                  ? Math.round(((combined.allSorted[0].impressions||0)/(combined.allSorted[combined.allSorted.length-1].impressions||1)))+"x"
-                  : "significantly"}
-              </strong>.
-              {" "}Analyse what made the top post successful and apply those learnings to underperforming content.
+              Top post earned <strong style={{ color:"#06B6D4" }}>{fmt(combined.allSorted[0].impressions||0)}</strong> views vs lowest at <strong style={{ color:"#F43F5E" }}>{fmt(combined.allSorted[combined.allSorted.length-1].impressions||0)}</strong> —{" "}
+              a <strong style={{ color:"#F43F5E" }}>
+                {combined.allSorted[combined.allSorted.length-1].impressions>0
+                  ? Math.round((combined.allSorted[0].impressions||0)/(combined.allSorted[combined.allSorted.length-1].impressions||1))+"x"
+                  : "large"}
+              </strong> difference. Analyse structural differences and apply top-post learnings to underperforming content.
             </p>
           )}
         </div>
       </div>
 
 
-      {/* COMBINED ENGAGEMENT + STATUS */}
+      {/* ══ ENGAGEMENT + STATUS ══════════════════════════════════════════════ */}
       <div className="report-two-col" style={{ marginBottom:"1.5rem" }}>
 
         <div className="report-section" style={{ marginBottom:0 }}>
           <div className="report-section-head">
-            <div className="report-section-icon" style={{ background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.2)" }}>
-              <i data-lucide="bar-chart-2" style={{ width:"16px",height:"16px",color:"var(--accent-primary)" }}></i>
+            <div className="report-section-icon" style={{ background:"rgba(139,92,246,0.1)", border:"1px solid rgba(139,92,246,0.2)" }}>
+              <i data-lucide="bar-chart-2" style={{ width:"16px", height:"16px", color:"var(--accent-primary)" }}></i>
             </div>
             <div className="report-section-label">Engagement Breakdown</div>
           </div>
@@ -4261,36 +4521,32 @@ function ReportSummaryPage() {
               { label:"Comments", icon:"message-circle", v:combined.com, p:combined.comPct, c:"#8B5CF6", g:"linear-gradient(90deg,#8B5CF6,#A78BFA)" },
               { label:"Shares",   icon:"repeat-2",       v:combined.sha, p:combined.shaPct, c:"#06B6D4", g:"linear-gradient(90deg,#06B6D4,#22D3EE)" },
               { label:"Saves",    icon:"bookmark",       v:combined.sav, p:combined.savPct, c:"#10B981", g:"linear-gradient(90deg,#10B981,#34D399)" },
-            ].map(function(item) {
-              return (
-                <div key={item.label} className="engagement-bar-row">
-                  <div className="engagement-bar-label">
-                    <i data-lucide={item.icon} style={{ width:"13px",height:"13px",color:item.c,flexShrink:0 }}></i>
-                    {item.label}
-                  </div>
-                  <div className="engagement-bar-track">
-                    <div className="engagement-bar-fill" style={{ width:item.p+"%",background:item.g }}></div>
-                  </div>
-                  <div className="engagement-bar-value">{fmt(item.v)}</div>
-                  <div className="engagement-bar-pct">{item.p}%</div>
+            ].map(function(item){ return (
+              <div key={item.label} className="engagement-bar-row">
+                <div className="engagement-bar-label">
+                  <i data-lucide={item.icon} style={{ width:"13px", height:"13px", color:item.c, flexShrink:0 }}></i>{item.label}
                 </div>
-              );
-            })}
-            <div style={{ marginTop:"1rem",paddingTop:"0.85rem",borderTop:"1px solid var(--border-color)",display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-              <span style={{ fontSize:"0.78rem",color:"var(--text-muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.04em" }}>Total</span>
-              <span style={{ fontSize:"1.2rem",fontWeight:800,fontFamily:"var(--font-heading)",color:"var(--accent-emerald)" }}>{fmtFull(combined.eng)}</span>
+                <div className="engagement-bar-track">
+                  <div className="engagement-bar-fill" style={{ width:item.p+"%", background:item.g }}></div>
+                </div>
+                <div className="engagement-bar-value">{fmt(item.v)}</div>
+                <div className="engagement-bar-pct">{item.p}%</div>
+              </div>
+            ); })}
+            <div style={{ marginTop:"1rem", paddingTop:"0.85rem", borderTop:"1px solid var(--border-color)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span style={{ fontSize:"0.78rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.04em" }}>Total</span>
+              <span style={{ fontSize:"1.2rem", fontWeight:800, fontFamily:"var(--font-heading)", color:"var(--accent-emerald)" }}>{fmtFull(combined.eng)}</span>
             </div>
-            {/* What's weak */}
-            <div style={{ marginTop:"0.85rem",padding:"0.85rem 1rem",background:"rgba(244,63,94,0.05)",borderRadius:"var(--radius-sm)",border:"1px solid rgba(244,63,94,0.15)" }}>
-              <p style={{ fontSize:"0.8rem",color:"var(--text-muted)",lineHeight:1.6,margin:0 }}>
+            <div style={{ marginTop:"0.85rem", padding:"0.85rem 1rem", background:"rgba(244,63,94,0.05)", borderRadius:"var(--radius-sm)", border:"1px solid rgba(244,63,94,0.15)" }}>
+              <p style={{ fontSize:"0.8rem", color:"var(--text-muted)", lineHeight:1.6, margin:0 }}>
                 <strong style={{ color:"#F43F5E" }}>Weakest signal: </strong>
-                {parseFloat(combined.savPct) < 10
-                  ? "Save rate ("+combined.savPct+"%) is low — saves are the strongest algorithm signal. Create more how-to, reference, and checklist content."
-                  : parseFloat(combined.shaPct) < 10
-                    ? "Share rate ("+combined.shaPct+"%) is low — shares drive organic reach. Use emotional hooks or surprising facts that compel re-sharing."
-                    : parseFloat(combined.comPct) < 10
-                      ? "Comment rate ("+combined.comPct+"%) is below average — end every post with a direct open-ended question."
-                      : "Engagement mix is healthy. Continue monitoring each metric weekly."}
+                {parseFloat(combined.savPct)<10
+                  ? "Save rate ("+combined.savPct+"%) is low. Saves are the top algorithmic signal. Create more how-to and reference content."+(brief.pillars ? " Relevant pillars: "+brief.pillars+"." : "")
+                  : parseFloat(combined.shaPct)<10
+                    ? "Share rate ("+combined.shaPct+"%) is low. Use emotional hooks, surprising facts, or strong opinions to drive re-sharing."
+                    : parseFloat(combined.comPct)<10
+                      ? "Comment rate ("+combined.comPct+"%) is low. End every post with a direct open-ended question."+(brief.audience ? " Tailor the question to "+brief.audience+"." : "")
+                      : "Engagement mix is balanced. Keep monitoring weekly for shifts."}
               </p>
             </div>
           </div>
@@ -4298,46 +4554,46 @@ function ReportSummaryPage() {
 
         <div className="report-section" style={{ marginBottom:0 }}>
           <div className="report-section-head">
-            <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.2)" }}>
-              <i data-lucide="layout-list" style={{ width:"16px",height:"16px",color:"var(--accent-amber)" }}></i>
+            <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.2)" }}>
+              <i data-lucide="layout-list" style={{ width:"16px", height:"16px", color:"var(--accent-amber)" }}></i>
             </div>
             <div className="report-section-label">Content Status</div>
           </div>
           <div className="report-section-body">
-            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.85rem",marginBottom:"1.25rem" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.85rem", marginBottom:"1.25rem" }}>
               {[
-                { key:"Uploaded",  label:"Published", color:"#10B981",bg:"linear-gradient(135deg,rgba(16,185,129,0.15),rgba(16,185,129,0.05))",border:"rgba(16,185,129,0.3)", icon:"check-circle" },
-                { key:"Scheduled", label:"Scheduled", color:"#06B6D4",bg:"linear-gradient(135deg,rgba(6,182,212,0.15),rgba(6,182,212,0.05))",  border:"rgba(6,182,212,0.3)",  icon:"clock"        },
-                { key:"Privated",  label:"Privated",  color:"#F59E0B",bg:"linear-gradient(135deg,rgba(245,158,11,0.15),rgba(245,158,11,0.05))",border:"rgba(245,158,11,0.3)", icon:"eye-off"      },
-                { key:"Deleted",   label:"Archived",  color:"#F43F5E",bg:"linear-gradient(135deg,rgba(244,63,94,0.12),rgba(244,63,94,0.04))",  border:"rgba(244,63,94,0.25)", icon:"archive"      },
-              ].map(function(s) {
-                var count = combined.statuses[s.key]||0;
-                if (count === 0) return null;
+                { key:"Uploaded",  label:"Published", color:"#10B981", bg:"linear-gradient(135deg,rgba(16,185,129,0.15),rgba(16,185,129,0.05))",  border:"rgba(16,185,129,0.3)",  icon:"check-circle" },
+                { key:"Scheduled", label:"Scheduled", color:"#06B6D4", bg:"linear-gradient(135deg,rgba(6,182,212,0.15),rgba(6,182,212,0.05))",    border:"rgba(6,182,212,0.3)",   icon:"clock"        },
+                { key:"Privated",  label:"Privated",  color:"#F59E0B", bg:"linear-gradient(135deg,rgba(245,158,11,0.15),rgba(245,158,11,0.05))",  border:"rgba(245,158,11,0.3)",  icon:"eye-off"      },
+                { key:"Deleted",   label:"Archived",  color:"#F43F5E", bg:"linear-gradient(135deg,rgba(244,63,94,0.12),rgba(244,63,94,0.04))",    border:"rgba(244,63,94,0.25)",  icon:"archive"      },
+              ].map(function(s){
+                var count=combined.statuses[s.key]||0;
+                if (!count) return null;
                 return (
-                  <div key={s.key} style={{ padding:"1rem",borderRadius:"var(--radius-md)",background:s.bg,border:"1px solid "+s.border }}>
-                    <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"0.5rem" }}>
-                      <i data-lucide={s.icon} style={{ width:"15px",height:"15px",color:s.color }}></i>
-                      <span style={{ fontSize:"0.7rem",color:s.color,fontWeight:700 }}>{pct(count,combined.count)}%</span>
+                  <div key={s.key} style={{ padding:"1rem", borderRadius:"var(--radius-md)", background:s.bg, border:"1px solid "+s.border }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.5rem" }}>
+                      <i data-lucide={s.icon} style={{ width:"15px", height:"15px", color:s.color }}></i>
+                      <span style={{ fontSize:"0.7rem", color:s.color, fontWeight:700 }}>{pct(count,combined.count)}%</span>
                     </div>
-                    <div style={{ fontSize:"1.6rem",fontWeight:800,fontFamily:"var(--font-heading)",color:s.color,lineHeight:1 }}>{count}</div>
-                    <div style={{ fontSize:"0.72rem",color:"var(--text-muted)",fontWeight:700,marginTop:"0.2rem",textTransform:"uppercase",letterSpacing:"0.04em" }}>{s.label}</div>
+                    <div style={{ fontSize:"1.6rem", fontWeight:800, fontFamily:"var(--font-heading)", color:s.color, lineHeight:1 }}>{count}</div>
+                    <div style={{ fontSize:"0.72rem", color:"var(--text-muted)", fontWeight:700, marginTop:"0.2rem", textTransform:"uppercase", letterSpacing:"0.04em" }}>{s.label}</div>
                   </div>
                 );
               })}
             </div>
-            <div style={{ fontSize:"0.78rem",color:"var(--text-muted)",fontWeight:700,marginBottom:"0.5rem",textTransform:"uppercase",letterSpacing:"0.04em" }}>Publication Rate</div>
+            <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", fontWeight:700, marginBottom:"0.5rem", textTransform:"uppercase", letterSpacing:"0.04em" }}>Publication Rate</div>
             <div className="progress-bar-track progress-bar-track-lg">
               <div className="progress-bar-fill progress-bar-fill-emerald" style={{ width:pct(combined.statuses["Uploaded"]||0,combined.count)+"%" }}></div>
             </div>
-            <div style={{ display:"flex",justifyContent:"space-between",marginTop:"0.35rem" }}>
-              <span style={{ fontSize:"0.75rem",color:"var(--accent-emerald)" }}>{combined.statuses["Uploaded"]||0} published</span>
-              <span style={{ fontSize:"0.75rem",color:"var(--text-muted)" }}>{combined.count} total</span>
+            <div style={{ display:"flex", justifyContent:"space-between", marginTop:"0.35rem" }}>
+              <span style={{ fontSize:"0.75rem", color:"var(--accent-emerald)" }}>{combined.statuses["Uploaded"]||0} published</span>
+              <span style={{ fontSize:"0.75rem", color:"var(--text-muted)" }}>{combined.count} total</span>
             </div>
-            <div style={{ marginTop:"1rem",padding:"0.85rem 1rem",background:erC.color+"0F",borderRadius:"var(--radius-sm)",border:"1px solid "+erC.color+"25" }}>
-              <div style={{ fontSize:"0.72rem",textTransform:"uppercase",letterSpacing:"0.05em",color:"var(--text-subtle)",fontWeight:700,marginBottom:"0.3rem" }}>Overall ER Health</div>
-              <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
-                <span style={{ fontSize:"1.5rem",fontWeight:800,fontFamily:"var(--font-heading)",color:erC.color }}>{combined.er}%</span>
-                <span style={{ padding:"0.25rem 0.65rem",borderRadius:"var(--radius-full)",background:erC.bg,border:"1px solid "+erC.border,fontSize:"0.75rem",fontWeight:700,color:erC.color }}>{erC.label}</span>
+            <div style={{ marginTop:"1rem", padding:"0.85rem 1rem", background:erC.color+"0F", borderRadius:"var(--radius-sm)", border:"1px solid "+erC.color+"25" }}>
+              <div style={{ fontSize:"0.72rem", textTransform:"uppercase", letterSpacing:"0.05em", color:"var(--text-subtle)", fontWeight:700, marginBottom:"0.3rem" }}>Overall ER Health</div>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <span style={{ fontSize:"1.5rem", fontWeight:800, fontFamily:"var(--font-heading)", color:erC.color }}>{combined.er}%</span>
+                <span style={{ padding:"0.25rem 0.65rem", borderRadius:"var(--radius-full)", background:erC.bg, border:"1px solid "+erC.border, fontSize:"0.75rem", fontWeight:700, color:erC.color }}>{erC.label}</span>
               </div>
             </div>
           </div>
@@ -4345,47 +4601,47 @@ function ReportSummaryPage() {
       </div>
 
 
-      {/* CROSS-PLATFORM RANKING */}
+      {/* ══ CROSS-PLATFORM RANKING ════════════════════════════════════════════ */}
       {platformData.length > 1 && (
         <div className="report-section" style={{ marginBottom:"1.5rem" }}>
           <div className="report-section-head">
-            <div className="report-section-icon" style={{ background:"rgba(99,102,241,0.1)",border:"1px solid rgba(99,102,241,0.2)" }}>
-              <i data-lucide="bar-chart-horizontal" style={{ width:"16px",height:"16px",color:"#6366F1" }}></i>
+            <div className="report-section-icon" style={{ background:"rgba(99,102,241,0.1)", border:"1px solid rgba(99,102,241,0.2)" }}>
+              <i data-lucide="bar-chart-horizontal" style={{ width:"16px", height:"16px", color:"#6366F1" }}></i>
             </div>
             <div className="report-section-label">Cross-Platform Comparison</div>
           </div>
           <div className="report-section-body">
-            <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:"1rem",marginBottom:"1.25rem" }}>
-              {["Impressions","Reach","Engagement","ER %"].map(function(metric) {
-                var sorted = platformData.slice().sort(function(a,b) {
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))", gap:"1rem", marginBottom:"1.25rem" }}>
+              {["Impressions","Reach","Engagement","ER %"].map(function(metric){
+                var sorted=platformData.slice().sort(function(a,b){
                   if (metric==="Impressions") return b.imp-a.imp;
                   if (metric==="Reach")       return b.reach-a.reach;
                   if (metric==="Engagement")  return b.eng-a.eng;
                   return parseFloat(b.er)-parseFloat(a.er);
                 });
-                var maxVal = sorted.length>0 ? (metric==="ER %"?parseFloat(sorted[0].er) : (metric==="Impressions"?sorted[0].imp : metric==="Reach"?sorted[0].reach : sorted[0].eng)) : 1;
+                var maxVal=sorted.length>0?(metric==="ER %"?parseFloat(sorted[0].er):(metric==="Impressions"?sorted[0].imp:metric==="Reach"?sorted[0].reach:sorted[0].eng)):1;
                 return (
-                  <div key={metric} style={{ padding:"1rem",borderRadius:"var(--radius-md)",background:"rgba(7,9,15,0.5)",border:"1px solid var(--border-color)" }}>
-                    <div style={{ fontSize:"0.72rem",color:"var(--text-muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:"0.85rem" }}>{metric} Ranking</div>
-                    {sorted.map(function(pl, rank) {
-                      var val = metric==="ER %"?parseFloat(pl.er) : (metric==="Impressions"?pl.imp : metric==="Reach"?pl.reach : pl.eng);
-                      var disp = metric==="ER %"?pl.er+"%" : fmt(val);
-                      var barPct = maxVal>0?(val/maxVal)*100:0;
-                      var c = pColor(pl.name);
-                      var isLast = rank===sorted.length-1 && sorted.length>1;
+                  <div key={metric} style={{ padding:"1rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.5)", border:"1px solid var(--border-color)" }}>
+                    <div style={{ fontSize:"0.72rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.85rem" }}>{metric} Ranking</div>
+                    {sorted.map(function(pl, rank){
+                      var val=metric==="ER %"?parseFloat(pl.er):(metric==="Impressions"?pl.imp:metric==="Reach"?pl.reach:pl.eng);
+                      var disp=metric==="ER %"?pl.er+"%":fmt(val);
+                      var barPct=maxVal>0?(val/maxVal)*100:0;
+                      var c=pColor(pl.name);
+                      var isLast=rank===sorted.length-1&&sorted.length>1;
                       return (
                         <div key={pl.name} style={{ marginBottom:"0.65rem" }}>
-                          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"0.25rem" }}>
-                            <div style={{ display:"flex",alignItems:"center",gap:"0.4rem" }}>
-                              <span style={{ fontSize:"0.68rem",fontWeight:800,color:isLast?"#F43F5E":"var(--text-subtle)",width:"14px" }}>#{rank+1}</span>
-                              <i data-lucide={pIcon(pl.name)} style={{ width:"11px",height:"11px",color:c }}></i>
-                              <span style={{ fontSize:"0.78rem",fontWeight:600,color:isLast?"#F43F5E":"var(--text-secondary)" }}>{pl.name}</span>
-                              {isLast && <span style={{ fontSize:"0.62rem",color:"#F43F5E",fontWeight:700 }}>Lowest</span>}
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.25rem" }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
+                              <span style={{ fontSize:"0.68rem", fontWeight:800, color:isLast?"#F43F5E":"var(--text-subtle)", width:"14px" }}>#{rank+1}</span>
+                              <i data-lucide={pIcon(pl.name)} style={{ width:"11px", height:"11px", color:c }}></i>
+                              <span style={{ fontSize:"0.78rem", fontWeight:600, color:isLast?"#F43F5E":"var(--text-secondary)" }}>{pl.name}</span>
+                              {isLast && <span style={{ fontSize:"0.62rem", color:"#F43F5E", fontWeight:700 }}>Lowest</span>}
                             </div>
-                            <span style={{ fontSize:"0.78rem",fontWeight:700,color:c }}>{disp}</span>
+                            <span style={{ fontSize:"0.78rem", fontWeight:700, color:c }}>{disp}</span>
                           </div>
                           <div className="progress-bar-track">
-                            <div className="progress-bar-fill" style={{ width:barPct+"%",background:"linear-gradient(90deg,"+c+","+c+"88)" }}></div>
+                            <div className="progress-bar-fill" style={{ width:barPct+"%", background:"linear-gradient(90deg,"+c+","+c+"88)" }}></div>
                           </div>
                         </div>
                       );
@@ -4394,17 +4650,14 @@ function ReportSummaryPage() {
                 );
               })}
             </div>
-            {/* Worst platform call-out */}
-            {platformData.length > 1 && (
-              <div style={{ padding:"0.85rem 1rem",background:"rgba(244,63,94,0.06)",borderRadius:"var(--radius-sm)",border:"1px solid rgba(244,63,94,0.15)" }}>
-                <p style={{ fontSize:"0.8rem",color:"var(--text-muted)",lineHeight:1.6,margin:0 }}>
-                  <strong style={{ color:"#F43F5E" }}>Underperformer alert: </strong>
-                  {platformData[platformData.length-1].name} has the lowest impressions ({fmt(platformData[platformData.length-1].imp)},{" "}
-                  {platformData[platformData.length-1].impShare}% of total) and ER of{" "}
-                  {platformData[platformData.length-1].er}%.
-                  {parseFloat(platformData[platformData.length-1].er) < parseFloat(combined.er)
-                    ? " Consider restructuring content specifically for "+platformData[platformData.length-1].name+"'s algorithm, or reallocating production resources to "+platformData[0].name+"."
-                    : " Despite low volume, the engagement rate is healthy. Consider increasing posting frequency here."}
+            {worstPl && (
+              <div style={{ padding:"0.85rem 1rem", background:"rgba(244,63,94,0.06)", borderRadius:"var(--radius-sm)", border:"1px solid rgba(244,63,94,0.15)" }}>
+                <p style={{ fontSize:"0.8rem", color:"var(--text-muted)", lineHeight:1.6, margin:0 }}>
+                  <strong style={{ color:"#F43F5E" }}>Underperformer: </strong>
+                  {worstPl.name} has the lowest impressions ({fmt(worstPl.imp)}, {worstPl.impShare}% of total) and ER {worstPl.er}%.
+                  {parseFloat(worstPl.er)<parseFloat(combined.er)
+                    ? " Test new content formats tailored to "+worstPl.name+"'s algorithm for 4 weeks before reallocating budget."
+                    : " Volume is low but ER is healthy — consider increasing posting frequency here."}
                 </p>
               </div>
             )}
@@ -4413,155 +4666,132 @@ function ReportSummaryPage() {
       )}
 
 
-      {/* PER-PLATFORM DEEP ANALYSIS */}
-      {platformData.map(function(pl, plIdx) {
-        var color = pColor(pl.name);
-        var erI   = erGrade(pl.er);
+      {/* ══ PER-PLATFORM DEEP ANALYSIS ═══════════════════════════════════════ */}
+      {platformData.map(function(pl, plIdx){
+        var color=pColor(pl.name); var erI=erGrade(pl.er);
+        var isTop=plIdx===0; var isLow=plIdx===platformData.length-1&&platformData.length>1;
         return (
           <div key={pl.name} className="report-section" style={{ marginBottom:"1.5rem" }}>
-            {/* Header */}
-            <div className="report-section-head" style={{ background:"linear-gradient(135deg,"+color+"10,"+color+"04)",borderBottom:"1px solid "+color+"20" }}>
-              <div style={{ width:"36px",height:"36px",borderRadius:"10px",background:color+"18",border:"1px solid "+color+"35",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-                <i data-lucide={pIcon(pl.name)} style={{ width:"16px",height:"16px",color:color }}></i>
+            <div className="report-section-head" style={{ background:"linear-gradient(135deg,"+color+"10,"+color+"04)", borderBottom:"1px solid "+color+"20" }}>
+              <div style={{ width:"36px", height:"36px", borderRadius:"10px", background:color+"18", border:"1px solid "+color+"35", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <i data-lucide={pIcon(pl.name)} style={{ width:"16px", height:"16px", color:color }}></i>
               </div>
               <div style={{ flex:1 }}>
-                <div style={{ display:"flex",alignItems:"center",gap:"0.65rem",flexWrap:"wrap" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:"0.65rem", flexWrap:"wrap" }}>
                   <span className="report-section-label" style={{ color:color }}>{pl.name}</span>
-                  <span style={{ fontSize:"0.7rem",color:erI.color,fontWeight:700,padding:"0.15rem 0.5rem",borderRadius:"var(--radius-full)",background:erI.bg,border:"1px solid "+erI.border }}>ER {pl.er}% — {erI.label}</span>
-                  {plIdx===0 && <span style={{ fontSize:"0.68rem",color:"#F59E0B",fontWeight:800,padding:"0.12rem 0.45rem",borderRadius:"var(--radius-full)",background:"rgba(245,158,11,0.12)",border:"1px solid rgba(245,158,11,0.3)" }}>Top Platform</span>}
-                  {plIdx===platformData.length-1 && platformData.length>1 && <span style={{ fontSize:"0.68rem",color:"#F43F5E",fontWeight:800,padding:"0.12rem 0.45rem",borderRadius:"var(--radius-full)",background:"rgba(244,63,94,0.12)",border:"1px solid rgba(244,63,94,0.3)" }}>Needs Attention</span>}
+                  <span style={{ fontSize:"0.7rem", color:erI.color, fontWeight:700, padding:"0.15rem 0.5rem", borderRadius:"var(--radius-full)", background:erI.bg, border:"1px solid "+erI.border }}>ER {pl.er}% — {erI.label}</span>
+                  {isTop && <span style={{ fontSize:"0.68rem", color:"#F59E0B", fontWeight:800, padding:"0.12rem 0.45rem", borderRadius:"var(--radius-full)", background:"rgba(245,158,11,0.12)", border:"1px solid rgba(245,158,11,0.3)" }}>Top Platform</span>}
+                  {isLow && <span style={{ fontSize:"0.68rem", color:"#F43F5E", fontWeight:800, padding:"0.12rem 0.45rem", borderRadius:"var(--radius-full)", background:"rgba(244,63,94,0.12)", border:"1px solid rgba(244,63,94,0.3)" }}>Needs Attention</span>}
                 </div>
-                <div style={{ fontSize:"0.78rem",color:"var(--text-muted)",marginTop:"0.15rem" }}>
-                  {pl.posts.length} post{pl.posts.length!==1?"s":""}
-                  {pl.dates.length ? "  |  "+fmtDate(pl.dates[0])+" - "+fmtDate(pl.dates[pl.dates.length-1]) : ""}
+                <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", marginTop:"0.15rem" }}>
+                  {pl.posts.length} post{pl.posts.length!==1?"s":""}{pl.dates.length?" | "+fmtDate(pl.dates[0])+" - "+fmtDate(pl.dates[pl.dates.length-1]):""}
                 </div>
               </div>
-              <div style={{ textAlign:"right",flexShrink:0 }}>
-                <div style={{ fontSize:"1.4rem",fontWeight:900,fontFamily:"var(--font-heading)",color:color }}>{fmt(pl.imp)}</div>
-                <div style={{ fontSize:"0.7rem",color:"var(--text-subtle)",textTransform:"uppercase",letterSpacing:"0.04em" }}>Impressions</div>
+              <div style={{ textAlign:"right", flexShrink:0 }}>
+                <div style={{ fontSize:"1.4rem", fontWeight:900, fontFamily:"var(--font-heading)", color:color }}>{fmt(pl.imp)}</div>
+                <div style={{ fontSize:"0.7rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.04em" }}>Impressions</div>
               </div>
             </div>
-
             <div className="report-section-body">
-              {/* 8-metric KPI grid */}
-              <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:"0.85rem",marginBottom:"1.5rem" }}>
+              {/* 8 KPI boxes */}
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))", gap:"0.85rem", marginBottom:"1.5rem" }}>
                 {[
-                  { label:"Impressions",    value:fmt(pl.imp),      sub:pl.impShare+"% of total",    c:color },
-                  { label:"Reach",          value:fmt(pl.reach),    sub:pl.reachShare+"% of total",  c:"var(--accent-primary)" },
-                  { label:"Engagement",     value:fmt(pl.eng),      sub:pl.engShare+"% of total",    c:"var(--accent-emerald)" },
-                  { label:"Eng. Rate",      value:pl.er+"%",        sub:erI.label,                    c:erI.color },
+                  { label:"Impressions",    value:fmt(pl.imp),      sub:pl.impShare+"% of total",   c:color },
+                  { label:"Reach",          value:fmt(pl.reach),    sub:pl.reachShare+"% of total", c:"var(--accent-primary)" },
+                  { label:"Engagement",     value:fmt(pl.eng),      sub:pl.engShare+"% of total",   c:"var(--accent-emerald)" },
+                  { label:"Eng. Rate",      value:pl.er+"%",        sub:erI.label,                   c:erI.color },
                   { label:"Imp/Reach",      value:pl.ir+"x",       sub:parseFloat(pl.ir)>1.5?"Retained":"Single-view", c:"#EC4899" },
-                  { label:"Avg Views/Post", value:fmt(pl.avgImp),   sub:"per post",                   c:"#F59E0B" },
-                  { label:"Avg Reach/Post", value:fmt(pl.avgReach), sub:"per post",                   c:"var(--accent-primary)" },
-                  { label:"Avg Eng/Post",   value:fmt(pl.avgEng),   sub:"per post",                   c:"var(--accent-emerald)" },
-                ].map(function(k, ki) {
-                  return (
-                    <div key={ki} style={{ padding:"0.85rem 1rem",borderRadius:"var(--radius-md)",background:"rgba(7,9,15,0.5)",border:"1px solid "+color+"18" }}>
-                      <div style={{ fontSize:"0.68rem",color:"var(--text-subtle)",textTransform:"uppercase",letterSpacing:"0.05em",fontWeight:700,marginBottom:"0.4rem" }}>{k.label}</div>
-                      <div style={{ fontSize:"1.15rem",fontWeight:800,fontFamily:"var(--font-heading)",color:k.c,lineHeight:1,marginBottom:"0.2rem" }}>{k.value}</div>
-                      <div style={{ fontSize:"0.7rem",color:"var(--text-subtle)" }}>{k.sub}</div>
-                    </div>
-                  );
-                })}
+                  { label:"Avg Views/Post", value:fmt(pl.avgImp),   sub:"per post",                  c:"#F59E0B" },
+                  { label:"Avg Reach/Post", value:fmt(pl.avgReach), sub:"per post",                  c:"var(--accent-primary)" },
+                  { label:"Avg Eng/Post",   value:fmt(pl.avgEng),   sub:"per post",                  c:"var(--accent-emerald)" },
+                ].map(function(k,ki){ return (
+                  <div key={ki} style={{ padding:"0.85rem 1rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.5)", border:"1px solid "+color+"18" }}>
+                    <div style={{ fontSize:"0.68rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.05em", fontWeight:700, marginBottom:"0.4rem" }}>{k.label}</div>
+                    <div style={{ fontSize:"1.15rem", fontWeight:800, fontFamily:"var(--font-heading)", color:k.c, lineHeight:1, marginBottom:"0.2rem" }}>{k.value}</div>
+                    <div style={{ fontSize:"0.7rem", color:"var(--text-subtle)" }}>{k.sub}</div>
+                  </div>
+                ); })}
               </div>
 
 
-              {/* Engagement mix + share of total + narrative */}
-              <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:"1.25rem",marginBottom:"1.5rem" }}>
-                {/* Engagement mix */}
-                <div style={{ padding:"1.1rem 1.25rem",borderRadius:"var(--radius-md)",background:"rgba(7,9,15,0.4)",border:"1px solid "+color+"15" }}>
-                  <div style={{ fontSize:"0.75rem",color:"var(--text-muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:"1rem" }}>Engagement Mix</div>
+              {/* Engagement mix + narrative */}
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))", gap:"1.25rem", marginBottom:"1.5rem" }}>
+                <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.4)", border:"1px solid "+color+"15" }}>
+                  <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"1rem" }}>Engagement Mix</div>
                   {[
                     { label:"Likes",    icon:"heart",          v:pl.lik, p:pl.likPct, c:"#F43F5E", g:"linear-gradient(90deg,#F43F5E,#FB7185)" },
                     { label:"Comments", icon:"message-circle", v:pl.com, p:pl.comPct, c:"#8B5CF6", g:"linear-gradient(90deg,#8B5CF6,#A78BFA)" },
                     { label:"Shares",   icon:"repeat-2",       v:pl.sha, p:pl.shaPct, c:"#06B6D4", g:"linear-gradient(90deg,#06B6D4,#22D3EE)" },
                     { label:"Saves",    icon:"bookmark",       v:pl.sav, p:pl.savPct, c:"#10B981", g:"linear-gradient(90deg,#10B981,#34D399)" },
-                  ].map(function(item) {
-                    return (
-                      <div key={item.label} className="engagement-bar-row">
-                        <div className="engagement-bar-label"><i data-lucide={item.icon} style={{ width:"13px",height:"13px",color:item.c,flexShrink:0 }}></i>{item.label}</div>
-                        <div className="engagement-bar-track"><div className="engagement-bar-fill" style={{ width:item.p+"%",background:item.g }}></div></div>
-                        <div className="engagement-bar-value">{fmt(item.v)}</div>
-                        <div className="engagement-bar-pct">{item.p}%</div>
-                      </div>
-                    );
-                  })}
+                  ].map(function(item){ return (
+                    <div key={item.label} className="engagement-bar-row">
+                      <div className="engagement-bar-label"><i data-lucide={item.icon} style={{ width:"13px", height:"13px", color:item.c, flexShrink:0 }}></i>{item.label}</div>
+                      <div className="engagement-bar-track"><div className="engagement-bar-fill" style={{ width:item.p+"%", background:item.g }}></div></div>
+                      <div className="engagement-bar-value">{fmt(item.v)}</div>
+                      <div className="engagement-bar-pct">{item.p}%</div>
+                    </div>
+                  ); })}
                 </div>
-                {/* Platform narrative */}
-                <div style={{ padding:"1.1rem 1.25rem",borderRadius:"var(--radius-md)",background:"rgba(7,9,15,0.4)",border:"1px solid "+color+"15" }}>
-                  <div style={{ fontSize:"0.75rem",color:"var(--text-muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:"0.85rem" }}>Platform Analysis</div>
+                <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.4)", border:"1px solid "+color+"15" }}>
+                  <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.85rem" }}>Platform Analysis</div>
                   <div className="insight-prose" style={{ fontSize:"0.82rem" }}>
                     <p><strong style={{ color:color }}>{pl.name}</strong> contributes <strong>{pl.impShare}%</strong> of impressions and <strong>{pl.engShare}%</strong> of engagement.</p>
-                    <p>{parseFloat(pl.er) > parseFloat(combined.er)
-                      ? "ER of "+pl.er+"% exceeds account average ("+combined.er+"%) — this platform generates the highest audience return per view."
-                      : "ER of "+pl.er+"% is below account average ("+combined.er+"%). Review content format, caption length, posting times, and hashtag strategy for this platform."}</p>
-                    <p>{parseFloat(pl.ir) > 1.5
-                      ? "Imp/Reach ratio "+pl.ir+"x — viewers are rewatching. Strong hook and replay-worthy content."
-                      : "Imp/Reach ratio "+pl.ir+"x — most viewers see content once. Improve hook strength and thumbnail quality to increase replays."}</p>
-                    {/* Weakest engagement on this platform */}
-                    <p style={{ padding:"0.6rem 0.75rem",background:"rgba(244,63,94,0.06)",borderRadius:"var(--radius-sm)",border:"1px solid rgba(244,63,94,0.15)",marginBottom:0 }}>
+                    <p>{parseFloat(pl.er)>parseFloat(combined.er)
+                      ? "ER "+pl.er+"% exceeds account average ("+combined.er+"%) — this platform gives the best return per view."
+                      : "ER "+pl.er+"% is below account average ("+combined.er+"%). Review content format, caption length, posting times, and hashtags."}</p>
+                    <p style={{ padding:"0.6rem 0.75rem", background:"rgba(244,63,94,0.06)", borderRadius:"var(--radius-sm)", border:"1px solid rgba(244,63,94,0.15)", marginBottom:0 }}>
                       <strong style={{ color:"#F43F5E" }}>Weakness: </strong>
-                      {parseFloat(pl.savPct) < 10
-                        ? "Low save rate ("+pl.savPct+"%) on "+pl.name+". Add evergreen value — step-by-step guides, templates, or 'save for later' hooks."
-                        : parseFloat(pl.shaPct) < 10
-                          ? "Low share rate ("+pl.shaPct+"%) on "+pl.name+". Try shareable formats — opinion takes, surprising stats, or relatable humour."
-                          : "Comment rate ("+pl.comPct+"%) could improve. Pose a question at the end of every "+pl.name+" caption."}
+                      {parseFloat(pl.savPct)<10
+                        ? "Low save rate ("+pl.savPct+"%) on "+pl.name+". Add evergreen value — step-by-step guides and 'save for later' hooks."+(brief.pillars?" Tie into pillars: "+brief.pillars+"." : "")
+                        : parseFloat(pl.shaPct)<10
+                          ? "Low share rate ("+pl.shaPct+"%) on "+pl.name+". Shareable formats: opinion takes, surprising stats, relatable humour."
+                          : "Comment rate ("+pl.comPct+"%) could improve. End every "+pl.name+" caption with a direct question."+(brief.audience?" Speak to "+brief.audience+"." : "")}
                     </p>
                   </div>
                 </div>
               </div>
 
-
-              {/* Top post + worst post side by side */}
-              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"1rem",marginBottom:"1.5rem" }}>
-                {pl.topPost && (
-                  <div style={{ padding:"1.1rem 1.25rem",borderRadius:"var(--radius-md)",background:"linear-gradient(135deg,rgba(245,158,11,0.08),rgba(245,158,11,0.03))",border:"1px solid rgba(245,158,11,0.25)" }}>
-                    <div style={{ display:"flex",alignItems:"center",gap:"0.5rem",marginBottom:"0.6rem" }}>
-                      <i data-lucide="award" style={{ width:"14px",height:"14px",color:"#F59E0B" }}></i>
-                      <span style={{ fontSize:"0.72rem",color:"#F59E0B",fontWeight:800,textTransform:"uppercase",letterSpacing:"0.05em" }}>Best Post</span>
+              {/* Best post + Worst post */}
+              {pl.topPost && (
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1rem", marginBottom:"1.5rem" }}>
+                  <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"linear-gradient(135deg,rgba(245,158,11,0.08),rgba(245,158,11,0.03))", border:"1px solid rgba(245,158,11,0.25)" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.6rem" }}>
+                      <i data-lucide="award" style={{ width:"14px", height:"14px", color:"#F59E0B" }}></i>
+                      <span style={{ fontSize:"0.72rem", color:"#F59E0B", fontWeight:800, textTransform:"uppercase", letterSpacing:"0.05em" }}>Best Post on {pl.name}</span>
                     </div>
-                    <p style={{ fontSize:"0.82rem",color:"var(--text-secondary)",lineHeight:1.5,marginBottom:"0.75rem" }}>"{(pl.topPost.caption||"").substring(0,90)}{pl.topPost.caption&&pl.topPost.caption.length>90?"...":""}"</p>
-                    <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"0.5rem" }}>
-                      {[{l:"Views",v:fmt(pl.topPost.impressions||0),c:"var(--accent-cyan)"},{l:"Reach",v:fmt(pl.topPost.reach||0),c:"var(--text-main)"},{l:"ER",v:calcEr((pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0),pl.topPost.reach||0)+"%",c:erGrade(calcEr((pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0),pl.topPost.reach||0)).color}].map(function(m){return(
+                    <p style={{ fontSize:"0.82rem", color:"var(--text-secondary)", lineHeight:1.5, marginBottom:"0.75rem" }}>"{(pl.topPost.caption||"").substring(0,90)}{pl.topPost.caption&&pl.topPost.caption.length>90?"...":""}"</p>
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"0.5rem" }}>
+                      {[{l:"Views",v:fmt(pl.topPost.impressions||0),c:"var(--accent-cyan)"},{l:"Reach",v:fmt(pl.topPost.reach||0),c:"var(--text-main)"},{l:"ER",v:calcEr((pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0),pl.topPost.reach||0)+"%",c:erGrade(calcEr((pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0),pl.topPost.reach||0)).color}].map(function(m){ return (
                         <div key={m.l} style={{ textAlign:"center" }}>
-                          <div style={{ fontSize:"0.62rem",color:"var(--text-subtle)",textTransform:"uppercase",letterSpacing:"0.04em",fontWeight:600 }}>{m.l}</div>
-                          <div style={{ fontSize:"0.92rem",fontWeight:800,fontFamily:"var(--font-heading)",color:m.c }}>{m.v}</div>
+                          <div style={{ fontSize:"0.62rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.04em", fontWeight:600 }}>{m.l}</div>
+                          <div style={{ fontSize:"0.92rem", fontWeight:800, fontFamily:"var(--font-heading)", color:m.c }}>{m.v}</div>
                         </div>
-                      );})}
+                      ); })}
                     </div>
                   </div>
-                )}
-                {pl.worstPost && pl.worstPost !== pl.topPost && (
-                  <div style={{ padding:"1.1rem 1.25rem",borderRadius:"var(--radius-md)",background:"linear-gradient(135deg,rgba(244,63,94,0.07),rgba(244,63,94,0.02))",border:"1px solid rgba(244,63,94,0.2)" }}>
-                    <div style={{ display:"flex",alignItems:"center",gap:"0.5rem",marginBottom:"0.6rem" }}>
-                      <i data-lucide="alert-triangle" style={{ width:"14px",height:"14px",color:"#F43F5E" }}></i>
-                      <span style={{ fontSize:"0.72rem",color:"#F43F5E",fontWeight:800,textTransform:"uppercase",letterSpacing:"0.05em" }}>Lowest Post — Needs Review</span>
+                  {pl.worstPost && pl.worstPost.id !== pl.topPost.id && (
+                    <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"linear-gradient(135deg,rgba(244,63,94,0.07),rgba(244,63,94,0.02))", border:"1px solid rgba(244,63,94,0.2)" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.6rem" }}>
+                        <i data-lucide="alert-triangle" style={{ width:"14px", height:"14px", color:"#F43F5E" }}></i>
+                        <span style={{ fontSize:"0.72rem", color:"#F43F5E", fontWeight:800, textTransform:"uppercase", letterSpacing:"0.05em" }}>Lowest Post — Needs Review</span>
+                      </div>
+                      <p style={{ fontSize:"0.82rem", color:"var(--text-secondary)", lineHeight:1.5, marginBottom:"0.75rem" }}>"{(pl.worstPost.caption||"").substring(0,90)}{pl.worstPost.caption&&pl.worstPost.caption.length>90?"...":""}"</p>
+                      <p style={{ fontSize:"0.75rem", color:"var(--text-muted)", lineHeight:1.55, margin:0, padding:"0.5rem 0.65rem", background:"rgba(244,63,94,0.05)", borderRadius:"6px", border:"1px solid rgba(244,63,94,0.15)" }}>
+                        <strong style={{ color:"#F43F5E" }}>Action: </strong>
+                        {pl.topPost&&pl.worstPost.impressions>0
+                          ? "This post got "+Math.round((pl.topPost.impressions||0)/(pl.worstPost.impressions||1))+"x fewer views than your best on "+pl.name+". Compare hook, posting time, and hashtags."
+                          : "Review caption hook, posting time, and hashtag relevance. Reschedule with improved structure."}
+                      </p>
                     </div>
-                    <p style={{ fontSize:"0.82rem",color:"var(--text-secondary)",lineHeight:1.5,marginBottom:"0.75rem" }}>"{(pl.worstPost.caption||"").substring(0,90)}{pl.worstPost.caption&&pl.worstPost.caption.length>90?"...":""}"</p>
-                    <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"0.5rem",marginBottom:"0.6rem" }}>
-                      {[{l:"Views",v:fmt(pl.worstPost.impressions||0),c:"#F43F5E"},{l:"Reach",v:fmt(pl.worstPost.reach||0),c:"var(--text-muted)"},{l:"ER",v:calcEr((pl.worstPost.likes||0)+(pl.worstPost.comments||0)+(pl.worstPost.shares||0)+(pl.worstPost.saves||0),pl.worstPost.reach||0)+"%",c:"#F43F5E"}].map(function(m){return(
-                        <div key={m.l} style={{ textAlign:"center" }}>
-                          <div style={{ fontSize:"0.62rem",color:"var(--text-subtle)",textTransform:"uppercase",letterSpacing:"0.04em",fontWeight:600 }}>{m.l}</div>
-                          <div style={{ fontSize:"0.92rem",fontWeight:800,fontFamily:"var(--font-heading)",color:m.c }}>{m.v}</div>
-                        </div>
-                      );})}
-                    </div>
-                    <p style={{ fontSize:"0.75rem",color:"var(--text-muted)",lineHeight:1.55,margin:0 }}>
-                      <strong style={{ color:"#F43F5E" }}>Action: </strong>
-                      {pl.topPost && pl.worstPost.impressions > 0
-                        ? "This post got "+Math.round((pl.topPost.impressions||0)/(pl.worstPost.impressions||1))+"x fewer views than your best. Compare posting times, caption structure, and hashtags."
-                        : "Review caption quality, hashtags, and posting time. Consider rescheduling with improved copy."}
-                    </p>
-                  </div>
-                )}
-              </div>
-
+                  )}
+                </div>
+              )}
 
               {/* All posts table */}
-              <div style={{ fontSize:"0.75rem",color:"var(--text-muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:"0.75rem" }}>
+              <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.75rem" }}>
                 All {pl.posts.length} Post{pl.posts.length!==1?"s":""} — sorted by views
               </div>
-              <div style={{ borderRadius:"var(--radius-md)",border:"1px solid "+color+"20",overflow:"hidden" }}>
+              <div style={{ borderRadius:"var(--radius-md)", border:"1px solid "+color+"20", overflowX:"auto" }}>
                 <table className="custom-table" style={{ fontSize:"0.79rem" }}>
                   <thead>
                     <tr>
@@ -4575,24 +4805,23 @@ function ReportSummaryPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {pl.sortedPosts.map(function(post, pi) {
-                      var pe = (post.likes||0)+(post.comments||0)+(post.shares||0)+(post.saves||0);
-                      var er = calcEr(pe, post.reach||0);
-                      var isBest  = pi===0;
-                      var isWorst = pi===pl.sortedPosts.length-1 && pl.sortedPosts.length>1;
+                    {pl.sortedPosts.map(function(post,pi){
+                      var pe=(post.likes||0)+(post.comments||0)+(post.shares||0)+(post.saves||0);
+                      var er=calcEr(pe,post.reach||0);
+                      var isBest=pi===0; var isWorst=pi===pl.sortedPosts.length-1&&pl.sortedPosts.length>1;
                       return (
                         <tr key={post.id||pi} style={{ background:isBest?color+"0A":isWorst?"rgba(244,63,94,0.04)":"" }}>
-                          <td style={{ fontWeight:700,color:isBest?color:isWorst?"#F43F5E":"var(--text-subtle)" }}>{isBest?"Best":isWorst?"Low":"#"+(pi+1)}</td>
-                          <td style={{ whiteSpace:"nowrap",color:"var(--text-muted)" }}>{fmtDate(post.uploadDate)}</td>
-                          <td><span style={{ overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",display:"block",maxWidth:"170px" }} title={post.caption||""}>{(post.caption||"-").substring(0,55)}{post.caption&&post.caption.length>55?"...":""}</span></td>
-                          <td style={{ fontWeight:700,color:"var(--accent-cyan)" }}>{fmt(post.impressions||0)}</td>
+                          <td style={{ fontWeight:700, color:isBest?color:isWorst?"#F43F5E":"var(--text-subtle)", fontSize:"0.8rem" }}>{isBest?"Best":isWorst?"Low":"#"+(pi+1)}</td>
+                          <td style={{ whiteSpace:"nowrap", color:"var(--text-muted)" }}>{fmtDate(post.uploadDate)}</td>
+                          <td><span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block", maxWidth:"170px" }} title={post.caption||""}>{(post.caption||"-").substring(0,55)}{post.caption&&post.caption.length>55?"...":""}</span></td>
+                          <td style={{ fontWeight:700, color:"var(--accent-cyan)" }}>{fmt(post.impressions||0)}</td>
                           <td>{fmt(post.reach||0)}</td>
-                          <td style={{ fontWeight:700,color:"var(--accent-emerald)" }}>{fmt(pe)}</td>
+                          <td style={{ fontWeight:700, color:"var(--accent-emerald)" }}>{fmt(pe)}</td>
                           <td>{fmt(post.likes||0)}</td>
                           <td>{fmt(post.comments||0)}</td>
                           <td>{fmt(post.shares||0)}</td>
                           <td>{fmt(post.saves||0)}</td>
-                          <td style={{ fontWeight:700,color:erGrade(er).color }}>{er}%</td>
+                          <td style={{ fontWeight:700, color:erGrade(er).color }}>{er}%</td>
                           <td><span className={"badge badge-"+((post.status||"uploaded").toLowerCase())}>{post.status||"-"}</span></td>
                         </tr>
                       );
@@ -4606,144 +4835,37 @@ function ReportSummaryPage() {
       })}
 
 
-      {/* CONTENT TYPE ANALYSIS */}
-      {contentTypeData.length > 0 && (
-        <div className="report-section" style={{ marginBottom:"1.5rem" }}>
-          <div className="report-section-head">
-            <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.2)" }}>
-              <i data-lucide="film" style={{ width:"16px",height:"16px",color:"var(--accent-amber)" }}></i>
-            </div>
-            <div className="report-section-label">Content Type Performance</div>
-          </div>
-          <div className="report-section-body">
-            <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:"1rem",marginBottom:"1.25rem" }}>
-              {contentTypeData.map(function(ct, cti) {
-                var isBest  = cti===0;
-                var isWorst = cti===contentTypeData.length-1 && contentTypeData.length>1;
-                var erI = erGrade(ct.er);
-                return (
-                  <div key={ct.type} style={{ padding:"1.1rem",borderRadius:"var(--radius-md)",border:"1px solid "+(isBest?"rgba(6,182,212,0.3)":isWorst?"rgba(244,63,94,0.25)":"var(--border-color)"),background:isBest?"linear-gradient(135deg,rgba(6,182,212,0.08),rgba(6,182,212,0.03))":isWorst?"linear-gradient(135deg,rgba(244,63,94,0.06),rgba(244,63,94,0.02))":"rgba(7,9,15,0.5)" }}>
-                    <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"0.75rem" }}>
-                      <span style={{ fontWeight:700,fontSize:"0.9rem",color:isBest?"var(--accent-cyan)":isWorst?"#F43F5E":"var(--text-main)" }}>{ct.type}</span>
-                      <div style={{ display:"flex",gap:"0.35rem" }}>
-                        {isBest  && <span style={{ fontSize:"0.62rem",fontWeight:800,color:"var(--accent-cyan)",padding:"0.12rem 0.4rem",borderRadius:"4px",background:"rgba(6,182,212,0.12)",border:"1px solid rgba(6,182,212,0.25)" }}>Best</span>}
-                        {isWorst && <span style={{ fontSize:"0.62rem",fontWeight:800,color:"#F43F5E",padding:"0.12rem 0.4rem",borderRadius:"4px",background:"rgba(244,63,94,0.12)",border:"1px solid rgba(244,63,94,0.25)" }}>Lowest</span>}
-                      </div>
-                    </div>
-                    <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.6rem",marginBottom:"0.75rem" }}>
-                      {[{l:"Posts",v:""+ct.posts.length,c:"var(--text-muted)"},{l:"Avg Views",v:fmt(ct.avgImp),c:"var(--accent-cyan)"},{l:"Avg ER%",v:ct.er+"%",c:erI.color},{l:"Impressions",v:fmt(ct.imp),c:"var(--text-main)"}].map(function(m){return(
-                        <div key={m.l} style={{ padding:"0.5rem 0.65rem",borderRadius:"6px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)" }}>
-                          <div style={{ fontSize:"0.65rem",color:"var(--text-subtle)",textTransform:"uppercase",letterSpacing:"0.04em",fontWeight:600,marginBottom:"0.2rem" }}>{m.l}</div>
-                          <div style={{ fontSize:"0.92rem",fontWeight:800,fontFamily:"var(--font-heading)",color:m.c }}>{m.v}</div>
-                        </div>
-                      );})}
-                    </div>
-                    {isBest && (
-                      <p style={{ fontSize:"0.75rem",color:"var(--text-muted)",lineHeight:1.55,margin:0,padding:"0.6rem 0.75rem",background:"rgba(6,182,212,0.05)",borderRadius:"6px",border:"1px solid rgba(6,182,212,0.12)" }}>
-                        <strong style={{ color:"var(--accent-cyan)" }}>Suggestion: </strong>
-                        {ct.type} content averages {fmt(ct.avgImp)} views — your best-performing format. Increase production frequency and test variations of this format.
-                      </p>
-                    )}
-                    {isWorst && contentTypeData.length > 1 && (
-                      <p style={{ fontSize:"0.75rem",color:"var(--text-muted)",lineHeight:1.55,margin:0,padding:"0.6rem 0.75rem",background:"rgba(244,63,94,0.05)",borderRadius:"6px",border:"1px solid rgba(244,63,94,0.12)" }}>
-                        <strong style={{ color:"#F43F5E" }}>Action: </strong>
-                        {ct.type} averages only {fmt(ct.avgImp)} views vs {fmt(contentTypeData[0].avgImp)} for {contentTypeData[0].type}. Consider reducing {ct.type} output or significantly revising its execution strategy.
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* SUBJECT PERFORMANCE */}
-      {subjectData.length > 0 && (
-        <div className="report-section" style={{ marginBottom:"1.5rem" }}>
-          <div className="report-section-head">
-            <div className="report-section-icon" style={{ background:"rgba(236,72,153,0.1)",border:"1px solid rgba(236,72,153,0.2)" }}>
-              <i data-lucide="users" style={{ width:"16px",height:"16px",color:"#EC4899" }}></i>
-            </div>
-            <div className="report-section-label">Subject & Talent Performance</div>
-          </div>
-          <div className="report-section-body">
-            {subjectData.map(function(s, si) {
-              var grads = ["linear-gradient(135deg,#8B5CF6,#06B6D4)","linear-gradient(135deg,#10B981,#06B6D4)","linear-gradient(135deg,#F59E0B,#EF4444)","linear-gradient(135deg,#EC4899,#8B5CF6)","linear-gradient(135deg,#6366F1,#06B6D4)"];
-              var initials = s.name.split(" ").map(function(n){return n[0]||"";}).join("").toUpperCase().slice(0,2);
-              var sharePct = pct(s.imp, combined.imp||1);
-              var barPct   = subjectData[0].imp > 0 ? (s.imp/subjectData[0].imp)*100 : 0;
-              var isTop    = si===0;
-              var isLow    = si===subjectData.length-1 && subjectData.length>1;
-              return (
-                <div key={s.name} className="subject-person-row" style={{ background:isLow?"rgba(244,63,94,0.03)":"" }}>
-                  <div className="subject-avatar" style={{ background:grads[si%grads.length] }}>{initials}</div>
-                  <div className="subject-info">
-                    <div style={{ display:"flex",alignItems:"center",gap:"0.4rem" }}>
-                      <div className="subject-name">{s.name}</div>
-                      {isTop && <span style={{ fontSize:"0.62rem",fontWeight:800,color:"#F59E0B",padding:"0.1rem 0.35rem",borderRadius:"4px",background:"rgba(245,158,11,0.12)",border:"1px solid rgba(245,158,11,0.25)" }}>Top</span>}
-                      {isLow && <span style={{ fontSize:"0.62rem",fontWeight:800,color:"#F43F5E",padding:"0.1rem 0.35rem",borderRadius:"4px",background:"rgba(244,63,94,0.12)",border:"1px solid rgba(244,63,94,0.25)" }}>Lowest</span>}
-                    </div>
-                    <div className="subject-meta">{s.count} appearance{s.count!==1?"s":""} — {sharePct}% of total impressions</div>
-                  </div>
-                  <div style={{ textAlign:"right",marginRight:"1rem",flexShrink:0 }}>
-                    <div style={{ fontSize:"1.05rem",fontWeight:800,fontFamily:"var(--font-heading)",color:isLow?"#F43F5E":"var(--text-main)" }}>{fmt(s.imp)}</div>
-                    <div style={{ fontSize:"0.72rem",color:"var(--text-muted)" }}>impressions</div>
-                  </div>
-                  <div className="subject-bar-wrap">
-                    <div className="progress-bar-track">
-                      <div className="progress-bar-fill" style={{ width:barPct+"%",background:isLow?"linear-gradient(90deg,#F43F5E,#F97316)":grads[si%grads.length] }}></div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {subjectData.length > 1 && (
-              <div style={{ marginTop:"1rem",padding:"0.85rem 1rem",background:"rgba(244,63,94,0.05)",borderRadius:"var(--radius-sm)",border:"1px solid rgba(244,63,94,0.15)" }}>
-                <p style={{ fontSize:"0.8rem",color:"var(--text-muted)",lineHeight:1.6,margin:0 }}>
-                  <strong style={{ color:"#F43F5E" }}>Talent gap: </strong>
-                  {subjectData[0].name} drives {pct(subjectData[0].imp,combined.imp||1)}% of impressions vs {subjectData[subjectData.length-1].name} at {pct(subjectData[subjectData.length-1].imp,combined.imp||1)}%.
-                  Consider increasing {subjectData[0].name}'s content frequency and testing collaborative formats between subjects to cross-pollinate audiences.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-
-      {/* TOP 3 + BOTTOM 3 */}
+      {/* ══ TOP 3 + BOTTOM 2 ═════════════════════════════════════════════════ */}
       <div className="report-two-col" style={{ marginBottom:"1.5rem" }}>
-
         {combined.topContent.length > 0 && (
           <div className="report-section" style={{ marginBottom:0 }}>
             <div className="report-section-head">
-              <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.2)" }}>
-                <i data-lucide="award" style={{ width:"16px",height:"16px",color:"var(--accent-amber)" }}></i>
+              <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.2)" }}>
+                <i data-lucide="award" style={{ width:"16px", height:"16px", color:"var(--accent-amber)" }}></i>
               </div>
               <div className="report-section-label">Top 3 Performing Content</div>
             </div>
             <div className="report-section-body" style={{ padding:"1rem" }}>
-              {combined.topContent.map(function(c, i) {
-                var eng = (c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
-                var col = pColor(c.platform);
-                var ranks = ["1st","2nd","3rd"];
+              {combined.topContent.map(function(c,i){
+                var eng=(c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
+                var col=pColor(c.platform);
+                var ranks=["1st","2nd","3rd"];
                 return (
-                  <div key={c.id||i} style={{ padding:"0.85rem",borderRadius:"var(--radius-md)",border:"1px solid "+(i===0?"rgba(245,158,11,0.3)":"var(--border-color)"),background:i===0?"linear-gradient(135deg,rgba(245,158,11,0.07),rgba(245,158,11,0.02))":"rgba(7,9,15,0.4)",marginBottom:"0.75rem" }}>
-                    <div style={{ display:"flex",alignItems:"center",gap:"0.5rem",marginBottom:"0.5rem" }}>
-                      <span style={{ fontSize:"0.72rem",fontWeight:800,color:i===0?"#F59E0B":"var(--text-muted)",padding:"0.12rem 0.45rem",borderRadius:"4px",background:i===0?"rgba(245,158,11,0.15)":"rgba(255,255,255,0.05)",border:i===0?"1px solid rgba(245,158,11,0.3)":"1px solid var(--border-color)" }}>{ranks[i]}</span>
-                      <i data-lucide={pIcon(c.platform)} style={{ width:"12px",height:"12px",color:col }}></i>
-                      <span style={{ fontSize:"0.78rem",fontWeight:600,color:col }}>{c.platform}</span>
-                      <span style={{ fontSize:"0.72rem",color:"var(--text-muted)" }}>{fmtDate(c.uploadDate)}</span>
+                  <div key={c.id||i} style={{ padding:"0.85rem", borderRadius:"var(--radius-md)", border:"1px solid "+(i===0?"rgba(245,158,11,0.3)":"var(--border-color)"), background:i===0?"linear-gradient(135deg,rgba(245,158,11,0.07),rgba(245,158,11,0.02))":"rgba(7,9,15,0.4)", marginBottom:"0.75rem" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.5rem" }}>
+                      <span style={{ fontSize:"0.72rem", fontWeight:800, color:i===0?"#F59E0B":"var(--text-muted)", padding:"0.12rem 0.45rem", borderRadius:"4px", background:i===0?"rgba(245,158,11,0.15)":"rgba(255,255,255,0.05)", border:i===0?"1px solid rgba(245,158,11,0.3)":"1px solid var(--border-color)" }}>{ranks[i]}</span>
+                      <i data-lucide={pIcon(c.platform)} style={{ width:"12px", height:"12px", color:col }}></i>
+                      <span style={{ fontSize:"0.78rem", fontWeight:600, color:col }}>{c.platform}</span>
+                      <span style={{ fontSize:"0.72rem", color:"var(--text-muted)" }}>{fmtDate(c.uploadDate)}</span>
                     </div>
-                    <p style={{ fontSize:"0.82rem",color:"var(--text-secondary)",lineHeight:1.5,marginBottom:"0.6rem" }}>"{(c.caption||"").substring(0,80)}{c.caption&&c.caption.length>80?"...":""}"</p>
-                    <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"0.4rem" }}>
-                      {[{l:"Views",v:fmt(c.impressions||0),c:"var(--accent-cyan)"},{l:"Reach",v:fmt(c.reach||0),c:"var(--text-main)"},{l:"Eng.",v:fmt(eng),c:"var(--accent-emerald)"},{l:"ER",v:calcEr(eng,c.reach||0)+"%",c:erGrade(calcEr(eng,c.reach||0)).color}].map(function(m){return(
-                        <div key={m.l} style={{ textAlign:"center",padding:"0.4rem",borderRadius:"6px",background:"rgba(255,255,255,0.03)" }}>
-                          <div style={{ fontSize:"0.6rem",color:"var(--text-subtle)",textTransform:"uppercase",letterSpacing:"0.04em",fontWeight:600 }}>{m.l}</div>
-                          <div style={{ fontSize:"0.85rem",fontWeight:800,fontFamily:"var(--font-heading)",color:m.c }}>{m.v}</div>
+                    <p style={{ fontSize:"0.82rem", color:"var(--text-secondary)", lineHeight:1.5, marginBottom:"0.6rem" }}>"{(c.caption||"").substring(0,80)}{c.caption&&c.caption.length>80?"...":""}"</p>
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"0.4rem" }}>
+                      {[{l:"Views",v:fmt(c.impressions||0),c:"var(--accent-cyan)"},{l:"Reach",v:fmt(c.reach||0),c:"var(--text-main)"},{l:"Eng.",v:fmt(eng),c:"var(--accent-emerald)"},{l:"ER",v:calcEr(eng,c.reach||0)+"%",c:erGrade(calcEr(eng,c.reach||0)).color}].map(function(m){ return (
+                        <div key={m.l} style={{ textAlign:"center", padding:"0.4rem", borderRadius:"6px", background:"rgba(255,255,255,0.03)" }}>
+                          <div style={{ fontSize:"0.6rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.04em", fontWeight:600 }}>{m.l}</div>
+                          <div style={{ fontSize:"0.85rem", fontWeight:800, fontFamily:"var(--font-heading)", color:m.c }}>{m.v}</div>
                         </div>
-                      );})}
+                      ); })}
                     </div>
                   </div>
                 );
@@ -4751,41 +4873,40 @@ function ReportSummaryPage() {
             </div>
           </div>
         )}
-
         {combined.bottomContent.length > 0 && (
           <div className="report-section" style={{ marginBottom:0 }}>
             <div className="report-section-head">
-              <div className="report-section-icon" style={{ background:"rgba(244,63,94,0.1)",border:"1px solid rgba(244,63,94,0.2)" }}>
-                <i data-lucide="alert-triangle" style={{ width:"16px",height:"16px",color:"#F43F5E" }}></i>
+              <div className="report-section-icon" style={{ background:"rgba(244,63,94,0.1)", border:"1px solid rgba(244,63,94,0.2)" }}>
+                <i data-lucide="alert-triangle" style={{ width:"16px", height:"16px", color:"#F43F5E" }}></i>
               </div>
               <div className="report-section-label">Lowest Performing — Needs Attention</div>
             </div>
             <div className="report-section-body" style={{ padding:"1rem" }}>
-              {combined.bottomContent.map(function(c, i) {
-                var eng = (c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
-                var col = pColor(c.platform);
+              {combined.bottomContent.map(function(c,i){
+                var eng=(c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
+                var col=pColor(c.platform);
                 return (
-                  <div key={c.id||i} style={{ padding:"0.85rem",borderRadius:"var(--radius-md)",border:"1px solid rgba(244,63,94,0.2)",background:"linear-gradient(135deg,rgba(244,63,94,0.06),rgba(244,63,94,0.02))",marginBottom:"0.75rem" }}>
-                    <div style={{ display:"flex",alignItems:"center",gap:"0.5rem",marginBottom:"0.5rem" }}>
-                      <i data-lucide="alert-triangle" style={{ width:"11px",height:"11px",color:"#F43F5E",flexShrink:0 }}></i>
-                      <i data-lucide={pIcon(c.platform)} style={{ width:"11px",height:"11px",color:col }}></i>
-                      <span style={{ fontSize:"0.78rem",fontWeight:600,color:col }}>{c.platform}</span>
-                      <span style={{ fontSize:"0.72rem",color:"var(--text-muted)" }}>{fmtDate(c.uploadDate)}</span>
+                  <div key={c.id||i} style={{ padding:"0.85rem", borderRadius:"var(--radius-md)", border:"1px solid rgba(244,63,94,0.2)", background:"linear-gradient(135deg,rgba(244,63,94,0.06),rgba(244,63,94,0.02))", marginBottom:"0.75rem" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.5rem" }}>
+                      <i data-lucide="alert-triangle" style={{ width:"11px", height:"11px", color:"#F43F5E", flexShrink:0 }}></i>
+                      <i data-lucide={pIcon(c.platform)} style={{ width:"11px", height:"11px", color:col }}></i>
+                      <span style={{ fontSize:"0.78rem", fontWeight:600, color:col }}>{c.platform}</span>
+                      <span style={{ fontSize:"0.72rem", color:"var(--text-muted)" }}>{fmtDate(c.uploadDate)}</span>
                     </div>
-                    <p style={{ fontSize:"0.82rem",color:"var(--text-secondary)",lineHeight:1.5,marginBottom:"0.6rem" }}>"{(c.caption||"").substring(0,80)}{c.caption&&c.caption.length>80?"...":""}"</p>
-                    <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"0.4rem",marginBottom:"0.6rem" }}>
-                      {[{l:"Views",v:fmt(c.impressions||0),c:"#F43F5E"},{l:"Reach",v:fmt(c.reach||0),c:"var(--text-muted)"},{l:"Eng.",v:fmt(eng),c:"var(--text-muted)"},{l:"ER",v:calcEr(eng,c.reach||0)+"%",c:erGrade(calcEr(eng,c.reach||0)).color}].map(function(m){return(
-                        <div key={m.l} style={{ textAlign:"center",padding:"0.4rem",borderRadius:"6px",background:"rgba(244,63,94,0.04)" }}>
-                          <div style={{ fontSize:"0.6rem",color:"var(--text-subtle)",textTransform:"uppercase",letterSpacing:"0.04em",fontWeight:600 }}>{m.l}</div>
-                          <div style={{ fontSize:"0.85rem",fontWeight:800,fontFamily:"var(--font-heading)",color:m.c }}>{m.v}</div>
+                    <p style={{ fontSize:"0.82rem", color:"var(--text-secondary)", lineHeight:1.5, marginBottom:"0.6rem" }}>"{(c.caption||"").substring(0,80)}{c.caption&&c.caption.length>80?"...":""}"</p>
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"0.4rem", marginBottom:"0.6rem" }}>
+                      {[{l:"Views",v:fmt(c.impressions||0),c:"#F43F5E"},{l:"Reach",v:fmt(c.reach||0),c:"var(--text-muted)"},{l:"Eng.",v:fmt(eng),c:"var(--text-muted)"},{l:"ER",v:calcEr(eng,c.reach||0)+"%",c:erGrade(calcEr(eng,c.reach||0)).color}].map(function(m){ return (
+                        <div key={m.l} style={{ textAlign:"center", padding:"0.4rem", borderRadius:"6px", background:"rgba(244,63,94,0.04)" }}>
+                          <div style={{ fontSize:"0.6rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.04em", fontWeight:600 }}>{m.l}</div>
+                          <div style={{ fontSize:"0.85rem", fontWeight:800, fontFamily:"var(--font-heading)", color:m.c }}>{m.v}</div>
                         </div>
-                      );})}
+                      ); })}
                     </div>
-                    <p style={{ fontSize:"0.75rem",color:"var(--text-muted)",lineHeight:1.55,margin:0,padding:"0.5rem 0.65rem",background:"rgba(244,63,94,0.05)",borderRadius:"6px",border:"1px solid rgba(244,63,94,0.15)" }}>
+                    <p style={{ fontSize:"0.75rem", color:"var(--text-muted)", lineHeight:1.55, margin:0, padding:"0.5rem 0.65rem", background:"rgba(244,63,94,0.05)", borderRadius:"6px", border:"1px solid rgba(244,63,94,0.15)" }}>
                       <strong style={{ color:"#F43F5E" }}>Action: </strong>
-                      {combined.avgImp > 0
-                        ? "This post reached "+Math.round(((c.impressions||0)/combined.avgImp)*100)+"% of account average. Review: caption hook (first line), posting time, hashtag relevance, and thumbnail/cover image."
-                        : "Analyse caption, posting time, and hashtags. Compare with your top posts to identify structural differences."}
+                      {combined.avgImp>0
+                        ? "This post reached "+Math.round(((c.impressions||0)/combined.avgImp)*100)+"% of account average. Review: caption hook (first line), posting time, hashtag relevance, and thumbnail."
+                        : "Analyse caption, posting time, and hashtags. Compare structure with top posts."}
                     </p>
                   </div>
                 );
@@ -4796,104 +4917,183 @@ function ReportSummaryPage() {
       </div>
 
 
-      {/* STRATEGIC RECOMMENDATIONS */}
-      <div className="report-section">
-        <div className="report-section-head">
-          <div className="report-section-icon" style={{ background:"rgba(52,211,153,0.1)",border:"1px solid rgba(52,211,153,0.2)" }}>
-            <i data-lucide="target" style={{ width:"16px",height:"16px",color:"var(--accent-emerald)" }}></i>
+      {/* ══ CONTENT TYPE ANALYSIS ════════════════════════════════════════════ */}
+      {contentTypeData.length > 0 && (
+        <div className="report-section" style={{ marginBottom:"1.5rem" }}>
+          <div className="report-section-head">
+            <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.2)" }}>
+              <i data-lucide="film" style={{ width:"16px", height:"16px", color:"var(--accent-amber)" }}></i>
+            </div>
+            <div className="report-section-label">Content Type Performance</div>
           </div>
-          <div className="report-section-label">Strategic Recommendations</div>
-        </div>
-        <div className="report-section-body">
-          <div style={{ display:"flex",flexDirection:"column",gap:"0.75rem" }}>
-            {(function() {
-              var recs = [];
-              var bestPl  = platformData[0];
-              var worstPl = platformData.length > 1 ? platformData[platformData.length-1] : null;
-              var bestCt  = contentTypeData[0];
-              var worstCt = contentTypeData.length > 1 ? contentTypeData[contentTypeData.length-1] : null;
-
-              recs.push({
-                color:"var(--accent-emerald)",
-                title:"Double Down on "+( bestPl ? bestPl.name : "Your Best Platform"),
-                body: bestPl
-                  ? bestPl.name+" contributes "+bestPl.impShare+"% of all impressions with an ER of "+bestPl.er+"%. Increase posting frequency to at least "+(bestPl.posts.length*2)+" posts/month and test Reels/Shorts/Stories to compound reach."
-                  : "Identify your highest-reach platform and focus content production there."
-              });
-
-              if (worstPl) recs.push({
-                color:"#F43F5E",
-                title: worstPl.name+" Underperforming — Fix or Reallocate",
-                body: worstPl.name+" has the lowest impressions ("+fmt(worstPl.imp)+", "+worstPl.impShare+"% of total) and ER of "+worstPl.er+"% vs account average "+combined.er+"%. "
-                  + (parseFloat(worstPl.er) < 1
-                    ? "Engagement is critically low. Either run a content audit with fresh formats, or shift production budget to "+bestPl.name+"."
-                    : "Test 3 new content formats over the next month specifically optimised for "+worstPl.name+"'s algorithm before deciding to reallocate budget.")
-              });
-
-              recs.push({
-                color: parseFloat(combined.er) < 3 ? "#F43F5E" : "var(--accent-emerald)",
-                title: parseFloat(combined.er) < 3 ? "Engagement Rate ("+combined.er+"%) Needs Improvement" : "Maintain "+combined.er+"% Engagement Rate",
-                body: parseFloat(combined.er) < 3
-                  ? "Current ER is "+erC.label+". Top tactics: (1) end every caption with a direct question, (2) use polls/quizzes in first 3 seconds of video, (3) reply to every comment within 1 hour of posting to trigger algorithm re-distribution."
-                  : "ER of "+combined.er+"% is "+erC.label+". Sustain by rotating interactive formats monthly. Watch for any drop below 3% as an early warning signal."
-              });
-
-              if (bestCt) recs.push({
-                color:"#F59E0B",
-                title: bestCt.type+" Content Outperforms — Scale It",
-                body: bestCt.type+" averages "+fmt(bestCt.avgImp)+" views per post"+(worstCt?" vs "+fmt(worstCt.avgImp)+" for "+worstCt.type+" (your lowest format)":"")+". Increase "+bestCt.type+" production to at least 60% of your content mix. Template the format, hooks, and CTA structure for faster production."
-              });
-
-              recs.push({
-                color:"var(--accent-primary)",
-                title:"Fix the "+Math.round(((combined.allSorted[0]&&combined.allSorted[0].impressions||0)/Math.max(combined.allSorted[combined.allSorted.length-1]&&combined.allSorted[combined.allSorted.length-1].impressions||1,1)))+"x Performance Gap",
-                body: combined.allSorted.length >= 2
-                  ? "Your top post got "+fmt(combined.allSorted[0].impressions||0)+" views vs "+fmt(combined.allSorted[combined.allSorted.length-1].impressions||0)+" for your lowest. Conduct a content audit: compare posting times, caption length, hashtag count, and content format between the top and bottom posts. Apply top-post patterns to future content."
-                  : "Study what made your best content successful and apply those elements to future posts."
-              });
-
-              recs.push({
-                color:"#06B6D4",
-                title:"Optimise Save Rate ("+combined.savPct+"%)",
-                body: parseFloat(combined.savPct) < 15
-                  ? "Saves are the highest-value algorithmic signal yet you're at "+combined.savPct+"%. Create 'reference' content: step-by-step guides, checklists, templates, or resources people will want to return to. Add 'Save this for later' as a CTA in captions."
-                  : "Save rate ("+combined.savPct+"%) is strong. Continue producing evergreen reference content and repurpose top-saved posts into series or carousels."
-              });
-
-              return recs.map(function(rec, ri) {
+          <div className="report-section-body">
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))", gap:"1rem" }}>
+              {contentTypeData.map(function(ct,cti){
+                var isBest=cti===0; var isWorst=cti===contentTypeData.length-1&&contentTypeData.length>1;
+                var erI=erGrade(ct.er);
                 return (
-                  <div key={ri} className="recommendation-card">
-                    <div className="recommendation-number" style={{ color:rec.color,background:rec.color+"12",border:"1px solid "+rec.color+"25" }}>{ri+1}</div>
-                    <div>
-                      <div className="recommendation-title">{rec.title}</div>
-                      <div className="recommendation-text">{rec.body}</div>
+                  <div key={ct.type} style={{ padding:"1.1rem", borderRadius:"var(--radius-md)", border:"1px solid "+(isBest?"rgba(6,182,212,0.3)":isWorst?"rgba(244,63,94,0.25)":"var(--border-color)"), background:isBest?"linear-gradient(135deg,rgba(6,182,212,0.08),rgba(6,182,212,0.03))":isWorst?"linear-gradient(135deg,rgba(244,63,94,0.06),rgba(244,63,94,0.02))":"rgba(7,9,15,0.5)" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.75rem" }}>
+                      <span style={{ fontWeight:700, fontSize:"0.9rem", color:isBest?"var(--accent-cyan)":isWorst?"#F43F5E":"var(--text-main)" }}>{ct.type}</span>
+                      <div style={{ display:"flex", gap:"0.35rem" }}>
+                        {isBest  && <span style={{ fontSize:"0.62rem", fontWeight:800, color:"var(--accent-cyan)", padding:"0.12rem 0.4rem", borderRadius:"4px", background:"rgba(6,182,212,0.12)", border:"1px solid rgba(6,182,212,0.25)" }}>Best</span>}
+                        {isWorst && <span style={{ fontSize:"0.62rem", fontWeight:800, color:"#F43F5E", padding:"0.12rem 0.4rem", borderRadius:"4px", background:"rgba(244,63,94,0.12)", border:"1px solid rgba(244,63,94,0.25)" }}>Lowest</span>}
+                      </div>
                     </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.6rem", marginBottom:"0.75rem" }}>
+                      {[{l:"Posts",v:""+ct.posts.length,c:"var(--text-muted)"},{l:"Avg Views",v:fmt(ct.avgImp),c:"var(--accent-cyan)"},{l:"Avg ER%",v:ct.er+"%",c:erI.color},{l:"Total Views",v:fmt(ct.imp),c:"var(--text-main)"}].map(function(m){ return (
+                        <div key={m.l} style={{ padding:"0.5rem 0.65rem", borderRadius:"6px", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.05)" }}>
+                          <div style={{ fontSize:"0.65rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.04em", fontWeight:600, marginBottom:"0.2rem" }}>{m.l}</div>
+                          <div style={{ fontSize:"0.92rem", fontWeight:800, fontFamily:"var(--font-heading)", color:m.c }}>{m.v}</div>
+                        </div>
+                      ); })}
+                    </div>
+                    {isBest && (
+                      <p style={{ fontSize:"0.75rem", color:"var(--text-muted)", lineHeight:1.55, margin:0, padding:"0.6rem 0.75rem", background:"rgba(6,182,212,0.05)", borderRadius:"6px", border:"1px solid rgba(6,182,212,0.12)" }}>
+                        <strong style={{ color:"var(--accent-cyan)" }}>Scale it: </strong>
+                        {ct.type} averages {fmt(ct.avgImp)} views.{brief.pillars?" Align "+ct.type+" content with your pillars: "+brief.pillars+"." : " Increase production frequency and template the format."}
+                      </p>
+                    )}
+                    {isWorst && contentTypeData.length>1 && (
+                      <p style={{ fontSize:"0.75rem", color:"var(--text-muted)", lineHeight:1.55, margin:0, padding:"0.6rem 0.75rem", background:"rgba(244,63,94,0.05)", borderRadius:"6px", border:"1px solid rgba(244,63,94,0.12)" }}>
+                        <strong style={{ color:"#F43F5E" }}>Fix or cut: </strong>
+                        {ct.type} averages only {fmt(ct.avgImp)} views vs {fmt(contentTypeData[0].avgImp)} for {contentTypeData[0].type}. Revise execution or reallocate budget.
+                      </p>
+                    )}
                   </div>
                 );
-              });
-            })()}
+              })}
+            </div>
           </div>
+        </div>
+      )}
+
+      {/* ══ SUBJECT PERFORMANCE ══════════════════════════════════════════════ */}
+      {subjectData.length > 0 && (
+        <div className="report-section" style={{ marginBottom:"1.5rem" }}>
+          <div className="report-section-head">
+            <div className="report-section-icon" style={{ background:"rgba(236,72,153,0.1)", border:"1px solid rgba(236,72,153,0.2)" }}>
+              <i data-lucide="users" style={{ width:"16px", height:"16px", color:"#EC4899" }}></i>
+            </div>
+            <div className="report-section-label">Subject & Talent Performance</div>
+          </div>
+          <div className="report-section-body">
+            {subjectData.map(function(s,si){
+              var grads=["linear-gradient(135deg,#8B5CF6,#06B6D4)","linear-gradient(135deg,#10B981,#06B6D4)","linear-gradient(135deg,#F59E0B,#EF4444)","linear-gradient(135deg,#EC4899,#8B5CF6)","linear-gradient(135deg,#6366F1,#06B6D4)"];
+              var initials=s.name.split(" ").map(function(n){return n[0]||"";}).join("").toUpperCase().slice(0,2);
+              var sharePct=pct(s.imp,combined.imp||1);
+              var barPct=subjectData[0].imp>0?(s.imp/subjectData[0].imp)*100:0;
+              var isTop=si===0; var isLow=si===subjectData.length-1&&subjectData.length>1;
+              return (
+                <div key={s.name} className="subject-person-row" style={{ background:isLow?"rgba(244,63,94,0.03)":"" }}>
+                  <div className="subject-avatar" style={{ background:grads[si%grads.length] }}>{initials}</div>
+                  <div className="subject-info">
+                    <div style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
+                      <div className="subject-name">{s.name}</div>
+                      {isTop && <span style={{ fontSize:"0.62rem", fontWeight:800, color:"#F59E0B", padding:"0.1rem 0.35rem", borderRadius:"4px", background:"rgba(245,158,11,0.12)", border:"1px solid rgba(245,158,11,0.25)" }}>Top</span>}
+                      {isLow && <span style={{ fontSize:"0.62rem", fontWeight:800, color:"#F43F5E", padding:"0.1rem 0.35rem", borderRadius:"4px", background:"rgba(244,63,94,0.12)", border:"1px solid rgba(244,63,94,0.25)" }}>Lowest</span>}
+                    </div>
+                    <div className="subject-meta">{s.count} appearance{s.count!==1?"s":""} — {sharePct}% of total impressions</div>
+                  </div>
+                  <div style={{ textAlign:"right", marginRight:"1rem", flexShrink:0 }}>
+                    <div style={{ fontSize:"1.05rem", fontWeight:800, fontFamily:"var(--font-heading)", color:isLow?"#F43F5E":"var(--text-main)" }}>{fmt(s.imp)}</div>
+                    <div style={{ fontSize:"0.72rem", color:"var(--text-muted)" }}>impressions</div>
+                  </div>
+                  <div className="subject-bar-wrap">
+                    <div className="progress-bar-track">
+                      <div className="progress-bar-fill" style={{ width:barPct+"%", background:isLow?"linear-gradient(90deg,#F43F5E,#F97316)":grads[si%grads.length] }}></div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {subjectData.length>1 && (
+              <div style={{ marginTop:"1rem", padding:"0.85rem 1rem", background:"rgba(244,63,94,0.05)", borderRadius:"var(--radius-sm)", border:"1px solid rgba(244,63,94,0.15)" }}>
+                <p style={{ fontSize:"0.8rem", color:"var(--text-muted)", lineHeight:1.6, margin:0 }}>
+                  <strong style={{ color:"#F43F5E" }}>Talent gap: </strong>
+                  {subjectData[0].name} drives {pct(subjectData[0].imp,combined.imp||1)}% of impressions vs {subjectData[subjectData.length-1].name} at {pct(subjectData[subjectData.length-1].imp,combined.imp||1)}%.
+                  Increase {subjectData[0].name} frequency and test collaborations to cross-pollinate audiences.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+
+      {/* ══ STRATEGIC RECOMMENDATIONS ════════════════════════════════════════ */}
+      <div className="report-section">
+        <div className="report-section-head">
+          <div className="report-section-icon" style={{ background:"rgba(52,211,153,0.1)", border:"1px solid rgba(52,211,153,0.2)" }}>
+            <i data-lucide="target" style={{ width:"16px", height:"16px", color:"var(--accent-emerald)" }}></i>
+          </div>
+          <div>
+            <div className="report-section-label">Strategic Recommendations</div>
+            {hasBrief && (
+              <div style={{ fontSize:"0.75rem", color:"var(--accent-primary-light)", marginTop:"0.15rem" }}>
+                <i data-lucide="book-open" style={{ width:"10px", height:"10px", display:"inline", verticalAlign:"middle", marginRight:"0.3rem" }}></i>
+                Personalised based on your Account Brief
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="report-section-body">
+          <div style={{ display:"flex", flexDirection:"column", gap:"0.75rem" }}>
+            {buildRecs().map(function(rec){
+              return (
+                <div key={rec.num} className="recommendation-card">
+                  <div className="recommendation-number" style={{ color:rec.color, background:rec.color+"12", border:"1px solid "+rec.color+"25" }}>{rec.num}</div>
+                  <div>
+                    <div className="recommendation-title">{rec.title}</div>
+                    <div className="recommendation-text">{rec.body}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {!hasBrief && canEdit && (
+            <div style={{ marginTop:"1.25rem", padding:"1rem 1.25rem", background:"rgba(139,92,246,0.06)", borderRadius:"var(--radius-md)", border:"1px solid rgba(139,92,246,0.2)", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"1rem", flexWrap:"wrap" }}>
+              <div>
+                <div style={{ fontSize:"0.88rem", fontWeight:700, color:"var(--accent-primary-light)", marginBottom:"0.2rem" }}>Make recommendations smarter</div>
+                <div style={{ fontSize:"0.8rem", color:"var(--text-muted)" }}>Fill in the Account Brief above to get personalised recommendations based on your niche, goals, and target audience.</div>
+              </div>
+              <button onClick={openBrief} className="btn btn-primary btn-sm" style={{ gap:"0.4rem", flexShrink:0 }}>
+                <i data-lucide="book-open" style={{ width:"13px", height:"13px" }}></i>
+                Add Account Brief
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* FOOTER */}
-      <div style={{ marginTop:"2.5rem",paddingTop:"1.5rem",borderTop:"1px solid var(--border-subtle)",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"1rem" }}>
-        <div style={{ display:"flex",alignItems:"center",gap:"0.6rem" }}>
-          <div style={{ width:"24px",height:"24px",borderRadius:"7px",background:"var(--gradient-primary)",display:"flex",alignItems:"center",justifyContent:"center" }}>
-            <i data-lucide="layers" style={{ width:"12px",height:"12px",color:"#fff" }}></i>
+      {/* ══ FOOTER ═══════════════════════════════════════════════════════════ */}
+      <div style={{ marginTop:"2.5rem", paddingTop:"1.5rem", borderTop:"1px solid var(--border-subtle)", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:"1rem" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"0.6rem" }}>
+          <div style={{ width:"24px", height:"24px", borderRadius:"7px", background:"var(--gradient-primary)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <i data-lucide="layers" style={{ width:"12px", height:"12px", color:"#fff" }}></i>
           </div>
-          <span style={{ fontSize:"0.8rem",fontWeight:700,color:"var(--text-muted)" }}>SocioVault</span>
+          <span style={{ fontSize:"0.8rem", fontWeight:700, color:"var(--text-muted)" }}>SocioVault</span>
+          {hasBrief && brief.niche && (
+            <span style={{ fontSize:"0.72rem", color:"var(--text-subtle)" }}>— {brief.niche}</span>
+          )}
         </div>
-        <div style={{ fontSize:"0.76rem",color:"var(--text-subtle)" }}>Report generated on {today} — {combined.count} pieces across {platformData.length} platform{platformData.length!==1?"s":""}</div>
-        <div style={{ display:"flex",gap:"0.5rem" }}>
-          <button className="btn btn-export btn-sm" onClick={handleExportDocx}><i data-lucide="download" style={{ width:"12px",height:"12px" }}></i> Export DOCX</button>
-          <button className="btn btn-print btn-sm" onClick={function(){ window.print(); }}><i data-lucide="printer" style={{ width:"12px",height:"12px" }}></i> Print</button>
+        <div style={{ fontSize:"0.76rem", color:"var(--text-subtle)" }}>
+          Report generated on {today} — {combined.count} pieces across {platformData.length} platform{platformData.length!==1?"s":""}
+        </div>
+        <div style={{ display:"flex", gap:"0.5rem" }}>
+          <button className="btn btn-export btn-sm" onClick={handleExportDocx}>
+            <i data-lucide="download" style={{ width:"12px", height:"12px" }}></i> Export DOCX
+          </button>
+          <button className="btn btn-print btn-sm" onClick={function(){ window.print(); }}>
+            <i data-lucide="printer" style={{ width:"12px", height:"12px" }}></i> Print
+          </button>
         </div>
       </div>
 
     </div>
   );
 }
+
 
 function CollaboratorsPage() {
   const { activeAccount, addCollaborator, removeCollaborator, isOwner } = React.useContext(VaultContext);
