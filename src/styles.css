@@ -2019,3 +2019,309 @@ a:hover {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
 }
+
+/* ==========================================================================
+   Upload Schedule Table
+   ========================================================================== */
+
+.upload-schedule-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(139,92,246,0.25);
+  background: linear-gradient(145deg, rgba(13,17,23,0.97) 0%, rgba(18,13,36,0.95) 100%);
+  overflow: hidden;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.upload-schedule-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 0% 0%, rgba(139,92,246,0.09) 0px, transparent 55%),
+    radial-gradient(ellipse 40% 30% at 100% 100%, rgba(6,182,212,0.06) 0px, transparent 50%);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.upload-schedule-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1.5rem;
+  border-bottom: 1px solid rgba(139,92,246,0.12);
+  position: relative;
+  z-index: 1;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.upload-schedule-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.upload-schedule-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #8B5CF6, #06B6D4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(139,92,246,0.35);
+}
+
+.upload-schedule-title {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: 0.06em;
+}
+
+.upload-schedule-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+
+.upload-schedule-scroll {
+  overflow-x: auto;
+  position: relative;
+  z-index: 1;
+  -webkit-overflow-scrolling: touch;
+}
+
+.upload-schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+
+/* Header row */
+.usched-th {
+  padding: 0.75rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: rgba(7,9,15,0.6);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  white-space: nowrap;
+  text-align: center;
+}
+
+.usched-account-col {
+  text-align: left;
+  padding-left: 1.25rem;
+  min-width: 200px;
+  width: 220px;
+  position: sticky;
+  left: 0;
+  background: rgba(7,9,15,0.95);
+  z-index: 2;
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+
+.usched-day-col {
+  width: 72px;
+  min-width: 64px;
+}
+
+.usched-day-label {
+  display: inline-block;
+  padding: 0.2rem 0.45rem;
+  border-radius: var(--radius-full);
+}
+
+/* Body rows */
+.usched-row {
+  transition: background 0.15s;
+}
+
+.usched-row:hover {
+  background: rgba(139,92,246,0.04);
+}
+
+.usched-row-even {
+  background: rgba(255,255,255,0.015);
+}
+
+.usched-row-even:hover {
+  background: rgba(139,92,246,0.05);
+}
+
+/* Account label cell */
+.usched-account-cell {
+  padding: 0.65rem 0.75rem 0.65rem 1.25rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  border-right: 1px solid rgba(255,255,255,0.05);
+  position: sticky;
+  left: 0;
+  background: inherit;
+  z-index: 1;
+  vertical-align: middle;
+}
+
+.usched-row-even .usched-account-cell {
+  background: rgba(255,255,255,0.015);
+}
+
+.usched-row:hover .usched-account-cell {
+  background: rgba(139,92,246,0.05);
+}
+
+.usched-account-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.usched-avatar-img {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid rgba(139,92,246,0.3);
+  flex-shrink: 0;
+}
+
+.usched-avatar-letter {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(6,182,212,0.2));
+  border: 1px solid rgba(139,92,246,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--accent-primary-light);
+  flex-shrink: 0;
+}
+
+.usched-account-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.usched-account-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 130px;
+}
+
+.usched-platform-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.2rem;
+}
+
+/* Each platform gets its own colour — one chip per platform, never mixed */
+.usched-plat-chip {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 0.08rem 0.4rem;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: rgba(255,255,255,0.07);
+  color: var(--text-muted);
+  border: 1px solid rgba(255,255,255,0.1);
+  white-space: nowrap;
+}
+
+.usched-plat-chip.usched-plat-instagram  { background:rgba(225,48,108,0.15);  color:#E1306C; border-color:rgba(225,48,108,0.3);  }
+.usched-plat-chip.usched-plat-tiktok     { background:rgba(37,244,238,0.12);  color:#25F4EE; border-color:rgba(37,244,238,0.3);  }
+.usched-plat-chip.usched-plat-youtube    { background:rgba(255,68,68,0.13);   color:#FF4444; border-color:rgba(255,68,68,0.3);   }
+.usched-plat-chip.usched-plat-x          { background:rgba(96,165,250,0.13);  color:#60A5FA; border-color:rgba(96,165,250,0.3);  }
+.usched-plat-chip.usched-plat-facebook   { background:rgba(75,143,228,0.13);  color:#4B8FE4; border-color:rgba(75,143,228,0.3);  }
+.usched-plat-chip.usched-plat-threads    { background:rgba(232,234,237,0.1);  color:#E8EAED; border-color:rgba(232,234,237,0.2); }
+
+.usched-count-badge {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: rgba(139,92,246,0.18);
+  color: var(--accent-primary-light);
+  border: 1px solid rgba(139,92,246,0.35);
+  letter-spacing: 0.03em;
+  margin-left: auto;
+}
+
+/* Day toggle cells */
+.usched-day-cell {
+  text-align: center;
+  vertical-align: middle;
+  padding: 0.55rem 0.4rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.15s;
+}
+
+.usched-day-cell.usched-day-active {
+  background: rgba(139,92,246,0.07);
+}
+
+/* Toggle button */
+.usched-toggle {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s;
+  margin: 0 auto;
+}
+
+.usched-toggle-off {
+  background: rgba(255,255,255,0.05);
+  color: var(--text-subtle);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.usched-toggle-off:hover {
+  background: rgba(139,92,246,0.15);
+  color: var(--accent-primary-light);
+  border-color: rgba(139,92,246,0.35);
+  transform: scale(1.1);
+}
+
+.usched-toggle-on {
+  background: linear-gradient(135deg, #8B5CF6, #6366F1);
+  color: #fff;
+  border: 1px solid rgba(139,92,246,0.5);
+  box-shadow: 0 2px 8px rgba(139,92,246,0.4);
+}
+
+.usched-toggle-on:hover {
+  opacity: 0.8;
+  transform: scale(0.95);
+}
+
+/* Legend bar */
+.upload-schedule-legend {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.7rem 1.5rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  background: rgba(7,9,15,0.4);
+  position: relative;
+  z-index: 1;
+  flex-wrap: wrap;
+}

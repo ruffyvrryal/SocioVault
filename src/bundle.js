@@ -854,6 +854,56 @@ function AccountVaultPage() {
     setActivePage("account-center");
   };
 
+  // ── Upload Schedule ──────────────────────────────────────────────────────────
+  // Stored in localStorage as { [accountId]: string[] } where strings are day keys
+  var DAYS = [
+    { key: "mon", label: "Mon" },
+    { key: "tue", label: "Tue" },
+    { key: "wed", label: "Wed" },
+    { key: "thu", label: "Thu" },
+    { key: "fri", label: "Fri" },
+    { key: "sat", label: "Sat" },
+    { key: "sun", label: "Sun" }
+  ];
+
+  var scheduleStorageKey = "sv_upload_schedule_" + ((user && user.email) ? user.email.replace(/[^a-z0-9]/gi, "_") : "guest");
+
+  function loadSchedule() {
+    try { return JSON.parse(localStorage.getItem(scheduleStorageKey) || "{}"); }
+    catch(e) { return {}; }
+  }
+
+  const [schedule, setSchedule] = React.useState(function(){ return loadSchedule(); });
+
+  function toggleSchedule(accId, dayKey) {
+    setSchedule(function(prev) {
+      var days = prev[accId] ? prev[accId].slice() : [];
+      var idx  = days.indexOf(dayKey);
+      if (idx >= 0) days.splice(idx, 1);
+      else          days.push(dayKey);
+      var next = Object.assign({}, prev, { [accId]: days });
+      // Prune empty
+      if (days.length === 0) delete next[accId];
+      try { localStorage.setItem(scheduleStorageKey, JSON.stringify(next)); } catch(e){}
+      return next;
+    });
+  }
+
+  function isScheduled(accId, dayKey) {
+    return !!(schedule[accId] && schedule[accId].indexOf(dayKey) >= 0);
+  }
+
+  // Collect unique platform names across all accessible accounts for column grouping
+  var allPlatformNames = React.useMemo(function() {
+    var seen = {};
+    accessibleAccounts.forEach(function(acc) {
+      (acc.platforms || []).forEach(function(p) {
+        if (p.name) seen[p.name] = true;
+      });
+    });
+    return Object.keys(seen).sort();
+  }, [accessibleAccounts]);
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -866,6 +916,120 @@ function AccountVaultPage() {
           Add New Account
         </button>
       </div>
+
+      {/* ══ UPLOAD SCHEDULE ═══════════════════════════════════════════════════ */}
+      {accessibleAccounts.length > 0 && (
+        <div className="upload-schedule-card">
+          <div className="upload-schedule-head">
+            <div className="upload-schedule-brand">
+              <div className="upload-schedule-icon">
+                <i data-lucide="calendar-days" style={{ width:"16px", height:"16px", color:"#fff" }}></i>
+              </div>
+              <div>
+                <div className="upload-schedule-title">UPLOAD SCHEDULE</div>
+                <div className="upload-schedule-sub">Weekly posting plan — click a cell to toggle</div>
+              </div>
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
+              <span style={{ fontSize:"0.72rem", color:"var(--text-subtle)" }}>
+                {Object.keys(schedule).length} account{Object.keys(schedule).length !== 1 ? "s" : ""} scheduled
+              </span>
+            </div>
+          </div>
+
+          <div className="upload-schedule-scroll">
+            <table className="upload-schedule-table">
+              <thead>
+                <tr>
+                  <th className="usched-th usched-account-col">Account</th>
+                  {DAYS.map(function(d) {
+                    return (
+                      <th key={d.key} className="usched-th usched-day-col">
+                        <span className="usched-day-label">{d.label}</span>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {accessibleAccounts.map(function(acc, rowIdx) {
+                  var scheduled = schedule[acc.id] || [];
+                  var hasAnyDay = scheduled.length > 0;
+                  return (
+                    <tr key={acc.id} className={"usched-row" + (rowIdx % 2 === 0 ? " usched-row-even" : "")}>
+                      {/* Account label cell */}
+                      <td className="usched-account-cell">
+                        <div className="usched-account-info">
+                          {acc.photoURL ? (
+                            <img src={acc.photoURL} alt={acc.name} className="usched-avatar-img" onError={function(e){ e.target.style.display="none"; }} />
+                          ) : (
+                            <div className="usched-avatar-letter">
+                              {acc.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="usched-account-meta">
+                            <div className="usched-account-name">{acc.name}</div>
+                            {/* Platform chips — one per platform, no mixing */}
+                            <div className="usched-platform-chips">
+                              {(acc.platforms || []).map(function(p) {
+                                return (
+                                  <span key={p.id} className={"usched-plat-chip usched-plat-" + p.name.toLowerCase().replace(/\s+/g,"-")}>
+                                    {p.name}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          {hasAnyDay && (
+                            <span className="usched-count-badge">{scheduled.length}d</span>
+                          )}
+                        </div>
+                      </td>
+                      {/* Day toggle cells */}
+                      {DAYS.map(function(d) {
+                        var active = isScheduled(acc.id, d.key);
+                        return (
+                          <td key={d.key} className={"usched-day-cell" + (active ? " usched-day-active" : "")}>
+                            <button
+                              className={"usched-toggle" + (active ? " usched-toggle-on" : " usched-toggle-off")}
+                              onClick={function(){ toggleSchedule(acc.id, d.key); }}
+                              title={(active ? "Remove " : "Add ") + acc.name + " from " + d.label}
+                            >
+                              {active
+                                ? <i data-lucide="check" style={{ width:"12px", height:"12px" }}></i>
+                                : <i data-lucide="plus" style={{ width:"12px", height:"12px" }}></i>
+                              }
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Legend */}
+          <div className="upload-schedule-legend">
+            <div style={{ display:"flex", alignItems:"center", gap:"0.4rem", fontSize:"0.72rem", color:"var(--text-subtle)" }}>
+              <div className="usched-toggle usched-toggle-on" style={{ width:"20px", height:"20px", borderRadius:"6px", pointerEvents:"none", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <i data-lucide="check" style={{ width:"10px", height:"10px" }}></i>
+              </div>
+              Scheduled
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:"0.4rem", fontSize:"0.72rem", color:"var(--text-subtle)" }}>
+              <div className="usched-toggle usched-toggle-off" style={{ width:"20px", height:"20px", borderRadius:"6px", pointerEvents:"none", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <i data-lucide="plus" style={{ width:"10px", height:"10px" }}></i>
+              </div>
+              Not scheduled
+            </div>
+            <div style={{ fontSize:"0.72rem", color:"var(--text-subtle)", marginLeft:"auto" }}>
+              Schedule saved locally in your browser
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.5rem" }}>
         {accessibleAccounts.map(acc => {
@@ -3927,6 +4091,17 @@ function ReportSummaryPage() {
   const [aiOutput,     setAiOutput]     = React.useState("");
   const [aiError,      setAiError]      = React.useState("");
   const [aiKeySaved,   setAiKeySaved]   = React.useState(false);
+
+  function saveAiKey(val) {
+    setAiKey(val);
+    if (val.trim()) {
+      localStorage.setItem("sv_gemini_key", val.trim());
+      setAiKeySaved(true);
+      setTimeout(function(){ setAiKeySaved(false); }, 1800);
+    } else {
+      localStorage.removeItem("sv_gemini_key");
+    }
+  }
 
   async function generateAiAnalysis(combined, platformData, contentTypeData, subjectData, brief, fmt, fmtFull, fmtDate, calcEr, pct) {
     var key = aiKey.trim();
