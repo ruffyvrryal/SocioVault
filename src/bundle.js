@@ -1588,21 +1588,46 @@ function AccountCenterPage() {
 
   // Calculate TikTok monthly impression trend for health status
   const getHealthStatus = React.useMemo(() => {
-    const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    
-    // Get TikTok impressions from current month only
-    const tiktokMonthlyImpressions = accountContents
-      .filter(c => c.uploadDate && c.uploadDate.startsWith(currentMonth) && c.platform === "TikTok")
-      .reduce((sum, c) => sum + (c.impressions || 0), 0);
+    // Get the 5 most recent TikTok contents (by uploadDate)
+    const recentTikTokContents = accountContents
+      .filter(c => c.platform === "TikTok" && c.uploadDate)
+      .sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate))
+      .slice(0, 5);
 
-    // Determine status based on TikTok monthly impressions
-    if (tiktokMonthlyImpressions === 0) {
+    // If no TikTok content, status is red
+    if (recentTikTokContents.length === 0) {
       return { status: "red", label: "No TikTok Activity", color: "#F43F5E" };
-    } else if (tiktokMonthlyImpressions > 100) {
-      return { status: "green", label: "Healthy", color: "#10B981" };
+    }
+
+    // Calculate average impressions of recent 5 TikToks
+    const totalImpressions = recentTikTokContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
+    const avgImpressions = totalImpressions / recentTikTokContents.length;
+
+    // Determine status based on average impressions:
+    // Red: all 5 have 0 views (or average is 0)
+    // Yellow: below 100 but above 0
+    // Green: 100 or above
+    if (avgImpressions === 0) {
+      return { 
+        status: "red", 
+        label: "Critical: 0 Views on Recent Posts", 
+        color: "#F43F5E",
+        detail: `Recent 5 TikToks: ${recentTikTokContents.length} posts, avg 0 views`
+      };
+    } else if (avgImpressions < 100) {
+      return { 
+        status: "yellow", 
+        label: "Low: Below 100 Views Average", 
+        color: "#F59E0B",
+        detail: `Recent 5 TikToks: ${recentTikTokContents.length} posts, avg ${Math.round(avgImpressions)} views`
+      };
     } else {
-      return { status: "yellow", label: "Low TikTok Activity", color: "#F59E0B" };
+      return { 
+        status: "green", 
+        label: "Healthy: Above 100 Views Average", 
+        color: "#10B981",
+        detail: `Recent 5 TikToks: ${recentTikTokContents.length} posts, avg ${Math.round(avgImpressions)} views`
+      };
     }
   }, [accountContents]);
 
@@ -1636,7 +1661,7 @@ function AccountCenterPage() {
                 alignItems: "center",
                 justifyContent: "center"
               }}
-              title={`Health Status: ${getHealthStatus.label}`}
+              title={`Health Status: ${getHealthStatus.label} — ${getHealthStatus.detail}`}
             />
           </div>
           <p className="page-subtitle">{activeAccount.description} * Managed platforms & channel credentials</p>
