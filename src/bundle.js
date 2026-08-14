@@ -4215,7 +4215,7 @@ function ReportSummaryPage() {
     var prompt = "You are a senior social media strategist and growth consultant. You have deep expertise in platform algorithms, content strategy, audience psychology, and creator monetisation.\n\nAnalyse the following social media account data and provide a comprehensive, actionable, and intelligent growth strategy. Go beyond summarising numbers — diagnose WHY metrics are what they are, identify hidden patterns, compare against industry benchmarks, and prescribe specific prioritised actions.\n\nStructure your response exactly as:\n1. **Diagnostic Summary** — Account health and trajectory based on data\n2. **Algorithm Health Analysis** — Content distribution health, impression tiers, and what signals the algorithm is reading\n3. **Platform-Specific Strategy** — For each platform: what is working, what is broken, the single highest-impact change\n4. **Content & Engagement Gaps** — Specific weaknesses in engagement mix and content format\n5. **Top 3 Growth Levers** — Highest-ROI actions for next 30 days, ranked by impact\n6. **Audience & Niche Alignment** — How well content aligns with stated goals and audience, what to adjust\n7. **30/60/90 Day Roadmap** — Specific milestones and actions\n\nBe direct, specific, data-driven. Reference actual numbers. No generic advice.\n\nACCOUNT DATA:\n" + ctx;
 
     try {
-      var resp = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="+key, {
+      var resp = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key="+key, {
         method:"POST", headers:{"Content-Type":"application/json"},
         body:JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.7,maxOutputTokens:2048} })
       });
@@ -4224,6 +4224,7 @@ function ReportSummaryPage() {
         var msg = (errData.error&&errData.error.message) ? errData.error.message : "API error "+resp.status;
         if (resp.status===400) msg="Invalid request. Check your Gemini API key.";
         if (resp.status===403) msg="API key not authorised. Enable Gemini API in Google Cloud Console.";
+        if (resp.status===404) msg="Model not found. Try gemini-2.0-flash or gemini-1.5-flash.";
         if (resp.status===429) msg="Rate limit hit. Wait a moment and try again.";
         throw new Error(msg);
       }
