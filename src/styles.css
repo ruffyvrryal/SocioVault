@@ -466,6 +466,8 @@ a:hover {
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-bottom: 1px solid var(--border-color);
   padding: 0 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .navbar-container {
@@ -476,6 +478,8 @@ a:hover {
   justify-content: space-between;
   gap: 1rem;
   height: 60px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .navbar-brand {
@@ -490,6 +494,7 @@ a:hover {
   white-space: nowrap;
   letter-spacing: -0.02em;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .navbar-brand .brand-icon {
@@ -514,11 +519,15 @@ a:hover {
 .navbar-nav-row {
   border-top: 1px solid var(--border-subtle);
   padding: 0 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .navbar-nav-row .navbar-container {
   height: 48px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .navbar-nav {
@@ -526,10 +535,12 @@ a:hover {
   align-items: center;
   gap: 0.2rem;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: 2px;
   scrollbar-width: none;
   -ms-overflow-style: none;
   flex: 1;
+  width: 100%;
 }
 
 .navbar-nav::-webkit-scrollbar { display: none; }
@@ -603,6 +614,11 @@ a:hover {
   max-width: 1360px;
   margin: 0 auto;
   padding: 2.5rem 1.5rem 5rem;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 
 .page-header {
@@ -2599,4 +2615,434 @@ a:hover {
   position: relative;
   z-index: 1;
   flex-wrap: wrap;
+}
+
+
+/* ==========================================================================
+   MOBILE & RESPONSIVE DESIGN
+   ========================================================================== */
+
+/* Breakpoints */
+@media (max-width: 768px) {
+  :root {
+    --space-xs: 0.25rem;
+    --space-sm: 0.4rem;
+    --space-md: 0.75rem;
+    --space-lg: 1rem;
+    --space-xl: 1.25rem;
+    --space-2xl: 1.5rem;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+  }
+
+  /* Base mobile adjustments */
+  body {
+    font-size: 14px;
+  }
+
+  /* Page container - reduce padding on mobile */
+  .page-container {
+    padding: 1rem;
+    gap: 1.25rem;
+  }
+
+  /* Page header - stack vertically on mobile */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .page-header > div:first-child {
+    width: 100%;
+  }
+
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .page-header p {
+    font-size: 0.8rem;
+  }
+
+  /* Header button - full width on mobile */
+  .page-header .btn {
+    width: 100%;
+    font-size: 0.9rem;
+  }
+
+  /* Glass cards - responsive grid */
+  .glass-card {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+
+  /* Grid adjustments */
+  .account-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* Upload schedule table - horizontal scroll on mobile */
+  .upload-schedule-card {
+    margin-bottom: 1.5rem;
+  }
+
+  .upload-schedule-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0.75rem -1rem;
+    padding: 0 1rem;
+  }
+
+  .upload-schedule-table-new {
+    min-width: 600px;
+  }
+
+  .usched-new-th,
+  .usched-new-account-cell {
+    padding: 0.6rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .usched-new-day-col {
+    width: 70px;
+    min-width: 60px;
+  }
+
+  .usched-new-dropdown {
+    font-size: 0.85rem;
+    padding: 0.6rem 0.8rem;
+  }
+
+  /* Notes editor - adjust for mobile */
+  .notes-editor {
+    min-height: 300px;
+    padding: 1rem;
+    font-size: 0.9rem;
+  }
+
+  .notes-editor-help {
+    font-size: 0.75rem;
+    padding: 0.6rem 0.8rem;
+  }
+
+  /* Navbar - optimize for mobile */
+  .navbar {
+    padding: 0.75rem 1rem;
+    gap: 0.5rem;
+  }
+
+  .navbar-brand h1 {
+    font-size: 1.1rem;
+  }
+
+  .navbar-nav {
+    gap: 0.25rem;
+  }
+
+  .nav-item {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  /* Sidebar content table - adjust column widths */
+  .sidebar-content-table {
+    font-size: 0.75rem;
+  }
+
+  .sidebar-content-table th,
+  .sidebar-content-table td {
+    padding: 0.5rem;
+  }
+
+  /* Buttons - more spacing for touch */
+  .btn {
+    padding: 0.65rem 1rem;
+    font-size: 0.85rem;
+    min-height: 44px;
+  }
+
+  .btn-sm {
+    padding: 0.5rem 0.75rem;
+    min-height: 40px;
+  }
+
+  /* Forms - full width on mobile */
+  input,
+  textarea,
+  select {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 0.75rem;
+  }
+
+  /* Modal adjustments */
+  .modal {
+    width: 95vw;
+    max-height: 90vh;
+    border-radius: 16px;
+    padding: 1.25rem;
+  }
+
+  .modal-header h2 {
+    font-size: 1.25rem;
+  }
+
+  /* Account cards - responsive */
+  .glass-card.glass-card-interactive {
+    cursor: auto;
+  }
+
+  /* Analytics cards grid */
+  .analytics-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* AI Growth Advisor section */
+  .ai-advisor-section {
+    gap: 0.75rem;
+  }
+
+  .ai-key-input {
+    font-size: 0.85rem;
+    padding: 0.6rem 2rem 0.6rem 0.75rem;
+  }
+
+  .btn-ai-generate {
+    width: 100%;
+    padding: 0.75rem;
+  }
+
+  .ai-output {
+    max-height: 400px;
+    font-size: 0.85rem;
+  }
+
+  /* Badge sizing */
+  .badge {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.6rem;
+  }
+
+  /* Hide desktop-only elements on mobile */
+  .desktop-only {
+    display: none;
+  }
+
+  /* Improve touch targets */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Tablet sizes (768px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .account-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .analytics-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+
+  .page-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .page-header .btn {
+    width: auto;
+  }
+
+  .upload-schedule-table-new {
+    font-size: 0.9rem;
+  }
+}
+
+/* Desktop sizes (1025px+) */
+@media (min-width: 1025px) {
+  .account-grid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .analytics-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+
+  .mobile-only {
+    display: none;
+  }
+}
+
+/* Extra small devices (< 360px) */
+@media (max-width: 359px) {
+  .page-container {
+    padding: 0.75rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .navbar-brand h1 {
+    font-size: 0.95rem;
+  }
+
+  .nav-item {
+    font-size: 0.7rem;
+    padding: 0.4rem 0.6rem;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Increase tap target sizes */
+  button, a, [role="button"] {
+    min-height: 48px;
+    min-width: 48px;
+    padding: 0.75rem 1rem;
+  }
+
+  /* Remove hover effects on touch devices (optional) */
+  .glass-card:hover {
+    background: var(--bg-card);
+  }
+
+  .btn:hover {
+    filter: none;
+  }
+
+  /* Add active state for touch feedback */
+  button:active {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
+}
+
+/* Landscape orientation - iPad, landscape phones */
+@media (max-height: 500px) and (orientation: landscape) {
+  .page-container {
+    padding: 0.75rem;
+    gap: 0.75rem;
+  }
+
+  .page-header {
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .navbar {
+    padding: 0.5rem 1rem;
+  }
+
+  .modal {
+    max-height: 95vh;
+  }
+}
+
+/* Fold devices / Large mobile landscape */
+@media (min-width: 912px) and (max-width: 1000px) {
+  .account-grid {
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  }
+
+  .analytics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Print styles for mobile reporting */
+@media print {
+  .navbar,
+  .btn,
+  button,
+  .page-header .btn {
+    display: none;
+  }
+
+  .page-container {
+    padding: 0;
+    background: white;
+    color: black;
+  }
+
+  .glass-card {
+    page-break-inside: avoid;
+    border: 1px solid #ccc;
+    box-shadow: none;
+  }
+}
+
+/* Retina/High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  input, textarea, select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+
+  select {
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A78BFA' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem 1rem;
+    padding-right: 2.75rem;
+  }
+}
+
+/* Accessible focus states - all devices */
+:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dark mode is default (entire app is dark) */
+@media (prefers-color-scheme: dark) {
+  /* Already using dark theme by default */
+}
+
+/* Support for light mode if ever needed */
+@media (prefers-color-scheme: light) {
+  /* Would need separate light theme variables */
 }
