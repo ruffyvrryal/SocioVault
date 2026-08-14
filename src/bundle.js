@@ -4254,16 +4254,26 @@ function ReportSummaryPage() {
     var prompt = "You are a senior social media strategist with 10+ years of experience. You understand platform algorithms, content strategy, audience psychology, and creator monetization.\n\nAnalyze the following social media account data and provide DETAILED PROFESSIONAL EXPLANATIONS for each metric. Don't just rewrite numbers — explain what each metric MEANS, whether it's GOOD or BAD compared to industry standards, and WHY it matters for growth.\n\nFor each section, include:\n- What the metric shows\n- Industry benchmark comparison\n- Whether this is healthy or concerning\n- Specific reasons why (algorithm factors, content quality, audience behavior, posting strategy)\n\nStructure your response EXACTLY as:\n\n1. **Diagnostic Summary** — Is this account healthy? What's the trajectory? What's the primary bottleneck limiting growth?\n\n2. **Algorithm Health Analysis** — Analyze impression distribution health. Explain what the danger/warning/safe/good/FYP tiers mean. Why are posts getting 0 impressions? Is content being suppressed? Are hashtags working?\n\n3. **Platform-Specific Deep Dive** — For each platform:\n   - What's working: Which content types/formats are winning?\n   - What's broken: Why are some posts flopping? Posting time issues? Hashtag problems? Weak hooks?\n   - Single highest-impact change: The ONE thing to fix first\n   - ER analysis: Is engagement authentic or do you need more comments/shares?\n\n4. **Content & Engagement Gaps** — Explain engagement mix (likes vs comments vs shares vs saves). What type of engagement is missing? Why? What does it mean?\n\n5. **Top 3 Growth Levers** — For next 30 days, what are the highest-ROI actions ranked by impact?\n\n6. **Audience & Niche Alignment** — How well does content match the stated niche, goals, and audience? What needs adjustment?\n\n7. **30/60/90 Day Roadmap** — Specific, measurable milestones and actions\n\nBe DIRECT, SPECIFIC, DATA-DRIVEN. Reference ACTUAL numbers from the data. Explain benchmarks. No generic advice. For each metric, state if it's good/bad/needs work.\n\nACCOUNT DATA:\n" + ctx;
 
     try {
+      // Try the standard v1beta endpoint first (works with both key formats)
       var resp = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="+key, {
         method:"POST", headers:{"Content-Type":"application/json"},
         body:JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.7,maxOutputTokens:2048} })
       });
+      
+      // If 404, try gemini-pro as fallback
+      if (resp.status === 404) {
+        resp = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key="+key, {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.7,maxOutputTokens:2048} })
+        });
+      }
+      
       if (!resp.ok) {
         var errData = await resp.json().catch(function(){return {};});
         var msg = (errData.error&&errData.error.message) ? errData.error.message : "API error "+resp.status;
-        if (resp.status===400) msg="Invalid request. Make sure your key starts with 'AIza' and is complete (usually 39+ characters). Get a new key: aistudio.google.com/app/apikey";
+        if (resp.status===400) msg="Invalid request. Make sure your key starts with 'AIza' or 'AQ.' and is complete (usually 39+ characters). Get a new key: aistudio.google.com/app/apikey";
         if (resp.status===403) msg="API key not authorized. The key you provided is valid but not enabled for this account. Try: (1) Generate a new key, (2) Enable Gemini API in Google Cloud Console, (3) Use a key from a different Google account";
-        if (resp.status===404) msg="Model not available. The Gemini API might be restricted in your region or the key may have limited access. Try: (1) Refresh page and retry, (2) Check if you're in a supported region (not all countries support free Gemini), (3) Login to aistudio.google.com and verify the key works there first";
+        if (resp.status===404) msg="Model not available. This can happen if: (1) Your region doesn't support Gemini API yet, (2) Test your key at aistudio.google.com first to verify it works, (3) Try a fresh API key";
         if (resp.status===429) msg="Rate limit exceeded. You've made too many requests (free tier: 15/minute, 1500/day). Wait 5 minutes and try again, or upgrade to paid API";
         if (resp.status===401) msg="Unauthorized: Invalid or expired API key. Generate a new key at aistudio.google.com/app/apikey";
         throw new Error(msg);
