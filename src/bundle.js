@@ -3204,262 +3204,403 @@ window.TimeframeAnalyticsPage = function() {
 
 window.HashtagAnalyticsPage = function() {
   const { activeAccount, contents } = React.useContext(window.VaultContext);
-  const [searchHashtag, setSearchHashtag] = React.useState("");
-  const [hashtagSortBy, setHashtagSortBy] = React.useState("impressions");
+  const [searchHashtag,  setSearchHashtag]  = React.useState("");
+  const [hashtagSortBy,  setHashtagSortBy]  = React.useState("impressions");
+  const [activePlatform, setActivePlatform] = React.useState("All");
 
   if (!activeAccount) {
     return <div className="page-container"><p>No active account selected.</p></div>;
   }
 
-  const accountContents = React.useMemo(() => {
-    return contents.filter(c => c.accountId === activeAccount.id);
+  const accountContents = React.useMemo(function() {
+    return contents.filter(function(c) { return c.accountId === activeAccount.id; });
   }, [contents, activeAccount.id]);
 
-  // Aggregate stats per Hashtag
-  const hashtagStats = React.useMemo(() => {
-    const map = {};
-
-    accountContents.forEach(item => {
-      if (!item.hashtags || !Array.isArray(item.hashtags)) return;
-
-      const engagement = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
-
-      item.hashtags.forEach(tag => {
-        const cleanTag = tag.trim().toLowerCase();
-        if (!cleanTag) return;
-
-        if (!map[cleanTag]) {
-          map[cleanTag] = {
-            tag: cleanTag.startsWith("#") ? cleanTag : "#" + cleanTag,
-            contentCount: 0,
-            impressions: 0,
-            reach: 0,
-            engagement: 0,
-            erSum: 0
-          };
-        }
-
-        map[cleanTag].contentCount += 1;
-        map[cleanTag].impressions += item.impressions || 0;
-        map[cleanTag].reach += item.reach || 0;
-        map[cleanTag].engagement += engagement;
-      });
-    });
-
-    return Object.values(map).map(h => ({
-      ...h,
-      avgEr: h.reach > 0 ? ((h.engagement / h.reach) * 100).toFixed(2) : "0.00"
-    })).sort((a, b) => b.impressions - a.impressions);
+  const allPlatforms = React.useMemo(function() {
+    const ps = new Set();
+    accountContents.forEach(function(c) { if (c.platform) ps.add(c.platform); });
+    return Array.from(ps).sort();
   }, [accountContents]);
 
-  const filteredHashtags = React.useMemo(() => {
-    return hashtagStats.filter(h => h.tag.toLowerCase().includes(searchHashtag.toLowerCase()));
-  }, [hashtagStats, searchHashtag]);
+  const PCOLORS = {"Instagram":"#E1306C","YouTube":"#FF4444","TikTok":"#25F4EE","X (Twitter)":"#60A5FA","Facebook":"#4B8FE4","Threads":"#E8EAED"};
+  const PICONS  = {"Instagram":"instagram","YouTube":"youtube","TikTok":"music-2","X (Twitter)":"twitter","Facebook":"facebook","Threads":"at-sign"};
+  function pColor(p) { return PCOLORS[p] || "var(--accent-primary)"; }
+  function pIcon(p)  { return PICONS[p]  || "globe"; }
+  function fmt(n) {
+    if (!n) return "0";
+    if (n >= 1000000) return (n/1000000).toFixed(2)+"M";
+    if (n >= 1000)    return (n/1000).toFixed(1)+"K";
+    return n.toLocaleString();
+  }
 
-  // Calculate top 3 hashtags by avg impressions per content
-  const top3Hashtags = React.useMemo(() => {
-    const withAvg = hashtagStats.map(h => ({
-      ...h,
-      avgImpressionsPerContent: h.contentCount > 0 ? (h.impressions / h.contentCount) : 0
-    }));
-    return withAvg.sort((a, b) => b.avgImpressionsPerContent - a.avgImpressionsPerContent).slice(0, 3);
-  }, [hashtagStats]);
+  // Build hashtag stats for each scope (All + per-platform)
+  const allPlatformStats = React.useMemo(function() {
+    const scopes = ["All"].concat(allPlatforms);
+    const result = {};
+    scopes.forEach(function(scope) {
+      const src = scope === "All"
+        ? accountContents
+        : accountContents.filter(function(c) { return c.platform === scope; });
+      const map = {};
+      src.forEach(function(item) {
+        if (!item.hashtags || !Array.isArray(item.hashtags)) return;
+        const eng = (item.likes||0)+(item.comments||0)+(item.shares||0)+(item.saves||0);
+        item.hashtags.forEach(function(tag) {
+          const clean = tag.trim().toLowerCase();
+          if (!clean) return;
+          if (!map[clean]) {
+            map[clean] = { tag: clean.startsWith("#") ? clean : "#"+clean,
+              contentCount:0, impressions:0, reach:0, engagement:0,
+              likes:0, comments:0, shares:0, saves:0, pset: new Set() };
+          }
+          map[clean].contentCount += 1;
+          map[clean].impressions  += item.impressions||0;
+          map[clean].reach        += item.reach||0;
+          map[clean].engagement   += eng;
+          map[clean].likes        += item.likes||0;
+          map[clean].comments     += item.comments||0;
+          map[clean].shares       += item.shares||0;
+          map[clean].saves        += item.saves||0;
+          if (item.platform) map[clean].pset.add(item.platform);
+        });
+      });
+      result[scope] = Object.values(map).map(function(h) {
+        return Object.assign({}, h, {
+          platforms: Array.from(h.pset),
+          avgImp: h.contentCount > 0 ? Math.round(h.impressions/h.contentCount) : 0,
+          avgEr:  h.reach > 0 ? ((h.engagement/h.reach)*100).toFixed(2) : "0.00"
+        });
+      }).sort(function(a,b) { return b.impressions - a.impressions; });
+    });
+    return result;
+  }, [accountContents, allPlatforms]);
+
+  const activeStats = React.useMemo(function() {
+    return allPlatformStats[activePlatform] || [];
+  }, [allPlatformStats, activePlatform]);
+
+  const displayStats = React.useMemo(function() {
+    const filtered = activeStats.filter(function(h) {
+      return h.tag.toLowerCase().includes(searchHashtag.toLowerCase());
+    });
+    return filtered.slice().sort(function(a,b) {
+      if (hashtagSortBy === "reach")         return b.reach - a.reach;
+      if (hashtagSortBy === "engagement")    return b.engagement - a.engagement;
+      if (hashtagSortBy === "contentCount")  return b.contentCount - a.contentCount;
+      if (hashtagSortBy === "avgEr")         return parseFloat(b.avgEr) - parseFloat(a.avgEr);
+      if (hashtagSortBy === "avgImpressions") return b.avgImp - a.avgImp;
+      if (hashtagSortBy === "alphabetical")  return a.tag.localeCompare(b.tag);
+      return b.impressions - a.impressions;
+    });
+  }, [activeStats, searchHashtag, hashtagSortBy]);
+
+  const top3 = React.useMemo(function() {
+    return activeStats.slice().sort(function(a,b) { return b.avgImp - a.avgImp; }).slice(0, 3);
+  }, [activeStats]);
+
+  const scopeColor = activePlatform === "All" ? "var(--accent-primary)" : pColor(activePlatform);
+  const scopeIcon  = activePlatform === "All" ? "hash" : pIcon(activePlatform);
 
   return (
     <div className="page-container">
+
       <div className="page-header">
-        <h1 className="page-title">{activeAccount.name} - Hashtag Studio</h1>
-        <p className="page-subtitle">Track performance of every hashtag across your content</p>
+        <div>
+          <h1 className="page-title">{activeAccount.name} — Hashtag Studio</h1>
+          <p className="page-subtitle">Analyze hashtag performance per platform or across all platforms combined</p>
+        </div>
       </div>
 
-      {/* Top 3 Hashtags Premium Cards */}
-      {top3Hashtags.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem", marginBottom: "2.5rem" }}>
-          {top3Hashtags.map((hashtag, index) => (
-            <div key={hashtag.tag} style={{
-              background: index === 0 
-                ? "linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(59, 130, 246, 0.15))" 
-                : index === 1 
-                ? "linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(59, 130, 246, 0.15))"
-                : "linear-gradient(135deg, rgba(244, 63, 94, 0.15), rgba(249, 115, 22, 0.15))",
-              borderRadius: "var(--radius-md)",
-              border: index === 0 ? "2px solid rgba(34, 197, 94, 0.4)" : index === 1 ? "2px solid rgba(168, 85, 247, 0.4)" : "2px solid rgba(244, 63, 94, 0.4)",
-              padding: "1.75rem",
-              position: "relative",
-              overflow: "hidden",
-              backdropFilter: "blur(10px)"
-            }}>
-              {/* Badge */}
-              <div style={{
-                position: "absolute",
-                top: "-8px",
-                left: "15px",
-                background: index === 0 ? "linear-gradient(135deg, #22C55E, #3B82F6)" : index === 1 ? "linear-gradient(135deg, #A855F7, #3B82F6)" : "linear-gradient(135deg, #F43F5E, #F97316)",
-                color: "#fff",
-                padding: "0.35rem 0.75rem",
-                borderRadius: "var(--radius-sm)",
-                fontSize: "0.75rem",
-                fontWeight: 700,
-                letterSpacing: "0.05em",
-                textTransform: "uppercase"
+      {/* ── PLATFORM TABS ─────────────────────────────────────────────────── */}
+      <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"2rem", flexWrap:"wrap" }}>
+        {["All"].concat(allPlatforms).map(function(plat) {
+          const isActive = activePlatform === plat;
+          const c  = plat === "All" ? "var(--accent-primary)" : pColor(plat);
+          const ic = plat === "All" ? "layers" : pIcon(plat);
+          const count = (allPlatformStats[plat] || []).length;
+          return (
+            <button key={plat}
+              onClick={function() { setActivePlatform(plat); setSearchHashtag(""); }}
+              style={{
+                display:"inline-flex", alignItems:"center", gap:"0.5rem",
+                padding:"0.5rem 1rem", borderRadius:"var(--radius-sm)",
+                cursor:"pointer", fontSize:"0.85rem",
+                fontWeight: isActive ? 700 : 500,
+                border: isActive ? "1px solid "+c+"70" : "1px solid var(--border-color)",
+                background: isActive ? c+"18" : "rgba(255,255,255,0.03)",
+                color: isActive ? c : "var(--text-muted)",
+                boxShadow: isActive ? "0 0 12px "+c+"20" : "none",
+                transition:"all 0.2s ease"
               }}>
-                #{index + 1} Top Hashtag
-              </div>
+              <i data-lucide={ic} style={{ width:"13px", height:"13px", flexShrink:0 }}></i>
+              {plat}
+              <span style={{
+                fontSize:"0.7rem", fontWeight:700,
+                padding:"0.1rem 0.4rem", borderRadius:"10px",
+                background: isActive ? c+"25" : "rgba(255,255,255,0.06)",
+                color: isActive ? c : "var(--text-subtle)"
+              }}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
 
-              {/* Icon/Medal */}
-              <div style={{
-                width: "56px",
-                height: "56px",
-                borderRadius: "12px",
-                background: index === 0 ? "linear-gradient(135deg, #22C55E, #16A34A)" : index === 1 ? "linear-gradient(135deg, #A855F7, #7C3AED)" : "linear-gradient(135deg, #F43F5E, #DC2626)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 800,
-                color: "#fff",
-                fontSize: "1.8rem",
-                marginBottom: "1rem"
-              }}>
-                {index === 0 ? "1" : index === 1 ? "2" : "3"}
+      {/* ── SCOPE SUMMARY STRIP ───────────────────────────────────────────── */}
+      {activeStats.length > 0 && (
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))", gap:"0.85rem", marginBottom:"2rem" }}>
+          {[
+            { label:"Unique Hashtags",   value:""+activeStats.length,
+              color:scopeColor },
+            { label:"Total Uses",
+              value:fmt(activeStats.reduce(function(s,h){return s+h.contentCount;},0)),
+              color:"var(--accent-cyan)" },
+            { label:"Total Impressions",
+              value:fmt(activeStats.reduce(function(s,h){return s+h.impressions;},0)),
+              color:"var(--accent-cyan)" },
+            { label:"Total Engagement",
+              value:fmt(activeStats.reduce(function(s,h){return s+h.engagement;},0)),
+              color:"var(--accent-emerald)" },
+            { label:"Best Avg Views",
+              value: top3[0] ? fmt(top3[0].avgImp) : "-",
+              color:"#F59E0B" },
+          ].map(function(k, i) {
+            return (
+              <div key={i} style={{ padding:"0.85rem 1rem", borderRadius:"var(--radius-md)",
+                background:"rgba(7,9,15,0.6)", border:"1px solid var(--border-color)",
+                position:"relative", overflow:"hidden" }}>
+                <div style={{ position:"absolute", top:0, left:0, right:0, height:"2px",
+                  background:"linear-gradient(90deg,"+k.color+","+k.color+"44)" }}></div>
+                <div style={{ fontSize:"0.68rem", color:"var(--text-subtle)", textTransform:"uppercase",
+                  letterSpacing:"0.05em", fontWeight:700, marginBottom:"0.35rem" }}>{k.label}</div>
+                <div style={{ fontSize:"1.25rem", fontWeight:800, fontFamily:"var(--font-heading)",
+                  color:k.color, lineHeight:1 }}>{k.value}</div>
               </div>
-
-              {/* Hashtag Name */}
-              <h3 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "0.5rem", color: "#fff", wordBreak: "break-word" }}>
-                {hashtag.tag}
-              </h3>
-
-              {/* Main Metric - Avg Views Per Content */}
-              <div style={{ marginBottom: "1.25rem" }}>
-                <div style={{ fontSize: "0.85rem", color: "rgba(255, 255, 255, 0.7)", marginBottom: "0.35rem", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
-                  Avg Views per Post
-                </div>
-                <div style={{ fontSize: "2rem", fontWeight: 800, background: index === 0 ? "linear-gradient(135deg, #22C55E, #3B82F6)" : index === 1 ? "linear-gradient(135deg, #A855F7, #3B82F6)" : "linear-gradient(135deg, #F43F5E, #F97316)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-                  {hashtag.avgImpressionsPerContent.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                </div>
-              </div>
-
-              {/* Stats Row */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", paddingTop: "1rem", borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
-                <div>
-                  <div style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.6)", marginBottom: "0.25rem", textTransform: "uppercase" }}>
-                    Total Views
-                  </div>
-                  <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
-                    {(hashtag.impressions / 1000).toFixed(1)}K
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.6)", marginBottom: "0.25rem", textTransform: "uppercase" }}>
-                    Featured In
-                  </div>
-                  <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
-                    {hashtag.contentCount} posts
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Hashtags Performance Data Table */}
-      <div className="table-container">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", gap: "1.5rem", flexWrap: "wrap" }}>
-          <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0, minWidth: "200px" }}>Hashtag Performance Table</h2>
-          
-          {/* Sort Dropdown */}
-          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", minWidth: "auto" }}>
-            <label style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-muted)", whiteSpace: "nowrap" }}>Sort by:</label>
-            <select 
-              className="form-select"
-              value={hashtagSortBy}
-              onChange={(e) => setHashtagSortBy(e.target.value)}
-              style={{ 
-                padding: "0.65rem 1rem", 
-                fontSize: "0.9rem",
-                fontWeight: 500,
-                background: "linear-gradient(135deg, var(--bg-tertiary) 0%, rgba(59, 130, 246, 0.05) 100%)",
-                border: "1.5px solid var(--accent-cyan)",
-                borderRadius: "10px",
-                color: "var(--text-primary)",
-                cursor: "pointer",
-                boxShadow: "0 4px 12px rgba(6, 182, 212, 0.1)",
-                transition: "all 0.2s ease",
-                appearance: "none",
-                backgroundImage: "url(\"data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgb(6, 182, 212)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e\")",
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "right 0.75rem center",
-                backgroundSize: "1.2em 1.2em",
-                paddingRight: "2.5rem"
-              }}
-            >
+      {/* ── TOP 3 CARDS ───────────────────────────────────────────────────── */}
+      {top3.length > 0 && (
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))", gap:"1.25rem", marginBottom:"2.5rem" }}>
+          {top3.map(function(hashtag, index) {
+            const bgs  = ["linear-gradient(135deg,rgba(34,197,94,0.15),rgba(59,130,246,0.15))","linear-gradient(135deg,rgba(168,85,247,0.15),rgba(59,130,246,0.15))","linear-gradient(135deg,rgba(244,63,94,0.15),rgba(249,115,22,0.15))"];
+            const bds  = ["2px solid rgba(34,197,94,0.4)","2px solid rgba(168,85,247,0.4)","2px solid rgba(244,63,94,0.4)"];
+            const bBg  = ["linear-gradient(135deg,#22C55E,#3B82F6)","linear-gradient(135deg,#A855F7,#3B82F6)","linear-gradient(135deg,#F43F5E,#F97316)"];
+            const iBg  = ["linear-gradient(135deg,#22C55E,#16A34A)","linear-gradient(135deg,#A855F7,#7C3AED)","linear-gradient(135deg,#F43F5E,#DC2626)"];
+            return (
+              <div key={hashtag.tag} style={{ background:bgs[index], borderRadius:"var(--radius-md)",
+                border:bds[index], padding:"1.75rem", position:"relative", overflow:"hidden",
+                backdropFilter:"blur(10px)" }}>
+                <div style={{ position:"absolute", top:"-8px", left:"15px", background:bBg[index],
+                  color:"#fff", padding:"0.35rem 0.75rem", borderRadius:"var(--radius-sm)",
+                  fontSize:"0.75rem", fontWeight:700, letterSpacing:"0.05em", textTransform:"uppercase" }}>
+                  #{index+1} Top Hashtag
+                </div>
+                <div style={{ width:"56px", height:"56px", borderRadius:"12px", background:iBg[index],
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  fontWeight:800, color:"#fff", fontSize:"1.8rem", marginBottom:"1rem", marginTop:"0.5rem" }}>
+                  {index+1}
+                </div>
+                <h3 style={{ fontSize:"1.25rem", fontWeight:700, marginBottom:"0.5rem", color:"#fff", wordBreak:"break-word" }}>
+                  {hashtag.tag}
+                </h3>
+                {activePlatform === "All" && hashtag.platforms.length > 0 && (
+                  <div style={{ display:"flex", gap:"0.3rem", flexWrap:"wrap", marginBottom:"0.85rem" }}>
+                    {hashtag.platforms.map(function(p) {
+                      return (
+                        <span key={p} style={{ display:"inline-flex", alignItems:"center", gap:"0.25rem",
+                          fontSize:"0.7rem", fontWeight:600, padding:"0.15rem 0.45rem",
+                          borderRadius:"var(--radius-full)", background:"rgba(255,255,255,0.1)",
+                          color:"rgba(255,255,255,0.8)" }}>
+                          <i data-lucide={pIcon(p)} style={{ width:"9px", height:"9px" }}></i>{p}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                <div style={{ marginBottom:"1.25rem" }}>
+                  <div style={{ fontSize:"0.85rem", color:"rgba(255,255,255,0.7)", marginBottom:"0.35rem",
+                    textTransform:"uppercase", letterSpacing:"0.05em", fontWeight:600 }}>Avg Views per Post</div>
+                  <div style={{ fontSize:"2rem", fontWeight:800, background:bBg[index],
+                    WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
+                    {hashtag.avgImp.toLocaleString()}
+                  </div>
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"0.75rem",
+                  paddingTop:"1rem", borderTop:"1px solid rgba(255,255,255,0.1)" }}>
+                  {[
+                    { l:"Total Views", v:fmt(hashtag.impressions) },
+                    { l:"Posts",       v:""+hashtag.contentCount  },
+                    { l:"Avg ER",      v:hashtag.avgEr+"%"        },
+                  ].map(function(m) {
+                    return (
+                      <div key={m.l}>
+                        <div style={{ fontSize:"0.7rem", color:"rgba(255,255,255,0.6)", marginBottom:"0.2rem",
+                          textTransform:"uppercase", letterSpacing:"0.04em" }}>{m.l}</div>
+                        <div style={{ fontSize:"1rem", fontWeight:700 }}>{m.v}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── HASHTAG TABLE ─────────────────────────────────────────────────── */}
+      <div className="glass-card" style={{ padding:"1.5rem" }}>
+
+        {/* Table controls */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start",
+          marginBottom:"1.25rem", gap:"1rem", flexWrap:"wrap" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:"0.65rem" }}>
+            <div style={{ width:"28px", height:"28px", borderRadius:"8px",
+              background:scopeColor+"18", border:"1px solid "+scopeColor+"30",
+              display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <i data-lucide={scopeIcon} style={{ width:"13px", height:"13px", color:scopeColor }}></i>
+            </div>
+            <div>
+              <div style={{ fontSize:"1rem", fontWeight:700, color:"var(--text-main)" }}>
+                {activePlatform === "All" ? "All Platforms" : activePlatform} — Hashtag Performance Table
+              </div>
+              {activePlatform !== "All" && (
+                <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", marginTop:"0.1rem" }}>
+                  Only content from <strong style={{ color:scopeColor }}>{activePlatform}</strong>
+                </div>
+              )}
+            </div>
+            <span style={{ fontSize:"0.75rem", color:"var(--text-muted)", background:"rgba(255,255,255,0.05)",
+              padding:"0.2rem 0.55rem", borderRadius:"var(--radius-full)", border:"1px solid var(--border-color)" }}>
+              {displayStats.length} tag{displayStats.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          <div style={{ display:"flex", gap:"0.65rem", alignItems:"center", flexWrap:"wrap" }}>
+            <div style={{ position:"relative" }}>
+              <i data-lucide="search" style={{ position:"absolute", left:"0.65rem", top:"50%",
+                transform:"translateY(-50%)", width:"13px", height:"13px",
+                color:"var(--text-subtle)", pointerEvents:"none" }}></i>
+              <input type="text" className="form-input" placeholder="Search hashtag..."
+                value={searchHashtag}
+                onChange={function(e) { setSearchHashtag(e.target.value); }}
+                style={{ paddingLeft:"2rem", width:"170px", minHeight:"36px", fontSize:"0.85rem" }} />
+            </div>
+            <select className="form-select" value={hashtagSortBy}
+              onChange={function(e) { setHashtagSortBy(e.target.value); }}
+              style={{ width:"auto", minHeight:"36px", fontSize:"0.85rem", border:"1.5px solid var(--accent-cyan)" }}>
               <option value="impressions">Total Impressions</option>
               <option value="reach">Total Reach</option>
               <option value="engagement">Total Engagement</option>
-              <option value="contentCount">Content Count</option>
-              <option value="avgEr">Avg Engagement Rate %</option>
-              <option value="avgImpressions">Avg Impressions per Post</option>
+              <option value="contentCount">Post Count</option>
+              <option value="avgEr">Avg ER %</option>
+              <option value="avgImpressions">Avg Views / Post</option>
               <option value="alphabetical">Alphabetical (A-Z)</option>
             </select>
           </div>
         </div>
 
-        <table className="custom-table">
-          <thead>
-            <tr>
-              <th>Hashtag</th>
-              <th>Content Count</th>
-              <th>Total Impressions (Viewers)</th>
-              <th>Total Reach</th>
-              <th>Total Engagement</th>
-              <th>Avg Engagement Rate %</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(() => {
-              // Sort the hashtags based on selected criteria
-              const sortedHashtags = [...filteredHashtags].sort((a, b) => {
-                switch(hashtagSortBy) {
-                  case "impressions":
-                    return b.impressions - a.impressions;
-                  case "reach":
-                    return b.reach - a.reach;
-                  case "engagement":
-                    return b.engagement - a.engagement;
-                  case "contentCount":
-                    return b.contentCount - a.contentCount;
-                  case "avgEr":
-                    return parseFloat(b.avgEr) - parseFloat(a.avgEr);
-                  case "avgImpressions":
-                    return (b.contentCount > 0 ? b.impressions / b.contentCount : 0) - (a.contentCount > 0 ? a.impressions / a.contentCount : 0);
-                  case "alphabetical":
-                    return a.tag.localeCompare(b.tag);
-                  default:
-                    return b.impressions - a.impressions;
-                }
-              });
-
-              return sortedHashtags.map(h => (
-                <tr key={h.tag}>
-                  <td><span className="chip" style={{ background: "rgba(139, 92, 246, 0.15)", color: "var(--accent-primary)", border: "1px solid rgba(139, 92, 246, 0.3)", fontSize: "0.85rem", padding: "0.3rem 0.75rem" }}>{h.tag}</span></td>
-                  <td style={{ fontWeight: 600 }}>{h.contentCount} contents</td>
-                  <td style={{ fontWeight: 700, color: "var(--accent-cyan)" }}>{h.impressions.toLocaleString()}</td>
-                  <td>{h.reach.toLocaleString()}</td>
-                  <td style={{ color: "var(--accent-emerald)", fontWeight: 600 }}>{h.engagement.toLocaleString()}</td>
-                  <td style={{ fontWeight: 700, color: "var(--accent-primary)" }}>{h.avgEr}%</td>
-                </tr>
-              ));
-            })()}
-
-            {filteredHashtags.length === 0 && (
+        {/* Table */}
+        <div style={{ overflowX:"auto" }}>
+          <table className="custom-table">
+            <thead>
               <tr>
-                <td colSpan="6" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
-                  No hashtag records found
-                </td>
+                <th>#</th>
+                <th>Hashtag</th>
+                {activePlatform === "All" && <th>Platforms</th>}
+                <th>Posts</th>
+                <th style={{ color:"var(--accent-cyan)" }}>Total Views</th>
+                <th>Total Reach</th>
+                <th style={{ color:"var(--accent-emerald)" }}>Total Eng.</th>
+                <th style={{ color:"#FB7185" }}>Likes</th>
+                <th style={{ color:"#A78BFA" }}>Comments</th>
+                <th style={{ color:"#22D3EE" }}>Shares</th>
+                <th style={{ color:"#34D399" }}>Saves</th>
+                <th style={{ color:"#F59E0B" }}>Avg Views/Post</th>
+                <th style={{ color:"var(--accent-primary)" }}>Avg ER %</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {displayStats.length === 0 && (
+                <tr>
+                  <td colSpan={activePlatform === "All" ? 13 : 12}
+                    style={{ textAlign:"center", padding:"2.5rem", color:"var(--text-muted)" }}>
+                    {searchHashtag ? "No hashtags match \""+searchHashtag+"\"" : "No hashtag data for "+activePlatform}
+                  </td>
+                </tr>
+              )}
+              {displayStats.map(function(h, idx) {
+                const isTop = idx === 0;
+                return (
+                  <tr key={h.tag} style={isTop ? { background:scopeColor+"08" } : {}}>
+                    <td style={{ fontWeight:700, color:isTop ? scopeColor : "var(--text-subtle)", fontSize:"0.8rem" }}>
+                      {isTop ? "Best" : "#"+(idx+1)}
+                    </td>
+                    <td>
+                      <span className="chip" style={{ background:"rgba(139,92,246,0.12)", color:"var(--accent-primary-light)",
+                        border:"1px solid rgba(139,92,246,0.25)", fontSize:"0.82rem", padding:"0.25rem 0.65rem" }}>
+                        {h.tag}
+                      </span>
+                    </td>
+                    {activePlatform === "All" && (
+                      <td>
+                        <div style={{ display:"flex", gap:"0.25rem", flexWrap:"wrap" }}>
+                          {h.platforms.map(function(p) {
+                            return (
+                              <span key={p} style={{ display:"inline-flex", alignItems:"center", gap:"0.2rem",
+                                fontSize:"0.7rem", padding:"0.12rem 0.4rem", borderRadius:"var(--radius-full)",
+                                background:pColor(p)+"15", border:"1px solid "+pColor(p)+"30",
+                                color:pColor(p), fontWeight:600, whiteSpace:"nowrap" }}>
+                                <i data-lucide={pIcon(p)} style={{ width:"9px", height:"9px", flexShrink:0 }}></i>{p}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </td>
+                    )}
+                    <td style={{ fontWeight:600, color:"var(--text-secondary)" }}>{h.contentCount}</td>
+                    <td style={{ fontWeight:700, color:"var(--accent-cyan)" }}>{fmt(h.impressions)}</td>
+                    <td style={{ color:"var(--text-secondary)" }}>{fmt(h.reach)}</td>
+                    <td style={{ fontWeight:700, color:"var(--accent-emerald)" }}>{fmt(h.engagement)}</td>
+                    <td style={{ color:"#FB7185", fontSize:"0.82rem" }}>{fmt(h.likes)}</td>
+                    <td style={{ color:"#A78BFA", fontSize:"0.82rem" }}>{fmt(h.comments)}</td>
+                    <td style={{ color:"#22D3EE", fontSize:"0.82rem" }}>{fmt(h.shares)}</td>
+                    <td style={{ color:"#34D399", fontSize:"0.82rem" }}>{fmt(h.saves)}</td>
+                    <td style={{ fontWeight:700, color:"#F59E0B" }}>{fmt(h.avgImp)}</td>
+                    <td style={{ fontWeight:700, color:"var(--accent-primary)" }}>{h.avgEr}%</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Quick platform switcher (shown on All view) */}
+        {activePlatform === "All" && allPlatforms.length > 1 && displayStats.length > 0 && (
+          <div style={{ marginTop:"1.5rem", paddingTop:"1.25rem", borderTop:"1px solid var(--border-subtle)" }}>
+            <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase",
+              letterSpacing:"0.05em", marginBottom:"0.85rem" }}>View by Platform</div>
+            <div style={{ display:"flex", gap:"0.6rem", flexWrap:"wrap" }}>
+              {allPlatforms.map(function(p) {
+                const pCount = (allPlatformStats[p] || []).length;
+                const c = pColor(p);
+                return (
+                  <button key={p}
+                    onClick={function() { setActivePlatform(p); setSearchHashtag(""); }}
+                    style={{ display:"inline-flex", alignItems:"center", gap:"0.45rem",
+                      padding:"0.45rem 0.85rem", borderRadius:"var(--radius-sm)",
+                      border:"1px solid "+c+"30", background:c+"0C",
+                      cursor:"pointer", transition:"all 0.2s", color:c, fontSize:"0.82rem", fontWeight:600 }}>
+                    <i data-lucide={pIcon(p)} style={{ width:"12px", height:"12px" }}></i>
+                    {p}
+                    <span style={{ fontSize:"0.72rem", fontWeight:800, color:"var(--text-muted)" }}>{pCount} tags</span>
+                    <i data-lucide="arrow-right" style={{ width:"10px", height:"10px", color:"var(--text-subtle)" }}></i>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
