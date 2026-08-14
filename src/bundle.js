@@ -4193,7 +4193,8 @@ function ReportSummaryPage() {
   async function generateAiAnalysis(combined, platformData, contentTypeData, subjectData, brief, fmt, fmtFull, fmtDate, calcEr, pct) {
     var key = aiKey.trim();
     if (!key) { setAiError("Please enter your Gemini API key first. Get one free at aistudio.google.com/app/apikey"); return; }
-    if (!key.startsWith("AIza")) { setAiError("Invalid API key format. Gemini keys start with 'AIza...'. Get a new one at aistudio.google.com/app/apikey"); return; }
+    if (!key.startsWith("AIza")) { setAiError("Invalid API key format. Gemini keys must start with 'AIza...' (usually 39+ characters). Double-check you copied the full key from aistudio.google.com/app/apikey and didn't accidentally include quotes or spaces."); return; }
+    if (key.length < 30) { setAiError("Your API key seems too short ("+key.length+" chars). Gemini keys are usually 39+ characters. Make sure you copied the complete key."); return; }
 
     setAiLoading(true); setAiOutput(""); setAiError("");
 
@@ -4204,24 +4205,32 @@ function ReportSummaryPage() {
     if (brief.tone)     ctx += "Content Tone: " + brief.tone + "\n";
     if (brief.pillars)  ctx += "Content Pillars: " + brief.pillars + "\n";
     if (brief.context)  ctx += "Context: " + brief.context + "\n";
-    ctx += "\n=== OVERALL METRICS ===\n";
-    ctx += "Posts: " + combined.count + " | Impressions: " + fmtFull(combined.imp) + " | Reach: " + fmtFull(combined.reach) + "\n";
-    ctx += "Engagement: " + fmtFull(combined.eng) + " (Likes " + fmtFull(combined.lik) + " / Comments " + fmtFull(combined.com) + " / Shares " + fmtFull(combined.sha) + " / Saves " + fmtFull(combined.sav) + ")\n";
-    ctx += "ER: " + combined.er + "% | Imp/Reach: " + combined.ir + "x | Avg views/post: " + fmtFull(combined.avgImp) + "\n";
-    ctx += "Likes " + combined.likPct + "% / Comments " + combined.comPct + "% / Shares " + combined.shaPct + "% / Saves " + combined.savPct + "%\n";
-    ctx += "Health — Danger: " + combined.impTiers.danger + " | Warning: " + combined.impTiers.warning + " | Safe: " + combined.impTiers.safe + " | Good: " + combined.impTiers.good + " | FYP: " + combined.impTiers.fyp + "\n";
-    ctx += "Period: " + fmtDate(combined.dateFrom) + " to " + fmtDate(combined.dateTo) + "\n";
+    ctx += "\n=== OVERALL METRICS & BENCHMARKS ===\n";
+    ctx += "Total Posts: " + combined.count + " | Total Impressions: " + fmtFull(combined.imp) + " | Total Reach: " + fmtFull(combined.reach) + "\n";
+    ctx += "Total Engagement: " + fmtFull(combined.eng) + " (Likes " + fmtFull(combined.lik) + " / Comments " + fmtFull(combined.com) + " / Shares " + fmtFull(combined.sha) + " / Saves " + fmtFull(combined.sav) + ")\n";
+    ctx += "Engagement Rate (ER): " + combined.er + "% (benchmark: 1-3% for average creators, 3-5% for good, 5%+ for excellent)\n";
+    ctx += "Reach Rate (Imp/Reach): " + combined.ir + "x (how many times content is shown to same users — benchmark: 1.5x is healthy, 2x+ means strong distribution)\n";
+    ctx += "Average Views Per Post: " + fmtFull(combined.avgImp) + "\n";
+    ctx += "Engagement Mix: Likes " + combined.likPct + "% / Comments " + combined.comPct + "% / Shares " + combined.shaPct + "% / Saves " + combined.savPct + "% (saves indicate content value, shares show viral potential)\n";
+    ctx += "Content Health — Danger (0 views): " + combined.impTiers.danger + " | Warning (1-99): " + combined.impTiers.warning + " | Safe (100-999): " + combined.impTiers.safe + " | Good (1K-9.9K): " + combined.impTiers.good + " | FYP (10K+): " + combined.impTiers.fyp + "\n";
+    ctx += "Period Analyzed: " + fmtDate(combined.dateFrom) + " to " + fmtDate(combined.dateTo) + "\n";
 
     platformData.forEach(function(pl) {
-      ctx += "\nPLATFORM " + pl.name + ": " + pl.posts.length + " posts | " + fmtFull(pl.imp) + " views (" + pl.impShare + "%) | ER " + pl.er + "% | Avg " + fmtFull(pl.avgImp) + " views/post\n";
-      ctx += "  Mix: Likes " + pl.likPct + "% Shares " + pl.shaPct + "% Saves " + pl.savPct + "%\n";
-      if (pl.topPost) { var tpe=(pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0); ctx += "  Best: \"" + (pl.topPost.caption||"").substring(0,70) + "\" — " + fmtFull(pl.topPost.impressions||0) + " views ER " + calcEr(tpe,pl.topPost.reach||0) + "%\n"; }
-      if (pl.worstPost && pl.worstPost.id!==(pl.topPost||{}).id) ctx += "  Worst: \"" + (pl.worstPost.caption||"").substring(0,50) + "\" — " + fmtFull(pl.worstPost.impressions||0) + " views\n";
+      var erBenchmark = pl.er > 5 ? "excellent" : pl.er > 3 ? "good" : pl.er > 1 ? "average" : "poor";
+      var avgBenchmark = pl.avgImp > 1000 ? "strong distribution" : pl.avgImp > 500 ? "moderate distribution" : "low distribution";
+      ctx += "\nPLATFORM: " + pl.name + "\n";
+      ctx += "  Posts: " + pl.posts.length + " | Total Views: " + fmtFull(pl.imp) + " ("+pl.impShare+"% of account) | ER: " + pl.er + "% ("+erBenchmark+") | Avg Views/Post: " + fmtFull(pl.avgImp) + " ("+avgBenchmark+")\n";
+      ctx += "  Engagement Mix: Likes " + pl.likPct + "% | Shares " + pl.shaPct + "% | Saves " + pl.savPct + "% (shares and saves are stronger social proof than likes)\n";
+      if (pl.topPost) { var tpe=(pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0); var topEr = calcEr(tpe,pl.topPost.reach||0); ctx += "  Best Performing: \"" + (pl.topPost.caption||"").substring(0,60) + "...\" — " + fmtFull(pl.topPost.impressions||0) + " views (" + topEr + "% ER, viral if >5%)\n"; }
+      if (pl.worstPost && pl.worstPost.id!==(pl.topPost||{}).id) { ctx += "  Lowest Performing: \"" + (pl.worstPost.caption||"").substring(0,50) + "...\" — " + fmtFull(pl.worstPost.impressions||0) + " views (investigate why this underperformed)\n"; }
     });
 
     if (contentTypeData.length > 0) {
-      ctx += "\nCONTENT TYPES:\n";
-      contentTypeData.forEach(function(ct){ ctx += "  " + ct.type + ": " + ct.posts.length + " posts | avg " + fmtFull(ct.avgImp) + " views | ER " + ct.er + "%\n"; });
+      ctx += "\nCONTENT TYPE PERFORMANCE:\n";
+      contentTypeData.forEach(function(ct){
+        var erQuality = ct.er > 5 ? "excellent engagement" : ct.er > 3 ? "good engagement" : "needs improvement";
+        ctx += "  " + ct.type + ": " + ct.posts.length + " posts | Avg " + fmtFull(ct.avgImp) + " views | ER " + ct.er + "% ("+erQuality+")\n";
+      });
     }
 
     if (subjectData.length > 0) {
@@ -4238,7 +4247,7 @@ function ReportSummaryPage() {
       combined.bottomContent.forEach(function(c,i){ ctx += "  #"+(i+1)+" ("+c.platform+"): \"" + (c.caption||"").substring(0,50) + "\" — " + fmtFull(c.impressions||0) + " views\n"; });
     }
 
-    var prompt = "You are a senior social media strategist and growth consultant. You have deep expertise in platform algorithms, content strategy, audience psychology, and creator monetisation.\n\nAnalyse the following social media account data and provide a comprehensive, actionable, and intelligent growth strategy. Go beyond summarising numbers — diagnose WHY metrics are what they are, identify hidden patterns, compare against industry benchmarks, and prescribe specific prioritised actions.\n\nStructure your response exactly as:\n1. **Diagnostic Summary** — Account health and trajectory based on data\n2. **Algorithm Health Analysis** — Content distribution health, impression tiers, and what signals the algorithm is reading\n3. **Platform-Specific Strategy** — For each platform: what is working, what is broken, the single highest-impact change\n4. **Content & Engagement Gaps** — Specific weaknesses in engagement mix and content format\n5. **Top 3 Growth Levers** — Highest-ROI actions for next 30 days, ranked by impact\n6. **Audience & Niche Alignment** — How well content aligns with stated goals and audience, what to adjust\n7. **30/60/90 Day Roadmap** — Specific milestones and actions\n\nBe direct, specific, data-driven. Reference actual numbers. No generic advice.\n\nACCOUNT DATA:\n" + ctx;
+    var prompt = "You are a senior social media strategist with 10+ years of experience. You understand platform algorithms, content strategy, audience psychology, and creator monetization.\n\nAnalyze the following social media account data and provide DETAILED PROFESSIONAL EXPLANATIONS for each metric. Don't just rewrite numbers — explain what each metric MEANS, whether it's GOOD or BAD compared to industry standards, and WHY it matters for growth.\n\nFor each section, include:\n- What the metric shows\n- Industry benchmark comparison\n- Whether this is healthy or concerning\n- Specific reasons why (algorithm factors, content quality, audience behavior, posting strategy)\n\nStructure your response EXACTLY as:\n\n1. **Diagnostic Summary** — Is this account healthy? What's the trajectory? What's the primary bottleneck limiting growth?\n\n2. **Algorithm Health Analysis** — Analyze impression distribution health. Explain what the danger/warning/safe/good/FYP tiers mean. Why are posts getting 0 impressions? Is content being suppressed? Are hashtags working?\n\n3. **Platform-Specific Deep Dive** — For each platform:\n   - What's working: Which content types/formats are winning?\n   - What's broken: Why are some posts flopping? Posting time issues? Hashtag problems? Weak hooks?\n   - Single highest-impact change: The ONE thing to fix first\n   - ER analysis: Is engagement authentic or do you need more comments/shares?\n\n4. **Content & Engagement Gaps** — Explain engagement mix (likes vs comments vs shares vs saves). What type of engagement is missing? Why? What does it mean?\n\n5. **Top 3 Growth Levers** — For next 30 days, what are the highest-ROI actions ranked by impact?\n\n6. **Audience & Niche Alignment** — How well does content match the stated niche, goals, and audience? What needs adjustment?\n\n7. **30/60/90 Day Roadmap** — Specific, measurable milestones and actions\n\nBe DIRECT, SPECIFIC, DATA-DRIVEN. Reference ACTUAL numbers from the data. Explain benchmarks. No generic advice. For each metric, state if it's good/bad/needs work.\n\nACCOUNT DATA:\n" + ctx;
 
     try {
       var resp = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key="+key, {
@@ -4248,10 +4257,11 @@ function ReportSummaryPage() {
       if (!resp.ok) {
         var errData = await resp.json().catch(function(){return {};});
         var msg = (errData.error&&errData.error.message) ? errData.error.message : "API error "+resp.status;
-        if (resp.status===400) msg="Invalid request. Check your API key format (should start with AIza).";
-        if (resp.status===403) msg="API key not authorised. Verify it's enabled in Google Cloud Console or use a free key from aistudio.google.com";
-        if (resp.status===404) msg="Model not available. Gemini API may be unavailable in your region. Try a new key from aistudio.google.com/app/apikey";
-        if (resp.status===429) msg="Rate limit hit. You've made too many requests. Wait a few minutes.";
+        if (resp.status===400) msg="Invalid request. Make sure your key starts with 'AIza' and is complete (usually 39+ characters). Get a new key: aistudio.google.com/app/apikey";
+        if (resp.status===403) msg="API key not authorized. The key you provided is valid but not enabled for this account. Try: (1) Generate a new key, (2) Enable Gemini API in Google Cloud Console, (3) Use a key from a different Google account";
+        if (resp.status===404) msg="Model not available. Possible reasons: (1) Regional restriction on your API key, (2) Gemini API disabled in your region, (3) Free tier limit reached. Try a new key from aistudio.google.com";
+        if (resp.status===429) msg="Rate limit exceeded. You've made too many requests (free tier: 15/minute, 1500/day). Wait 5 minutes and try again, or upgrade to paid API";
+        if (resp.status===401) msg="Unauthorized: Invalid or expired API key. Generate a new key at aistudio.google.com/app/apikey";
         throw new Error(msg);
       }
       var data = await resp.json();
@@ -5472,13 +5482,16 @@ function ReportSummaryPage() {
 
           {/* Get key link */}
           {!aiKey.trim() && (
-            <div style={{ marginBottom:"0.85rem", fontSize:"0.78rem", color:"var(--text-muted)", lineHeight:1.6 }}>
-              Get a free API key at{" "}
-              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer"
-                style={{ color:"var(--accent-primary-light)", textDecoration:"underline", textUnderlineOffset:"3px" }}>
-                aistudio.google.com/app/apikey
-              </a>
-              {" "}— free tier includes 15 requests/minute. Your key is stored only in your browser.
+            <div style={{ marginBottom:"1rem", fontSize:"0.78rem", color:"var(--text-muted)", lineHeight:1.7, padding:"0.75rem 1rem", background:"rgba(139,92,246,0.08)", border:"1px solid rgba(139,92,246,0.2)", borderRadius:"var(--radius-sm)" }}>
+              <div style={{ fontWeight:700, marginBottom:"0.4rem", color:"var(--text-secondary)" }}>How to get your Gemini API Key:</div>
+              <ol style={{ margin:"0.3rem 0 0 1.25rem", paddingLeft:0 }}>
+                <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color:"var(--accent-primary-light)", textDecoration:"underline" }}>aistudio.google.com/app/apikey</a></li>
+                <li>Sign in with your Google account</li>
+                <li>Click "Create API Key" → "Create new secret key in new project"</li>
+                <li>Copy the key (should start with <code style={{color:"#10B981", background:"rgba(16,185,129,0.1)", padding:"0.1rem 0.3rem", borderRadius:"3px"}}>AIza</code>)</li>
+                <li>Paste it here — your key is stored only in your browser, never sent to SocioVault servers</li>
+              </ol>
+              <div style={{marginTop:"0.5rem", color:"#F59E0B"}}>⚠️ Free tier: 15 requests/minute, 1,500/day</div>
             </div>
           )}
 
