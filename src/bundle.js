@@ -4171,36 +4171,268 @@ function ReportSummaryPage() {
   const [draftPillars,  setDraftPillars]  = React.useState("");
   const [draftContext,  setDraftContext]  = React.useState("");
 
-  // ── AI Advisor state ────────────────────────────────────────────────────────
-  const [aiKey,        setAiKey]        = React.useState(function(){ return localStorage.getItem("sv_gemini_key") || ""; });
-  const [aiKeyVisible, setAiKeyVisible] = React.useState(false);
+  // ── Report Generator (Local, No API Needed) ────────────────────────────────────
   const [aiLoading,    setAiLoading]    = React.useState(false);
   const [aiOutput,     setAiOutput]     = React.useState("");
   const [aiError,      setAiError]      = React.useState("");
-  const [aiKeySaved,   setAiKeySaved]   = React.useState(false);
-
-  function saveAiKey(val) {
-    setAiKey(val);
-    if (val.trim()) {
-      localStorage.setItem("sv_gemini_key", val.trim());
-      setAiKeySaved(true);
-      setTimeout(function(){ setAiKeySaved(false); }, 1800);
-    } else {
-      localStorage.removeItem("sv_gemini_key");
-    }
-  }
 
   async function generateAiAnalysis(combined, platformData, contentTypeData, subjectData, brief, fmt, fmtFull, fmtDate, calcEr, pct) {
-    var key = aiKey.trim();
-    if (!key) { setAiError("Please enter your Gemini API key first. Get one free at aistudio.google.com/app/apikey"); return; }
-    // Accept both formats: AIza... (old format) and AQ.... (new Google AI Studio format)
-    if (!key.startsWith("AIza") && !key.startsWith("AQ.")) { 
-      setAiError("Invalid API key format. Keys should start with 'AIza' or 'AQ.'. Double-check you copied the full key from aistudio.google.com/app/apikey."); 
-      return; 
+    setAiLoading(true);
+    setAiOutput("");
+    setAiError("");
+    
+    // Generate local analysis without API calls
+    try {
+      var report = generateLocalReport(combined, platformData, contentTypeData, subjectData, brief, fmt, fmtFull, fmtDate, calcEr, pct);
+      setAiOutput(report);
+    } catch(err) {
+      setAiError(err.message || "Error generating report. Please try again.");
     }
-    if (key.length < 30) { setAiError("Your API key seems too short ("+key.length+" chars). Gemini keys are usually 39+ characters. Make sure you copied the complete key."); return; }
+    setAiLoading(false);
+  }
 
-    setAiLoading(true); setAiOutput(""); setAiError("");
+  function generateLocalReport(combined, platformData, contentTypeData, subjectData, brief, fmt, fmtFull, fmtDate, calcEr, pct) {
+    if (combined.count === 0) return "No content data available for analysis.";
+    
+    var report = "";
+    
+    // 1. DIAGNOSTIC SUMMARY
+    var erStatus = combined.er > 5 ? "excellent" : combined.er > 3 ? "good" : combined.er > 1 ? "average" : "poor";
+    var healthScore = combined.impTiers.fyp > 0 ? "strong" : combined.impTiers.good > 0 ? "healthy" : combined.impTiers.danger > 0 ? "critical" : "needs improvement";
+    var trajectory = combined.impTiers.danger > combined.count * 0.2 ? "declining" : combined.impTiers.fyp > 0 ? "growing" : "stable";
+    
+    report += "1. DIAGNOSTIC SUMMARY\n";
+    report += "════════════════════════════════════════════════════════════════\n\n";
+    report += "Account Health: " + healthScore.toUpperCase() + "\n";
+    report += "Trajectory: " + trajectory.toUpperCase() + "\n";
+    report += "Analysis Period: " + fmtDate(combined.dateFrom) + " to " + fmtDate(combined.dateTo) + "\n";
+    report += "Total Posts Analyzed: " + combined.count + "\n\n";
+    
+    if (combined.impTiers.danger > 0) {
+      report += "⚠️ CRITICAL ISSUE: " + combined.impTiers.danger + " post" + (combined.impTiers.danger > 1 ? "s" : "") + " with ZERO impressions.\n";
+      report += "   → This signals to the algorithm that content is not resonating.\n";
+      report += "   → IMMEDIATE ACTION: Review these posts for quality, hashtags, and posting time.\n\n";
+    }
+    
+    report += "Overall Engagement Rate: " + combined.er + "% (" + erStatus + ")\n";
+    report += "   → Industry Benchmark: 1-3% average, 3-5% good, 5%+ excellent\n";
+    report += "   → Your Status: " + (combined.er > 5 ? "EXCELLENT - You're outperforming most creators" : combined.er > 3 ? "GOOD - Above average engagement" : combined.er > 1 ? "AVERAGE - Room for improvement" : "POOR - Content needs optimization") + "\n\n";
+    
+    report += "Total Reach: " + fmtFull(combined.reach) + " unique users\n";
+    report += "Average Reach per Post: " + fmtFull(Math.round(combined.reach / combined.count)) + "\n";
+    report += "Impression to Reach Ratio: " + combined.ir + "x\n";
+    report += "   → Benchmark: 1.5x healthy, 2x+ strong distribution\n";
+    report += "   → This shows how many times each person sees your content\n\n";
+    
+    // 2. ALGORITHM HEALTH ANALYSIS
+    report += "\n2. ALGORITHM HEALTH ANALYSIS\n";
+    report += "════════════════════════════════════════════════════════════════\n\n";
+    
+    var dangerPct = (combined.impTiers.danger / combined.count * 100).toFixed(1);
+    var warningPct = (combined.impTiers.warning / combined.count * 100).toFixed(1);
+    var fypPct = (combined.impTiers.fyp / combined.count * 100).toFixed(1);
+    
+    report += "Content Distribution Health:\n";
+    report += "  🔴 Danger (0 views): " + combined.impTiers.danger + " posts (" + dangerPct + "%)\n";
+    report += "  🟡 Warning (1-99 views): " + combined.impTiers.warning + " posts (" + warningPct + "%)\n";
+    report += "  🟢 Safe (100-999 views): " + combined.impTiers.safe + " posts\n";
+    report += "  💚 Good (1K-9.9K views): " + combined.impTiers.good + " posts\n";
+    report += "  ⭐ FYP (10K+ views): " + combined.impTiers.fyp + " posts (" + fypPct + "%)\n\n";
+    
+    if (fypPct > 10) {
+      report += "✓ POSITIVE: " + fypPct + "% of your posts reach 10K+ impressions.\n";
+      report += "   → Your content is breaking through the algorithm consistently.\n";
+    } else if (fypPct > 0) {
+      report += "⚠ MODERATE: Only " + fypPct + "% reach viral threshold (10K+).\n";
+      report += "   → Analyze these viral posts to identify winning patterns.\n";
+    } else {
+      report += "⚠ CONCERN: No posts reaching 10K+ impressions.\n";
+      report += "   → Algorithm is not giving your content broad distribution.\n";
+    }
+    
+    report += "\nWhy posts get 0 impressions:\n";
+    report += "  • Posting at wrong time (algorithm favors peak hours)\n";
+    report += "  • Hashtags too competitive or irrelevant\n";
+    report += "  • Weak hook in first 1-2 seconds (users scroll away)\n";
+    report += "  • Content violates platform guidelines\n";
+    report += "  • Account has low trust score (build followers, engagement)\n\n";
+    
+    // 3. PLATFORM-SPECIFIC STRATEGY
+    report += "\n3. PLATFORM-SPECIFIC DEEP DIVE\n";
+    report += "════════════════════════════════════════════════════════════════\n\n";
+    
+    platformData.forEach(function(pl) {
+      var erQuality = pl.er > 5 ? "EXCELLENT" : pl.er > 3 ? "GOOD" : pl.er > 1 ? "AVERAGE" : "POOR";
+      var avgBench = pl.avgImp > 1000 ? "strong distribution" : pl.avgImp > 500 ? "moderate distribution" : "low distribution";
+      
+      report += "PLATFORM: " + pl.name + "\n";
+      report += "  Posts: " + pl.posts.length + " | Views: " + fmtFull(pl.imp) + " (" + pl.impShare + "% of total)\n";
+      report += "  Avg Views/Post: " + fmtFull(pl.avgImp) + " (" + avgBench + ")\n";
+      report += "  Engagement Rate: " + pl.er + "% (" + erQuality + ")\n";
+      report += "  Engagement Mix: Likes " + pl.likPct + "% | Shares " + pl.shaPct + "% | Saves " + pl.savPct + "%\n\n";
+      
+      if (pl.topPost) {
+        var tpe = (pl.topPost.likes || 0) + (pl.topPost.comments || 0) + (pl.topPost.shares || 0) + (pl.topPost.saves || 0);
+        var topEr = calcEr(tpe, pl.topPost.reach || 0);
+        report += "  ✓ TOP POST: \"" + (pl.topPost.caption || "").substring(0, 60) + "...\"\n";
+        report += "    Views: " + fmtFull(pl.topPost.impressions || 0) + " | ER: " + topEr + "%\n";
+        if (pl.topPost.hashtags && pl.topPost.hashtags.length) {
+          report += "    Tags: " + pl.topPost.hashtags.slice(0, 5).join(" ") + "\n";
+        }
+        report += "    → What's working: Analyze this content's format, caption style, hashtags\n\n";
+      }
+      
+      if (pl.worstPost && pl.worstPost.id !== (pl.topPost || {}).id) {
+        report += "  ✗ LOWEST POST: \"" + (pl.worstPost.caption || "").substring(0, 50) + "...\"\n";
+        report += "    Views: " + fmtFull(pl.worstPost.impressions || 0) + "\n";
+        report += "    → Why this flopped: Compare with top post - difference is key insight\n\n";
+      }
+      
+      report += "  HIGHEST-IMPACT ACTION: ";
+      if (pl.er < 1.5) {
+        report += "Increase comment-bait hooks and call-to-actions\n";
+      } else if (pl.avgImp < 500) {
+        report += "Test different posting times (post when audience is most active)\n";
+      } else if (pl.shaPct < 10) {
+        report += "Create more share-worthy content (useful tips, trending sounds)\n";
+      } else {
+        report += "Maintain current strategy - it's working\n";
+      }
+      report += "\n";
+    });
+    
+    // 4. ENGAGEMENT MIX ANALYSIS
+    report += "\n4. ENGAGEMENT & CONTENT GAP ANALYSIS\n";
+    report += "════════════════════════════════════════════════════════════════\n\n";
+    
+    report += "Engagement Breakdown:\n";
+    report += "  Likes: " + combined.likPct + "% (" + fmtFull(combined.lik) + " total)\n";
+    report += "  Comments: " + combined.comPct + "% (" + fmtFull(combined.com) + " total)\n";
+    report += "  Shares: " + combined.shaPct + "% (" + fmtFull(combined.sha) + " total)\n";
+    report += "  Saves: " + combined.savPct + "% (" + fmtFull(combined.sav) + " total)\n\n";
+    
+    report += "What this means:\n";
+    report += "  • HIGH SAVES: Audience finds your content valuable/useful\n";
+    report += "  • HIGH SHARES: Content is viral/relatable/funny\n";
+    report += "  • HIGH COMMENTS: Content sparks discussion (strong signal)\n";
+    report += "  • HIGH LIKES: Passive engagement (weakest signal)\n\n";
+    
+    if (combined.likPct > 80) {
+      report += "⚠ CONCERN: Over 80% likes with few comments/shares\n";
+      report += "   → Add more engagement hooks: ask questions, create controversy, use CTAs\n\n";
+    }
+    
+    if (combined.shaPct < 5) {
+      report += "⚠ OPPORTUNITY: Less than 5% shares\n";
+      report += "   → Create more shareable content: trending sounds, relatable moments, tips\n\n";
+    }
+    
+    if (combined.savPct > 15) {
+      report += "✓ STRONG: Over 15% saves\n";
+      report += "   → Audience finds your content valuable - keep this style going\n\n";
+    }
+    
+    // 5. CONTENT TYPE PERFORMANCE
+    if (contentTypeData.length > 0) {
+      report += "\n5. CONTENT TYPE PERFORMANCE\n";
+      report += "════════════════════════════════════════════════════════════════\n\n";
+      
+      contentTypeData.forEach(function(ct) {
+        var erQuality = ct.er > 5 ? "EXCELLENT" : ct.er > 3 ? "GOOD" : "NEEDS WORK";
+        report += "• " + ct.type + ": " + ct.posts.length + " posts | Avg " + fmtFull(ct.avgImp) + " views | ER " + ct.er + "% (" + erQuality + ")\n";
+      });
+      report += "\n";
+    }
+    
+    // 6. TOP 3 GROWTH LEVERS
+    report += "\n6. TOP 3 HIGHEST-ROI GROWTH ACTIONS (Next 30 Days)\n";
+    report += "════════════════════════════════════════════════════════════════\n\n";
+    
+    var actions = [];
+    
+    if (combined.impTiers.danger > 0) {
+      actions.push({
+        rank: 1,
+        action: "DELETE/ARCHIVE ZERO-IMPRESSION POSTS",
+        reason: combined.impTiers.danger + " posts with 0 views hurt algorithm trust",
+        impact: "High - Removes trust-damaging signals",
+        timeline: "Immediate"
+      });
+    }
+    
+    if (combined.er < 2) {
+      actions.push({
+        rank: actions.length + 1,
+        action: "IMPROVE ENGAGEMENT HOOKS",
+        reason: "ER of " + combined.er + "% is below 3% benchmark",
+        impact: "High - Each 1% ER increase = 3x better distribution",
+        timeline: "2 weeks"
+      });
+    }
+    
+    if (platformData[0] && platformData[0].avgImp < 500) {
+      actions.push({
+        rank: actions.length + 1,
+        action: "TEST POSTING TIMES",
+        reason: "Average " + fmtFull(platformData[0].avgImp) + " views suggests timing issues",
+        impact: "Medium-High - Right timing can 2-3x views",
+        timeline: "1-2 weeks"
+      });
+    }
+    
+    if (combined.shaPct < 10) {
+      actions.push({
+        rank: actions.length + 1,
+        action: "CREATE SHARE-WORTHY CONTENT",
+        reason: "Only " + combined.shaPct + "% shares (target: 15%+)",
+        impact: "Medium - Shares = organic reach",
+        timeline: "Ongoing"
+      });
+    }
+    
+    actions.slice(0, 3).forEach(function(a) {
+      report += a.rank + ". " + a.action + "\n";
+      report += "   Why: " + a.reason + "\n";
+      report += "   Impact: " + a.impact + "\n";
+      report += "   Timeline: " + a.timeline + "\n\n";
+    });
+    
+    // 7. 30/60/90 DAY ROADMAP
+    report += "\n7. 30/60/90 DAY GROWTH ROADMAP\n";
+    report += "════════════════════════════════════════════════════════════════\n\n";
+    
+    report += "DAY 30 - Foundation (Complete by week 4):\n";
+    report += "  ✓ Remove/archive all zero-impression posts\n";
+    report += "  ✓ Identify top 3 post types by ER\n";
+    report += "  ✓ Test posting times (morning/afternoon/evening)\n";
+    report += "  ✓ Target ER: " + (combined.er + 1) + "% (+1% improvement)\n";
+    report += "  ✓ Target FYP posts: " + (combined.impTiers.fyp + 1) + " posts\n\n";
+    
+    report += "DAY 60 - Optimization (Complete by week 8):\n";
+    report += "  ✓ Double down on winning post formats\n";
+    report += "  ✓ A/B test caption styles\n";
+    report += "  ✓ Build 3-4 content pillars aligned with audience\n";
+    report += "  ✓ Target ER: " + (combined.er + 2) + "% (+2% from baseline)\n";
+    report += "  ✓ Target FYP posts: " + (combined.impTiers.fyp + 3) + " posts\n\n";
+    
+    report += "DAY 90 - Scale (Complete by week 12):\n";
+    report += "  ✓ Consistent posting schedule (3-5x/week ideal)\n";
+    report += "  ✓ Established audience inside your niche\n";
+    report += "  ✓ Cross-platform repurposing (if multi-platform)\n";
+    report += "  ✓ Target ER: " + (combined.er + 3) + "% (+3% from baseline)\n";
+    report += "  ✓ Goal: " + (combined.impTiers.fyp * 2) + "+ FYP posts per month\n\n";
+    
+    // 8. SUMMARY
+    report += "\n8. KEY TAKEAWAYS\n";
+    report += "════════════════════════════════════════════════════════════════\n\n";
+    report += "Overall Score: " + (combined.er > 5 ? "⭐⭐⭐⭐⭐ Excellent" : combined.er > 3 ? "⭐⭐⭐⭐ Good" : combined.er > 1 ? "⭐⭐⭐ Average" : "⭐⭐ Needs Work") + "\n";
+    report += "Biggest Strength: " + (platformData[0] ? platformData[0].name + " with " + platformData[0].er + "% ER" : "Platform performance") + "\n";
+    report += "Most Urgent Fix: " + (combined.impTiers.danger > 0 ? "Remove zero-impression posts" : combined.er < 1.5 ? "Improve engagement hooks" : "Optimize posting times") + "\n";
+    report += "Projected Growth (90 days): " + Math.round(combined.er * 1.5) + "% ER | ~" + Math.round(combined.reach * 1.3) + " total reach\n";
+    report += "\n📊 Report generated: " + new Date().toLocaleString() + "\n";
+    
+    return report;
+  }
 
     var ctx = "=== ACCOUNT: " + activeAccount.name + " ===\n";
     if (brief.niche)    ctx += "Niche/Industry: " + brief.niche + "\n";
@@ -5454,63 +5686,24 @@ function ReportSummaryPage() {
         </div>
         <div className="ai-advisor-body">
 
-          {/* API key row */}
-          <div className="ai-key-row">
-            <div style={{ position:"relative", flex:1 }}>
-              <i data-lucide="key" style={{ position:"absolute", left:"0.75rem", top:"50%", transform:"translateY(-50%)", width:"13px", height:"13px", color:"var(--text-subtle)", pointerEvents:"none" }}></i>
-              <input
-                type={aiKeyVisible ? "text" : "password"}
-                className="ai-key-input"
-                style={{ paddingLeft:"2.25rem", paddingRight:"2.5rem" }}
-                placeholder="Paste your Gemini API key (AIza... or AQ....)"
-                value={aiKey}
-                onChange={function(e){ saveAiKey(e.target.value); }}
-              />
-              <button
-                onClick={function(){ setAiKeyVisible(!aiKeyVisible); }}
-                style={{ position:"absolute", right:"0.65rem", top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"var(--text-subtle)", padding:"0.15rem" }}
-                title={aiKeyVisible ? "Hide key" : "Show key"}
-              >
-                <i data-lucide={aiKeyVisible ? "eye-off" : "eye"} style={{ width:"14px", height:"14px" }}></i>
-              </button>
-            </div>
-            <button
-              className="btn-ai-generate"
-              disabled={aiLoading || !aiKey.trim()}
-              onClick={function(){ generateAiAnalysis(combined, platformData, contentTypeData, subjectData, brief, fmt, fmtFull, fmtDate, calcEr, pct); }}
-            >
-              {aiLoading
-                ? <><i data-lucide="loader-2" style={{ width:"14px", height:"14px" }}></i> Analysing...</>
-                : <><i data-lucide="sparkles" style={{ width:"14px", height:"14px" }}></i> Generate AI Analysis</>
-              }
-            </button>
+          {/* Generate button - no API key needed */}
+          <button
+            className="btn-ai-generate"
+            style={{ width: "100%", fontSize: "1rem", padding: "0.9rem" }}
+            disabled={aiLoading}
+            onClick={function(){ generateAiAnalysis(combined, platformData, contentTypeData, subjectData, brief, fmt, fmtFull, fmtDate, calcEr, pct); }}
+          >
+            {aiLoading
+              ? <><i data-lucide="loader-2" style={{ width:"16px", height:"16px" }}></i> Generating Report...</>
+              : <><i data-lucide="sparkles" style={{ width:"16px", height:"16px" }}></i> Generate Professional Report</>
+            }
+          </button>
+
+          {/* Info message */}
+          <div style={{ marginTop:"0.75rem", fontSize:"0.8rem", color:"var(--text-muted)", lineHeight:1.6, padding:"0.75rem 1rem", background:"rgba(6,182,212,0.08)", border:"1px solid rgba(6,182,212,0.2)", borderRadius:"var(--radius-sm)" }}>
+            <i data-lucide="info" style={{ width:"12px", height:"12px", marginRight:"0.4rem", display:"inline" }}></i>
+            This report is generated locally from your data. No API key needed. Fast, private, and always available.
           </div>
-
-          {/* Key saved indicator */}
-          {aiKeySaved && (
-            <div style={{ marginBottom:"0.85rem", fontSize:"0.75rem", color:"#10B981", display:"flex", alignItems:"center", gap:"0.35rem" }}>
-              <i data-lucide="check" style={{ width:"12px", height:"12px" }}></i>
-              API key saved to browser storage
-            </div>
-          )}
-
-          {/* Get key link */}
-          {!aiKey.trim() && (
-            <div style={{ marginBottom:"1rem", fontSize:"0.78rem", color:"var(--text-muted)", lineHeight:1.7, padding:"0.75rem 1rem", background:"rgba(139,92,246,0.08)", border:"1px solid rgba(139,92,246,0.2)", borderRadius:"var(--radius-sm)" }}>
-              <div style={{ fontWeight:700, marginBottom:"0.4rem", color:"var(--text-secondary)" }}>How to get your Gemini API Key:</div>
-              <ol style={{ margin:"0.3rem 0 0 1.25rem", paddingLeft:0 }}>
-                <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color:"var(--accent-primary-light)", textDecoration:"underline" }}>aistudio.google.com/app/apikey</a></li>
-                <li>Sign in with your Google account</li>
-                <li>Click "Create API Key" → "Create new secret key in new project"</li>
-                <li>Copy the key (starts with <code style={{color:"#10B981", background:"rgba(16,185,129,0.1)", padding:"0.1rem 0.3rem", borderRadius:"3px"}}>AIza</code> or <code style={{color:"#06B6D4", background:"rgba(6,182,212,0.1)", padding:"0.1rem 0.3rem", borderRadius:"3px"}}>AQ.</code>)</li>
-                <li>Paste it here — your key is stored only in your browser, never sent to SocioVault servers</li>
-              </ol>
-              <div style={{marginTop:"0.5rem", color:"#F59E0B"}}>⚠️ Free tier: 15 requests/minute, 1,500/day</div>
-              <div style={{marginTop:"0.5rem", fontSize:"0.75rem", color:"var(--text-muted)"}}>
-                <strong>Troubleshooting:</strong> If you get a 404 error, first test your key at aistudio.google.com to confirm it works. The API may be unavailable in your region. Try refreshing the page or using a different Google account.
-              </div>
-            </div>
-          )}
 
           {/* Thinking indicator */}
           {aiLoading && (
@@ -5518,7 +5711,7 @@ function ReportSummaryPage() {
               <div className="ai-thinking-dots">
                 <span></span><span></span><span></span>
               </div>
-              <span>Analysing {combined.count} posts across {platformData.length} platform{platformData.length!==1?"s":""}...</span>
+              <span>Generating professional report for {combined.count} posts...</span>
             </div>
           )}
 
