@@ -4434,59 +4434,6 @@ function ReportSummaryPage() {
     return report;
   }
 
-    var ctx = "=== ACCOUNT: " + activeAccount.name + " ===\n";
-    if (brief.niche)    ctx += "Niche/Industry: " + brief.niche + "\n";
-    if (brief.goals)    ctx += "Goals: " + brief.goals + "\n";
-    if (brief.audience) ctx += "Target Audience: " + brief.audience + "\n";
-    if (brief.tone)     ctx += "Content Tone: " + brief.tone + "\n";
-    if (brief.pillars)  ctx += "Content Pillars: " + brief.pillars + "\n";
-    if (brief.context)  ctx += "Context: " + brief.context + "\n";
-    ctx += "\n=== OVERALL METRICS & BENCHMARKS ===\n";
-    ctx += "Total Posts: " + combined.count + " | Total Impressions: " + fmtFull(combined.imp) + " | Total Reach: " + fmtFull(combined.reach) + "\n";
-    ctx += "Total Engagement: " + fmtFull(combined.eng) + " (Likes " + fmtFull(combined.lik) + " / Comments " + fmtFull(combined.com) + " / Shares " + fmtFull(combined.sha) + " / Saves " + fmtFull(combined.sav) + ")\n";
-    ctx += "Engagement Rate (ER): " + combined.er + "% (benchmark: 1-3% for average creators, 3-5% for good, 5%+ for excellent)\n";
-    ctx += "Reach Rate (Imp/Reach): " + combined.ir + "x (how many times content is shown to same users — benchmark: 1.5x is healthy, 2x+ means strong distribution)\n";
-    ctx += "Average Views Per Post: " + fmtFull(combined.avgImp) + "\n";
-    ctx += "Engagement Mix: Likes " + combined.likPct + "% / Comments " + combined.comPct + "% / Shares " + combined.shaPct + "% / Saves " + combined.savPct + "% (saves indicate content value, shares show viral potential)\n";
-    ctx += "Content Health — Danger (0 views): " + combined.impTiers.danger + " | Warning (1-99): " + combined.impTiers.warning + " | Safe (100-999): " + combined.impTiers.safe + " | Good (1K-9.9K): " + combined.impTiers.good + " | FYP (10K+): " + combined.impTiers.fyp + "\n";
-    ctx += "Period Analyzed: " + fmtDate(combined.dateFrom) + " to " + fmtDate(combined.dateTo) + "\n";
-
-    platformData.forEach(function(pl) {
-      var erBenchmark = pl.er > 5 ? "excellent" : pl.er > 3 ? "good" : pl.er > 1 ? "average" : "poor";
-      var avgBenchmark = pl.avgImp > 1000 ? "strong distribution" : pl.avgImp > 500 ? "moderate distribution" : "low distribution";
-      ctx += "\nPLATFORM: " + pl.name + "\n";
-      ctx += "  Posts: " + pl.posts.length + " | Total Views: " + fmtFull(pl.imp) + " ("+pl.impShare+"% of account) | ER: " + pl.er + "% ("+erBenchmark+") | Avg Views/Post: " + fmtFull(pl.avgImp) + " ("+avgBenchmark+")\n";
-      ctx += "  Engagement Mix: Likes " + pl.likPct + "% | Shares " + pl.shaPct + "% | Saves " + pl.savPct + "% (shares and saves are stronger social proof than likes)\n";
-      if (pl.topPost) { var tpe=(pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0); var topEr = calcEr(tpe,pl.topPost.reach||0); ctx += "  Best Performing: \"" + (pl.topPost.caption||"").substring(0,60) + "...\" — " + fmtFull(pl.topPost.impressions||0) + " views (" + topEr + "% ER, viral if >5%)\n"; }
-      if (pl.worstPost && pl.worstPost.id!==(pl.topPost||{}).id) { ctx += "  Lowest Performing: \"" + (pl.worstPost.caption||"").substring(0,50) + "...\" — " + fmtFull(pl.worstPost.impressions||0) + " views (investigate why this underperformed)\n"; }
-    });
-
-    if (contentTypeData.length > 0) {
-      ctx += "\nCONTENT TYPE PERFORMANCE:\n";
-      contentTypeData.forEach(function(ct){
-        var erQuality = ct.er > 5 ? "excellent engagement" : ct.er > 3 ? "good engagement" : "needs improvement";
-        ctx += "  " + ct.type + ": " + ct.posts.length + " posts | Avg " + fmtFull(ct.avgImp) + " views | ER " + ct.er + "% ("+erQuality+")\n";
-      });
-    }
-
-    if (subjectData.length > 0) {
-      ctx += "\nSUBJECTS:\n";
-      subjectData.forEach(function(s){ ctx += "  " + s.name + ": " + s.count + " appearances | " + fmtFull(s.imp) + " impressions (" + pct(s.imp,combined.imp||1) + "%)\n"; });
-    }
-
-    if (combined.topContent.length > 0) {
-      ctx += "\nTOP 3 POSTS:\n";
-      combined.topContent.forEach(function(c,i){ var e=(c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0); ctx += "  #"+(i+1)+" ("+c.platform+" "+fmtDate(c.uploadDate)+"): \"" + (c.caption||"").substring(0,70) + "\" — " + fmtFull(c.impressions||0) + " views ER "+calcEr(e,c.reach||0)+"%\n"; if(c.hashtags&&c.hashtags.length) ctx+="    Tags: "+c.hashtags.join(" ")+"\n"; });
-    }
-    if (combined.bottomContent.length > 0) {
-      ctx += "\nLOWEST POSTS:\n";
-      combined.bottomContent.forEach(function(c,i){ ctx += "  #"+(i+1)+" ("+c.platform+"): \"" + (c.caption||"").substring(0,50) + "\" — " + fmtFull(c.impressions||0) + " views\n"; });
-    }
-
-    var prompt = "You are a senior social media strategist with 10+ years of experience. You understand platform algorithms, content strategy, audience psychology, and creator monetization.\n\nAnalyze the following social media account data and provide DETAILED PROFESSIONAL EXPLANATIONS for each metric. Don't just rewrite numbers — explain what each metric MEANS, whether it's GOOD or BAD compared to industry standards, and WHY it matters for growth.\n\nFor each section, include:\n- What the metric shows\n- Industry benchmark comparison\n- Whether this is healthy or concerning\n- Specific reasons why (algorithm factors, content quality, audience behavior, posting strategy)\n\nStructure your response EXACTLY as:\n\n1. **Diagnostic Summary** — Is this account healthy? What's the trajectory? What's the primary bottleneck limiting growth?\n\n2. **Algorithm Health Analysis** — Analyze impression distribution health. Explain what the danger/warning/safe/good/FYP tiers mean. Why are posts getting 0 impressions? Is content being suppressed? Are hashtags working?\n\n3. **Platform-Specific Deep Dive** — For each platform:\n   - What's working: Which content types/formats are winning?\n   - What's broken: Why are some posts flopping? Posting time issues? Hashtag problems? Weak hooks?\n   - Single highest-impact change: The ONE thing to fix first\n   - ER analysis: Is engagement authentic or do you need more comments/shares?\n\n4. **Content & Engagement Gaps** — Explain engagement mix (likes vs comments vs shares vs saves). What type of engagement is missing? Why? What does it mean?\n\n5. **Top 3 Growth Levers** — For next 30 days, what are the highest-ROI actions ranked by impact?\n\n6. **Audience & Niche Alignment** — How well does content match the stated niche, goals, and audience? What needs adjustment?\n\n7. **30/60/90 Day Roadmap** — Specific, measurable milestones and actions\n\nBe DIRECT, SPECIFIC, DATA-DRIVEN. Reference ACTUAL numbers from the data. Explain benchmarks. No generic advice. For each metric, state if it's good/bad/needs work.\n\nACCOUNT DATA:\n" + ctx;
-
-
-
   if (!activeAccount) {
     return (
       <div className="page-container">
