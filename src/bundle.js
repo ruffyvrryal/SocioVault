@@ -5506,6 +5506,9 @@ function ReportSummaryPage() {
                 <li>Paste it here — your key is stored only in your browser, never sent to SocioVault servers</li>
               </ol>
               <div style={{marginTop:"0.5rem", color:"#F59E0B"}}>⚠️ Free tier: 15 requests/minute, 1,500/day</div>
+              <div style={{marginTop:"0.5rem", fontSize:"0.75rem", color:"var(--text-muted)"}}>
+                <strong>Troubleshooting:</strong> If you get a 404 error, first test your key at aistudio.google.com to confirm it works. The API may be unavailable in your region. Try refreshing the page or using a different Google account.
+              </div>
             </div>
           )}
 
