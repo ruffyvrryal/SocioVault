@@ -866,28 +866,47 @@ function AccountVaultPage() {
     { key: "sun", label: "Sun" }
   ];
 
-  var scheduleStorageKey = "sv_upload_schedule_" + ((user && user.email) ? user.email.replace(/[^a-z0-9]/gi, "_") : "guest");
+  // ── Upload Schedule (cloud-saved to account.uploadSchedule) ────────────────
+  const [schedule, setSchedule] = React.useState(function(){ 
+    // Load from first accessible account's uploadSchedule or empty
+    var initial = {};
+    if (accessibleAccounts.length > 0) {
+      var firstAcc = accessibleAccounts[0];
+      initial = firstAcc.uploadSchedule || {};
+    }
+    return initial;
+  });
 
-  function loadSchedule() {
-    try { return JSON.parse(localStorage.getItem(scheduleStorageKey) || "{}"); }
-    catch(e) { return {}; }
-  }
+  const [scheduleSaving, setScheduleSaving] = React.useState(false);
 
-  const [schedule, setSchedule] = React.useState(function(){ return loadSchedule(); });
-
-  function toggleSchedule(accId, dayKey) {
+  async function toggleSchedule(accId, dayKey) {
     setSchedule(function(prev) {
       var days = prev[accId] ? prev[accId].slice() : [];
       var idx  = days.indexOf(dayKey);
       if (idx >= 0) days.splice(idx, 1);
       else          days.push(dayKey);
       var next = Object.assign({}, prev, { [accId]: days });
-      // Prune empty
       if (days.length === 0) delete next[accId];
-      try { localStorage.setItem(scheduleStorageKey, JSON.stringify(next)); } catch(e){}
       return next;
     });
   }
+
+  // Save to Firestore — call after toggleSchedule updates state
+  React.useEffect(function() {
+    var timeout = setTimeout(async function() {
+      if (accessibleAccounts.length === 0) return;
+      setScheduleSaving(true);
+      try {
+        // Save to the first account (global schedule per account)
+        var firstAcc = accessibleAccounts[0];
+        await editAccount(firstAcc.id, { uploadSchedule: schedule });
+      } catch(e) {
+        console.error("Failed to save schedule:", e);
+      }
+      setScheduleSaving(false);
+    }, 800); // Debounce 800ms
+    return function() { clearTimeout(timeout); };
+  }, [schedule, accessibleAccounts, editAccount]);
 
   function isScheduled(accId, dayKey) {
     return !!(schedule[accId] && schedule[accId].indexOf(dayKey) >= 0);
@@ -1024,8 +1043,9 @@ function AccountVaultPage() {
               </div>
               Not scheduled
             </div>
-            <div style={{ fontSize:"0.72rem", color:"var(--text-subtle)", marginLeft:"auto" }}>
-              Schedule saved locally in your browser
+            <div style={{ fontSize:"0.72rem", color:"var(--text-subtle)", marginLeft:"auto", display:"flex", alignItems:"center", gap:"0.4rem" }}>
+              {scheduleSaving && <i data-lucide="loader-2" style={{ width:"12px", height:"12px", animation:"spin 0.8s linear infinite" }}></i>}
+              <span>Schedule saved to cloud</span>
             </div>
           </div>
         </div>
@@ -1237,7 +1257,8 @@ function Navbar() {
 
     { id: "report-summary",      label: "Report",           icon: "file-bar-chart"},
 
-    { id: "collaborators",       label: "Collaborators",    icon: "share-2"      }
+    { id: "collaborators",       label: "Collaborators",    icon: "share-2"      },
+    { id: "notes",               label: "Notes",            icon: "notebook-text" }
 
   ];
 
@@ -4153,7 +4174,7 @@ function ReportSummaryPage() {
     var prompt = "You are a senior social media strategist and growth consultant. You have deep expertise in platform algorithms, content strategy, audience psychology, and creator monetisation.\n\nAnalyse the following social media account data and provide a comprehensive, actionable, and intelligent growth strategy. Go beyond summarising numbers — diagnose WHY metrics are what they are, identify hidden patterns, compare against industry benchmarks, and prescribe specific prioritised actions.\n\nStructure your response exactly as:\n1. **Diagnostic Summary** — Account health and trajectory based on data\n2. **Algorithm Health Analysis** — Content distribution health, impression tiers, and what signals the algorithm is reading\n3. **Platform-Specific Strategy** — For each platform: what is working, what is broken, the single highest-impact change\n4. **Content & Engagement Gaps** — Specific weaknesses in engagement mix and content format\n5. **Top 3 Growth Levers** — Highest-ROI actions for next 30 days, ranked by impact\n6. **Audience & Niche Alignment** — How well content aligns with stated goals and audience, what to adjust\n7. **30/60/90 Day Roadmap** — Specific milestones and actions\n\nBe direct, specific, data-driven. Reference actual numbers. No generic advice.\n\nACCOUNT DATA:\n" + ctx;
 
     try {
-      var resp = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="+key, {
+      var resp = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key="+key, {
         method:"POST", headers:{"Content-Type":"application/json"},
         body:JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.7,maxOutputTokens:2048} })
       });
@@ -5702,6 +5723,89 @@ function CollaboratorsPage() {
 }
 
 
+
+// Notes Page — Bullet-point note editor per account
+function NotesPage() {
+  const { activeAccount, editAccount, canEdit } = React.useContext(VaultContext);
+  const [notes, setNotes] = React.useState(activeAccount?.notes || "");
+  const [notesSaving, setNotesSaving] = React.useState(false);
+
+  React.useEffect(function() {
+    if (activeAccount?.notes !== undefined) {
+      setNotes(activeAccount.notes || "");
+    }
+  }, [activeAccount?.id]);
+
+  React.useEffect(function() {
+    var timeout = setTimeout(async function() {
+      if (!activeAccount || !canEdit || notes === (activeAccount.notes || "")) return;
+      setNotesSaving(true);
+      try {
+        await editAccount(activeAccount.id, { notes: notes.trim() });
+      } catch(e) {
+        console.error("Failed to save notes:", e);
+      }
+      setNotesSaving(false);
+    }, 1200); // Debounce 1.2s
+    return function() { clearTimeout(timeout); };
+  }, [notes, activeAccount, editAccount, canEdit]);
+
+  if (!activeAccount) {
+    return (
+      <div className="page-container">
+        <div className="glass-card" style={{ textAlign:"center", padding:"4rem 2rem" }}>
+          <p style={{ color:"var(--text-muted)" }}>No active account selected.</p>
+        </div>
+      </div>
+    );
+  }
+
+  var lines = notes.split("\n").map(function(line) { return line.trim(); }).filter(function(l) { return l; }).length;
+
+  return (
+    <div className="page-container">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Notes</h1>
+          <p className="page-subtitle">Keep bullet-point notes for {activeAccount.name}. Start each line with • or -, or just write freely.</p>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>
+          {notesSaving && (
+            <div style={{ display:"flex", alignItems:"center", gap:"0.35rem", fontSize:"0.8rem", color:"var(--text-muted)" }}>
+              <i data-lucide="loader-2" style={{ width:"14px", height:"14px", animation:"spin 0.8s linear infinite" }}></i>
+              Saving...
+            </div>
+          )}
+          <span style={{ fontSize:"0.78rem", color:"var(--text-subtle)", paddingLeft:"1rem", borderLeft:"1px solid var(--border-subtle)" }}>
+            {lines} line{lines !== 1 ? "s" : ""}
+          </span>
+        </div>
+      </div>
+
+      <div className="notes-editor-wrap">
+        <textarea
+          className="notes-editor"
+          placeholder={"• Key points for " + activeAccount.name + "\n• What worked this week\n• Ideas for next week\n• Collaboration notes"}
+          value={notes}
+          onChange={function(e) { setNotes(e.target.value); }}
+          disabled={!canEdit}
+          style={{ opacity: canEdit ? 1 : 0.6 }}
+        />
+      </div>
+
+      <div style={{ marginTop:"1.5rem", fontSize:"0.85rem", color:"var(--text-muted)", lineHeight:1.6 }}>
+        <p><strong>Tips:</strong></p>
+        <ul style={{ marginLeft:"1.5rem", marginTop:"0.5rem" }}>
+          <li>Start lines with <code style={{ background:"rgba(255,255,255,0.08)", padding:"0.15rem 0.4rem", borderRadius:"4px", fontFamily:"var(--font-mono)", fontSize:"0.8rem" }}>•</code> or <code style={{ background:"rgba(255,255,255,0.08)", padding:"0.15rem 0.4rem", borderRadius:"4px", fontFamily:"var(--font-mono)", fontSize:"0.8rem" }}>-</code> for bullets</li>
+          <li>Indent with spaces or tabs for sub-bullets</li>
+          <li>Your notes are automatically saved to the cloud</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+
 // 4. MAIN APP CONTROLLER
 function AppContent() {
   const { user, authLoading } = React.useContext(AuthContext);
@@ -5767,6 +5871,7 @@ function AppContent() {
       case "subject-analytics": return <SubjectAnalyticsPage />;
       case "report-summary": return <ReportSummaryPage />;
       case "collaborators": return <CollaboratorsPage />;
+      case "notes": return <NotesPage />;
       default: return <AccountCenterPage />;
     }
   };
