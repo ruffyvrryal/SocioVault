@@ -866,9 +866,8 @@ function AccountVaultPage() {
     { key: "sun", label: "Sun" }
   ];
 
-  // ── Upload Schedule (cloud-saved to account.uploadSchedule) ────────────────
-  const [schedule, setSchedule] = React.useState(function(){ 
-    // Load from first accessible account's uploadSchedule or empty
+  // ── Upload Schedule (dropdown rows + day toggles) ────────────────────────
+  const [schedule, setSchedule] = React.useState(function() {
     var initial = {};
     if (accessibleAccounts.length > 0) {
       var firstAcc = accessibleAccounts[0];
@@ -877,25 +876,85 @@ function AccountVaultPage() {
     return initial;
   });
 
+  const [scheduleRows, setScheduleRows] = React.useState(function() {
+    // Initialize rows from schedule keys (account IDs that have any days)
+    var rows = [];
+    var seen = {};
+    Object.keys(schedule).forEach(function(accId) {
+      if (!seen[accId]) {
+        rows.push(accId);
+        seen[accId] = true;
+      }
+    });
+    return rows.length > 0 ? rows : [""];
+  });
+
   const [scheduleSaving, setScheduleSaving] = React.useState(false);
 
-  async function toggleSchedule(accId, dayKey) {
+  function addScheduleRow() {
+    setScheduleRows(function(prev) { return prev.concat([""]);  });
+  }
+
+  function removeScheduleRow(idx) {
+    setScheduleRows(function(prev) {
+      var row = prev[idx];
+      var next = prev.filter(function(_, i) { return i !== idx; });
+      // Clear schedule for this account if removed
+      if (row && schedule[row]) {
+        setSchedule(function(s) {
+          var newS = Object.assign({}, s);
+          delete newS[row];
+          return newS;
+        });
+      }
+      return next;
+    });
+  }
+
+  function updateScheduleRow(idx, newAccId) {
+    var oldAccId = scheduleRows[idx];
+    setScheduleRows(function(prev) {
+      var next = prev.slice();
+      next[idx] = newAccId;
+      return next;
+    });
+    // Move schedule data from old account to new
+    if (oldAccId && oldAccId !== newAccId && schedule[oldAccId]) {
+      setSchedule(function(s) {
+        var newS = Object.assign({}, s);
+        if (newAccId) {
+          newS[newAccId] = newS[oldAccId];
+        }
+        delete newS[oldAccId];
+        return newS;
+      });
+    }
+  }
+
+  function toggleScheduleDay(accId, dayKey) {
+    if (!accId) return;
     setSchedule(function(prev) {
       var days = prev[accId] ? prev[accId].slice() : [];
-      var idx  = days.indexOf(dayKey);
+      var idx = days.indexOf(dayKey);
       if (idx >= 0) days.splice(idx, 1);
-      else          days.push(dayKey);
+      else days.push(dayKey);
       var next = Object.assign({}, prev, { [accId]: days });
       if (days.length === 0) delete next[accId];
       return next;
     });
   }
 
-  // Save to Firestore — call after toggleSchedule updates state
+  function isScheduledDay(accId, dayKey) {
+    return !!(accId && schedule[accId] && schedule[accId].indexOf(dayKey) >= 0);
+  }
+
+  // Save to Firestore — call after any schedule change
   var scheduleRef = React.useRef(null);
+  var scheduleRowsRef = React.useRef(null);
   var accessibleAccountsRef = React.useRef(null);
   
   scheduleRef.current = schedule;
+  scheduleRowsRef.current = scheduleRows;
   accessibleAccountsRef.current = accessibleAccounts;
 
   React.useEffect(function() {
@@ -912,21 +971,6 @@ function AccountVaultPage() {
     }, 800);
     return function() { clearTimeout(timeout); };
   }, []);
-
-  function isScheduled(accId, dayKey) {
-    return !!(schedule[accId] && schedule[accId].indexOf(dayKey) >= 0);
-  }
-
-  // Collect unique platform names across all accessible accounts for column grouping
-  var allPlatformNames = React.useMemo(function() {
-    var seen = {};
-    accessibleAccounts.forEach(function(acc) {
-      (acc.platforms || []).forEach(function(p) {
-        if (p.name) seen[p.name] = true;
-      });
-    });
-    return Object.keys(seen).sort();
-  }, [accessibleAccounts]);
 
   return (
     <div className="page-container">
@@ -951,82 +995,78 @@ function AccountVaultPage() {
               </div>
               <div>
                 <div className="upload-schedule-title">UPLOAD SCHEDULE</div>
-                <div className="upload-schedule-sub">Weekly posting plan — click a cell to toggle</div>
+                <div className="upload-schedule-sub">Select accounts and mark posting days</div>
               </div>
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
               <span style={{ fontSize:"0.72rem", color:"var(--text-subtle)" }}>
-                {Object.keys(schedule).length} account{Object.keys(schedule).length !== 1 ? "s" : ""} scheduled
+                {scheduleRows.filter(function(r) { return r; }).length} row{scheduleRows.filter(function(r) { return r; }).length !== 1 ? "s" : ""}
               </span>
             </div>
           </div>
 
           <div className="upload-schedule-scroll">
-            <table className="upload-schedule-table">
+            <table className="upload-schedule-table-new">
               <thead>
                 <tr>
-                  <th className="usched-th usched-account-col">Account</th>
+                  <th className="usched-new-th usched-new-account-col">Account</th>
                   {DAYS.map(function(d) {
                     return (
-                      <th key={d.key} className="usched-th usched-day-col">
-                        <span className="usched-day-label">{d.label}</span>
+                      <th key={d.key} className="usched-new-th usched-new-day-col">
+                        {d.label}
                       </th>
                     );
                   })}
+                  <th className="usched-new-th usched-new-action-col"></th>
                 </tr>
               </thead>
               <tbody>
-                {accessibleAccounts.map(function(acc, rowIdx) {
-                  var scheduled = schedule[acc.id] || [];
-                  var hasAnyDay = scheduled.length > 0;
+                {scheduleRows.map(function(accId, rowIdx) {
                   return (
-                    <tr key={acc.id} className={"usched-row" + (rowIdx % 2 === 0 ? " usched-row-even" : "")}>
-                      {/* Account label cell */}
-                      <td className="usched-account-cell">
-                        <div className="usched-account-info">
-                          {acc.photoURL ? (
-                            <img src={acc.photoURL} alt={acc.name} className="usched-avatar-img" onError={function(e){ e.target.style.display="none"; }} />
-                          ) : (
-                            <div className="usched-avatar-letter">
-                              {acc.name.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          <div className="usched-account-meta">
-                            <div className="usched-account-name">{acc.name}</div>
-                            {/* Platform chips — one per platform, no mixing */}
-                            <div className="usched-platform-chips">
-                              {(acc.platforms || []).map(function(p) {
-                                return (
-                                  <span key={p.id} className={"usched-plat-chip usched-plat-" + p.name.toLowerCase().replace(/\s+/g,"-")}>
-                                    {p.name}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          </div>
-                          {hasAnyDay && (
-                            <span className="usched-count-badge">{scheduled.length}d</span>
-                          )}
-                        </div>
+                    <tr key={rowIdx} className="usched-new-row">
+                      {/* Account dropdown cell */}
+                      <td className="usched-new-account-cell">
+                        <select
+                          className="usched-new-dropdown"
+                          value={accId || ""}
+                          onChange={function(e) { updateScheduleRow(rowIdx, e.target.value); }}
+                        >
+                          <option value="">Select account...</option>
+                          {accessibleAccounts.map(function(acc) {
+                            return (
+                              <option key={acc.id} value={acc.id}>
+                                {acc.name}
+                              </option>
+                            );
+                          })}
+                        </select>
                       </td>
                       {/* Day toggle cells */}
                       {DAYS.map(function(d) {
-                        var active = isScheduled(acc.id, d.key);
+                        var isActive = isScheduledDay(accId, d.key);
                         return (
-                          <td key={d.key} className={"usched-day-cell" + (active ? " usched-day-active" : "")}>
+                          <td key={d.key} className="usched-new-day-cell">
                             <button
-                              className={"usched-toggle" + (active ? " usched-toggle-on" : " usched-toggle-off")}
-                              onClick={function(){ toggleSchedule(acc.id, d.key); }}
-                              title={(active ? "Remove " : "Add ") + acc.name + " from " + d.label}
+                              className={"usched-new-toggle" + (isActive ? " usched-new-toggle-on" : "")}
+                              onClick={function() { toggleScheduleDay(accId, d.key); }}
+                              disabled={!accId}
+                              title={accId ? (isActive ? "Remove" : "Add") : "Select account first"}
                             >
-                              {active
-                                ? <i data-lucide="check" style={{ width:"12px", height:"12px" }}></i>
-                                : <i data-lucide="plus" style={{ width:"12px", height:"12px" }}></i>
-                              }
+                              {isActive ? <i data-lucide="check" style={{ width:"14px", height:"14px" }}></i> : <i data-lucide="x" style={{ width:"14px", height:"14px" }}></i>}
                             </button>
                           </td>
                         );
                       })}
+                      {/* Remove button */}
+                      <td className="usched-new-action-cell">
+                        <button
+                          className="usched-new-remove"
+                          onClick={function() { removeScheduleRow(rowIdx); }}
+                          title="Remove this row"
+                        >
+                          <i data-lucide="trash-2" style={{ width:"14px", height:"14px" }}></i>
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -1034,21 +1074,17 @@ function AccountVaultPage() {
             </table>
           </div>
 
-          {/* Legend */}
-          <div className="upload-schedule-legend">
-            <div style={{ display:"flex", alignItems:"center", gap:"0.4rem", fontSize:"0.72rem", color:"var(--text-subtle)" }}>
-              <div className="usched-toggle usched-toggle-on" style={{ width:"20px", height:"20px", borderRadius:"6px", pointerEvents:"none", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                <i data-lucide="check" style={{ width:"10px", height:"10px" }}></i>
-              </div>
-              Scheduled
-            </div>
-            <div style={{ display:"flex", alignItems:"center", gap:"0.4rem", fontSize:"0.72rem", color:"var(--text-subtle)" }}>
-              <div className="usched-toggle usched-toggle-off" style={{ width:"20px", height:"20px", borderRadius:"6px", pointerEvents:"none", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                <i data-lucide="plus" style={{ width:"10px", height:"10px" }}></i>
-              </div>
-              Not scheduled
-            </div>
-            <div style={{ fontSize:"0.72rem", color:"var(--text-subtle)", marginLeft:"auto", display:"flex", alignItems:"center", gap:"0.4rem" }}>
+          {/* Add row button + footer */}
+          <div className="upload-schedule-footer">
+            <button
+              className="btn btn-secondary"
+              onClick={addScheduleRow}
+              style={{ fontSize:"0.85rem", gap:"0.5rem" }}
+            >
+              <i data-lucide="plus" style={{ width:"14px", height:"14px" }}></i>
+              Add Row
+            </button>
+            <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:"0.4rem", fontSize:"0.78rem", color:"var(--text-subtle)" }}>
               {scheduleSaving && <i data-lucide="loader-2" style={{ width:"12px", height:"12px", animation:"spin 0.8s linear infinite" }}></i>}
               <span>Schedule saved to cloud</span>
             </div>
