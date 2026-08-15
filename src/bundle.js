@@ -1949,6 +1949,8 @@ function AccountCenterPage() {
     </div>
   );
 }
+
+function AddContentPage() {
   const { activeAccount, addContent, canEdit, setActivePage, contents } = React.useContext(VaultContext);
 
   const [uploadDate, setUploadDate] = React.useState(() => new Date().toISOString().split("T")[0]);
