@@ -1297,8 +1297,8 @@ function AccountVaultPage() {
                   <input type="file" accept="image/*" className="form-input" style={{ padding: "0.45rem" }} onChange={handleEditPhotoUpload} />
                 )}
                 {editPhotoPreview && (
-                  <button type="button" onClick={() => { setEditPhoto(""); setEditPhotoPreview(""); }} style={{ marginTop: "0.5rem", background: "none", border: "none", color: "#F43F5E", fontSize: "0.82rem", cursor: "pointer", padding: 0 }}>
-                    x Remove photo
+                  <button type="button" onClick={() => { setEditPhoto(""); setEditPhotoPreview(""); }} className="btn btn-link" style={{ marginTop: "0.5rem", fontSize: "0.82rem", padding: "0.25rem 0" }}>
+                    <Icon name="x" size={12} color="#F43F5E" style={{marginRight: "0.25rem"}} /> Remove photo
                   </button>
                 )}
               </div>
@@ -2130,7 +2130,8 @@ function AddContentPage() {
                   <button 
                     type="button" 
                     onClick={() => handleRemoveSubject(name)} 
-                    style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold", fontSize: "0.85rem", lineHeight: 1 }}
+                    className="btn btn-link"
+                    style={{ fontSize: "0.85rem", padding: "0 4px" }}
                     title="Remove subject"
                   >
                     x
@@ -2565,7 +2566,8 @@ function ContentTablePage() {
                       <button 
                         type="button" 
                         onClick={() => handleRemoveEditSubject(name)} 
-                        style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold", fontSize: "0.85rem", lineHeight: 1 }}
+                        className="btn btn-link"
+                        style={{ fontSize: "0.85rem", padding: "0 4px" }}
                         title="Remove subject"
                       >
                         x

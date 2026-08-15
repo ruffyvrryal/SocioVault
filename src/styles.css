@@ -318,6 +318,24 @@ a:hover {
   border-color: var(--border-color);
 }
 
+.btn-link {
+  background: transparent;
+  color: var(--accent-primary);
+  border: none;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: all 0.2s ease;
+}
+
+.btn-link:hover {
+  color: var(--accent-primary-light);
+  opacity: 0.9;
+}
+
 .btn-icon {
   padding: 0.5rem;
   min-width: 42px;
