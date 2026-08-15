@@ -2889,15 +2889,20 @@ window.TimeframeAnalyticsPage = function() {
     return Array.from(months).sort().reverse();
   }, [accountContents]);
 
-  // Function to get analytics for a specific month
+  // Function to get analytics for a specific month (and optionally filter by platform)
   const getMonthAnalytics = React.useMemo(() => {
-    return (monthStr) => {
+    return (monthStr, platform = "All") => {
       const [year, month] = monthStr.split('-');
-      const monthContents = accountContents.filter(item => {
+      let monthContents = accountContents.filter(item => {
         if (!item.uploadDate) return false;
         const itemDate = new Date(item.uploadDate);
         return itemDate.getMonth() === parseInt(month) - 1 && itemDate.getFullYear() === parseInt(year);
       });
+
+      // Filter by platform if not "All"
+      if (platform !== "All") {
+        monthContents = monthContents.filter(item => item.platform === platform);
+      }
 
       const totalImp = monthContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
       const totalReach = monthContents.reduce((sum, c) => sum + (c.reach || 0), 0);
@@ -3223,7 +3228,7 @@ window.TimeframeAnalyticsPage = function() {
               </div>
 
               {(() => {
-                const month1Data = getMonthAnalytics(compareMonth1);
+                const month1Data = getMonthAnalytics(compareMonth1, selectedPlatform);
                 return (
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
@@ -3277,7 +3282,7 @@ window.TimeframeAnalyticsPage = function() {
               </div>
 
               {(() => {
-                const month2Data = getMonthAnalytics(compareMonth2);
+                const month2Data = getMonthAnalytics(compareMonth2, selectedPlatform);
                 return (
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
