@@ -4327,6 +4327,100 @@ function SubjectAnalyticsPage() {
 }
 
 
+// Paginated Subjects/Talent Table Component (25 subjects per page)
+function SubjectsTable({ subjects, combined, pct, fmt, grads }) {
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const subjectsPerPage = 25;
+  
+  const totalPages = Math.ceil(subjects.length / subjectsPerPage);
+  const startIndex = (currentPage - 1) * subjectsPerPage;
+  const endIndex = startIndex + subjectsPerPage;
+  const paginatedSubjects = subjects.slice(startIndex, endIndex);
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        {paginatedSubjects.map(function(s, si){
+          var actualIndex = startIndex + si;
+          var initials = s.name.split(" ").map(function(n){return n[0]||"";}).join("").toUpperCase().slice(0,2);
+          var sharePct = pct(s.imp, combined.imp||1);
+          var barPct = subjects[0].imp > 0 ? (s.imp / subjects[0].imp) * 100 : 0;
+          var isTop = actualIndex === 0;
+          var isLow = actualIndex === subjects.length - 1 && subjects.length > 1;
+          return (
+            <div key={s.name} className="subject-person-row" style={{ background:isLow?"rgba(244,63,94,0.03)":"" }}>
+              <div className="subject-avatar" style={{ background:grads[actualIndex % grads.length] }}>{initials}</div>
+              <div className="subject-info">
+                <div style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
+                  <div className="subject-name">{s.name}</div>
+                  {isTop && <span style={{ fontSize:"0.62rem", fontWeight:800, color:"#F59E0B", padding:"0.1rem 0.35rem", borderRadius:"4px", background:"rgba(245,158,11,0.12)", border:"1px solid rgba(245,158,11,0.25)" }}>Top</span>}
+                  {isLow && <span style={{ fontSize:"0.62rem", fontWeight:800, color:"#F43F5E", padding:"0.1rem 0.35rem", borderRadius:"4px", background:"rgba(244,63,94,0.12)", border:"1px solid rgba(244,63,94,0.25)" }}>Lowest</span>}
+                </div>
+                <div className="subject-meta">{s.count} appearance{s.count!==1?"s":""} — {sharePct}% of total impressions</div>
+              </div>
+              <div style={{ textAlign:"right", marginRight:"1rem", flexShrink:0 }}>
+                <div style={{ fontSize:"1.05rem", fontWeight:800, fontFamily:"var(--font-heading)", color:isLow?"#F43F5E":"var(--text-main)" }}>{fmt(s.imp)}</div>
+                <div style={{ fontSize:"0.72rem", color:"var(--text-muted)" }}>impressions</div>
+              </div>
+              <div className="subject-bar-wrap">
+                <div className="progress-bar-track">
+                  <div className="progress-bar-fill" style={{ width:barPct+"%", background:isLow?"linear-gradient(90deg,#F43F5E,#F97316)":grads[actualIndex % grads.length] }}></div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div style={{ marginTop: "1rem", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0.75rem 1rem", borderRadius:"var(--radius-sm)", background:"rgba(255,255,255,0.03)", border:"1px solid var(--border-color)" }}>
+          <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", fontWeight:600 }}>
+            Page {currentPage} of {totalPages} • Showing {paginatedSubjects.length} of {subjects.length} subjects
+          </div>
+          <div style={{ display:"flex", gap:"0.5rem" }}>
+            <button
+              onClick={handlePreviousPage}
+              disabled={currentPage === 1}
+              className="btn btn-secondary btn-sm"
+              style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
+            >
+              ← Previous
+            </button>
+            <button
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages}
+              className="btn btn-secondary btn-sm"
+              style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Talent Gap Analysis */}
+      {subjects.length > 1 && (
+        <div style={{ marginTop:"1rem", padding:"0.85rem 1rem", background:"rgba(244,63,94,0.05)", borderRadius:"var(--radius-sm)", border:"1px solid rgba(244,63,94,0.15)" }}>
+          <p style={{ fontSize:"0.8rem", color:"var(--text-muted)", lineHeight:1.6, margin:0 }}>
+            <strong style={{ color:"#F43F5E" }}>Talent gap: </strong>
+            {subjects[0].name} drives {pct(subjects[0].imp,combined.imp||1)}% of impressions vs {subjects[subjects.length-1].name} at {pct(subjects[subjects.length-1].imp,combined.imp||1)}%.
+            Increase {subjects[0].name} frequency and test collaborations to cross-pollinate audiences.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Paginated Posts Table Component (30 posts per page)
 function PostsTable({ posts, color, fmtDate, fmt, calcEr, erGrade, pIcon, pColor }) {
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -5768,44 +5862,7 @@ function ReportSummaryPage() {
             <div className="report-section-label">Subject & Talent Performance</div>
           </div>
           <div className="report-section-body">
-            {subjectData.map(function(s,si){
-              var grads=["linear-gradient(135deg,#8B5CF6,#06B6D4)","linear-gradient(135deg,#10B981,#06B6D4)","linear-gradient(135deg,#F59E0B,#EF4444)","linear-gradient(135deg,#EC4899,#8B5CF6)","linear-gradient(135deg,#6366F1,#06B6D4)"];
-              var initials=s.name.split(" ").map(function(n){return n[0]||"";}).join("").toUpperCase().slice(0,2);
-              var sharePct=pct(s.imp,combined.imp||1);
-              var barPct=subjectData[0].imp>0?(s.imp/subjectData[0].imp)*100:0;
-              var isTop=si===0; var isLow=si===subjectData.length-1&&subjectData.length>1;
-              return (
-                <div key={s.name} className="subject-person-row" style={{ background:isLow?"rgba(244,63,94,0.03)":"" }}>
-                  <div className="subject-avatar" style={{ background:grads[si%grads.length] }}>{initials}</div>
-                  <div className="subject-info">
-                    <div style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                      <div className="subject-name">{s.name}</div>
-                      {isTop && <span style={{ fontSize:"0.62rem", fontWeight:800, color:"#F59E0B", padding:"0.1rem 0.35rem", borderRadius:"4px", background:"rgba(245,158,11,0.12)", border:"1px solid rgba(245,158,11,0.25)" }}>Top</span>}
-                      {isLow && <span style={{ fontSize:"0.62rem", fontWeight:800, color:"#F43F5E", padding:"0.1rem 0.35rem", borderRadius:"4px", background:"rgba(244,63,94,0.12)", border:"1px solid rgba(244,63,94,0.25)" }}>Lowest</span>}
-                    </div>
-                    <div className="subject-meta">{s.count} appearance{s.count!==1?"s":""} — {sharePct}% of total impressions</div>
-                  </div>
-                  <div style={{ textAlign:"right", marginRight:"1rem", flexShrink:0 }}>
-                    <div style={{ fontSize:"1.05rem", fontWeight:800, fontFamily:"var(--font-heading)", color:isLow?"#F43F5E":"var(--text-main)" }}>{fmt(s.imp)}</div>
-                    <div style={{ fontSize:"0.72rem", color:"var(--text-muted)" }}>impressions</div>
-                  </div>
-                  <div className="subject-bar-wrap">
-                    <div className="progress-bar-track">
-                      <div className="progress-bar-fill" style={{ width:barPct+"%", background:isLow?"linear-gradient(90deg,#F43F5E,#F97316)":grads[si%grads.length] }}></div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {subjectData.length>1 && (
-              <div style={{ marginTop:"1rem", padding:"0.85rem 1rem", background:"rgba(244,63,94,0.05)", borderRadius:"var(--radius-sm)", border:"1px solid rgba(244,63,94,0.15)" }}>
-                <p style={{ fontSize:"0.8rem", color:"var(--text-muted)", lineHeight:1.6, margin:0 }}>
-                  <strong style={{ color:"#F43F5E" }}>Talent gap: </strong>
-                  {subjectData[0].name} drives {pct(subjectData[0].imp,combined.imp||1)}% of impressions vs {subjectData[subjectData.length-1].name} at {pct(subjectData[subjectData.length-1].imp,combined.imp||1)}%.
-                  Increase {subjectData[0].name} frequency and test collaborations to cross-pollinate audiences.
-                </p>
-              </div>
-            )}
+            <SubjectsTable subjects={subjectData} combined={combined} pct={pct} fmt={fmt} grads={["linear-gradient(135deg,#8B5CF6,#06B6D4)","linear-gradient(135deg,#10B981,#06B6D4)","linear-gradient(135deg,#F59E0B,#EF4444)","linear-gradient(135deg,#EC4899,#8B5CF6)","linear-gradient(135deg,#6366F1,#06B6D4)"]} />
           </div>
         </div>
       )}
