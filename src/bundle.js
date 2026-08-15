@@ -2477,8 +2477,10 @@ function ContentTablePage() {
                   <td><span className={`badge badge-${item.status.toLowerCase()}`}>{item.status}</span></td>
                   {canEdit && (
                     <td>
-                      <button onClick={() => handleOpenEdit(item)} className="btn btn-secondary btn-icon" title="Edit Content" style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px" }}><Icon name="edit-2" size={16} color="var(--accent-primary)" /></button>
-                      <button onClick={() => confirm("Delete content?") && deleteContent(item.id)} className="btn btn-danger btn-icon" style={{ marginLeft: "0.75rem", width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px" }} title="Delete Content"><Icon name="trash-2" size={16} color="#F43F5E" /></button>
+                      <div style={{ display: "flex", gap: "0.65rem", alignItems: "center" }}>
+                        <button onClick={() => handleOpenEdit(item)} className="btn btn-secondary btn-icon" title="Edit Content" style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px", padding: 0 }}><Icon name="edit-2" size={16} color="var(--accent-primary)" /></button>
+                        <button onClick={() => confirm("Delete content?") && deleteContent(item.id)} className="btn btn-danger btn-icon" title="Delete Content" style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px", padding: 0 }}><Icon name="trash-2" size={16} color="#F43F5E" /></button>
+                      </div>
                     </td>
                   )}
                 </tr>
