@@ -4327,6 +4327,96 @@ function SubjectAnalyticsPage() {
 }
 
 
+// Paginated Posts Table Component (30 posts per page)
+function PostsTable({ posts, color, fmtDate, fmt, calcEr, erGrade, pIcon, pColor }) {
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const postsPerPage = 30;
+  
+  const totalPages = Math.ceil(posts.length / postsPerPage);
+  const startIndex = (currentPage - 1) * postsPerPage;
+  const endIndex = startIndex + postsPerPage;
+  const paginatedPosts = posts.slice(startIndex, endIndex);
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
+
+  return (
+    <div>
+      <div style={{ borderRadius:"var(--radius-md)", border:"1px solid "+color+"20", overflowX:"auto", marginBottom:"1rem" }}>
+        <table className="custom-table" style={{ fontSize:"0.79rem" }}>
+          <thead>
+            <tr>
+              <th>Health / #</th><th>Date</th><th>Caption</th>
+              <th style={{ color:"var(--accent-cyan)" }}>Views</th>
+              <th>Reach</th>
+              <th style={{ color:"var(--accent-emerald)" }}>Eng.</th>
+              <th>Likes</th><th>Cmts</th><th>Shares</th><th>Saves</th>
+              <th style={{ color:"var(--accent-primary)" }}>ER%</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedPosts.map(function(post,pi){
+              var actualIndex = startIndex + pi;
+              var pe=(post.likes||0)+(post.comments||0)+(post.shares||0)+(post.saves||0);
+              var er=calcEr(pe,post.reach||0);
+              var isBest=actualIndex===0; var isWorst=actualIndex===posts.length-1&&posts.length>1;
+              return (
+                <tr key={post.id||pi} style={{ background:isBest?color+"0A":isWorst?"rgba(244,63,94,0.04)":"" }}>
+                  <td style={{ fontWeight:700, color:isBest?color:isWorst?"#F43F5E":"var(--text-subtle)", fontSize:"0.8rem" }}>{isBest?"Best":isWorst?"Low":"#"+(actualIndex+1)}</td>
+                  <td style={{ whiteSpace:"nowrap", color:"var(--text-muted)" }}>{fmtDate(post.uploadDate)}</td>
+                  <td><span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block", maxWidth:"170px" }} title={post.caption||""}>{(post.caption||"-").substring(0,55)}{post.caption&&post.caption.length>55?"...":""}</span></td>
+                  <td style={{ fontWeight:700, color:"var(--accent-cyan)" }}>{fmt(post.impressions||0)}</td>
+                  <td>{fmt(post.reach||0)}</td>
+                  <td style={{ fontWeight:700, color:"var(--accent-emerald)" }}>{fmt(pe)}</td>
+                  <td>{fmt(post.likes||0)}</td>
+                  <td>{fmt(post.comments||0)}</td>
+                  <td>{fmt(post.shares||0)}</td>
+                  <td>{fmt(post.saves||0)}</td>
+                  <td style={{ fontWeight:700, color:erGrade(er).color }}>{er}%</td>
+                  <td><span className={"badge badge-"+((post.status||"uploaded").toLowerCase())}>{post.status||"-"}</span></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0.75rem 1rem", borderRadius:"var(--radius-sm)", background:"rgba(255,255,255,0.03)", border:"1px solid var(--border-color)" }}>
+          <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", fontWeight:600 }}>
+            Page {currentPage} of {totalPages} • Showing {paginatedPosts.length} of {posts.length} posts
+          </div>
+          <div style={{ display:"flex", gap:"0.5rem" }}>
+            <button
+              onClick={handlePreviousPage}
+              disabled={currentPage === 1}
+              className="btn btn-secondary btn-sm"
+              style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
+            >
+              ← Previous
+            </button>
+            <button
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages}
+              className="btn btn-secondary btn-sm"
+              style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Report Summary Page - Professional Deep Analytics
 // ReportSummaryPage v4 — with Account Brief Vault
 function ReportSummaryPage() {
@@ -5528,44 +5618,7 @@ function ReportSummaryPage() {
               <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.75rem" }}>
                 All {pl.posts.length} Post{pl.posts.length!==1?"s":""} — sorted by views
               </div>
-              <div style={{ borderRadius:"var(--radius-md)", border:"1px solid "+color+"20", overflowX:"auto" }}>
-                <table className="custom-table" style={{ fontSize:"0.79rem" }}>
-                  <thead>
-                    <tr>
-                      <th>Health / #</th><th>Date</th><th>Caption</th>
-                      <th style={{ color:"var(--accent-cyan)" }}>Views</th>
-                      <th>Reach</th>
-                      <th style={{ color:"var(--accent-emerald)" }}>Eng.</th>
-                      <th>Likes</th><th>Cmts</th><th>Shares</th><th>Saves</th>
-                      <th style={{ color:"var(--accent-primary)" }}>ER%</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pl.sortedPosts.map(function(post,pi){
-                      var pe=(post.likes||0)+(post.comments||0)+(post.shares||0)+(post.saves||0);
-                      var er=calcEr(pe,post.reach||0);
-                      var isBest=pi===0; var isWorst=pi===pl.sortedPosts.length-1&&pl.sortedPosts.length>1;
-                      return (
-                        <tr key={post.id||pi} style={{ background:isBest?color+"0A":isWorst?"rgba(244,63,94,0.04)":"" }}>
-                          <td style={{ fontWeight:700, color:isBest?color:isWorst?"#F43F5E":"var(--text-subtle)", fontSize:"0.8rem" }}>{isBest?"Best":isWorst?"Low":"#"+(pi+1)}</td>
-                          <td style={{ whiteSpace:"nowrap", color:"var(--text-muted)" }}>{fmtDate(post.uploadDate)}</td>
-                          <td><span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block", maxWidth:"170px" }} title={post.caption||""}>{(post.caption||"-").substring(0,55)}{post.caption&&post.caption.length>55?"...":""}</span></td>
-                          <td style={{ fontWeight:700, color:"var(--accent-cyan)" }}>{fmt(post.impressions||0)}</td>
-                          <td>{fmt(post.reach||0)}</td>
-                          <td style={{ fontWeight:700, color:"var(--accent-emerald)" }}>{fmt(pe)}</td>
-                          <td>{fmt(post.likes||0)}</td>
-                          <td>{fmt(post.comments||0)}</td>
-                          <td>{fmt(post.shares||0)}</td>
-                          <td>{fmt(post.saves||0)}</td>
-                          <td style={{ fontWeight:700, color:erGrade(er).color }}>{er}%</td>
-                          <td><span className={"badge badge-"+((post.status||"uploaded").toLowerCase())}>{post.status||"-"}</span></td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <PostsTable posts={pl.sortedPosts} color={color} fmtDate={fmtDate} fmt={fmt} calcEr={calcEr} erGrade={erGrade} pIcon={pIcon} pColor={pColor} />
             </div>
           </div>
         );
