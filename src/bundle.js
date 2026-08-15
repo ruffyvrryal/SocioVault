@@ -1874,8 +1874,7 @@ function AccountCenterPage() {
 }
 
 function AddContentPage() {
-  const { activeAccount, addContent, canEdit, setActivePage } = React.useContext(VaultContext);
-  const { vaultContents } = React.useContext(VaultContext);
+  const { activeAccount, addContent, canEdit, setActivePage, contents } = React.useContext(VaultContext);
 
   const [uploadDate, setUploadDate] = React.useState(() => new Date().toISOString().split("T")[0]);
   const [uploadTime, setUploadTime] = React.useState(() => {
@@ -1909,7 +1908,7 @@ function AddContentPage() {
 
   // Build unique suggestions from existing contents
   React.useMemo(() => {
-    const allContents = vaultContents.filter(c => c.accountId === activeAccount?.id) || [];
+    const allContents = (contents || []).filter(c => c.accountId === activeAccount?.id);
     
     // Content type suggestions
     const types = Array.from(new Set(allContents.map(c => c.contentType).filter(Boolean)));
@@ -1922,7 +1921,7 @@ function AddContentPage() {
     // Hashtag suggestions
     const hashtags = Array.from(new Set(allContents.flatMap(c => c.hashtags || [])));
     setHashtagSuggestions(hashtags);
-  }, [vaultContents, activeAccount]);
+  }, [contents, activeAccount]);
 
   if (!activeAccount) return <div className="page-container"><p>No active account selected.</p></div>;
 
