@@ -6060,6 +6060,13 @@ function AppContent() {
   const { user, authLoading } = React.useContext(AuthContext);
   const { activeAccountId, activePage, dataLoading } = React.useContext(VaultContext);
 
+  // Initialize Lucide icons after each render
+  React.useEffect(function() {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+      lucide.createIcons();
+    }
+  });
+
   React.useEffect(() => {
     if (window.lucide) {
       window.lucide.createIcons();
