@@ -876,6 +876,14 @@ function AccountVaultPage() {
     return initial;
   });
 
+  // Sync schedule from Firestore when account changes
+  React.useEffect(function() {
+    if (accessibleAccounts.length > 0) {
+      var firstAcc = accessibleAccounts[0];
+      setSchedule(firstAcc.uploadSchedule || {});
+    }
+  }, [accessibleAccounts[0]?.id, accessibleAccounts[0]?.uploadSchedule]);
+
   const [scheduleRows, setScheduleRows] = React.useState(function() {
     // Initialize rows from schedule keys (account IDs that have any days)
     var rows = [];
@@ -963,14 +971,20 @@ function AccountVaultPage() {
       setScheduleSaving(true);
       try {
         var firstAcc = accessibleAccountsRef.current[0];
-        await editAccount(firstAcc.id, { uploadSchedule: scheduleRef.current });
+        // Only save if schedule actually changed
+        if (firstAcc && scheduleRef.current && Object.keys(scheduleRef.current).length > 0) {
+          await editAccount(firstAcc.id, { uploadSchedule: scheduleRef.current });
+        } else if (firstAcc && (!scheduleRef.current || Object.keys(scheduleRef.current).length === 0)) {
+          // Save empty schedule if all rows removed
+          await editAccount(firstAcc.id, { uploadSchedule: {} });
+        }
       } catch(e) {
         console.error("Failed to save schedule:", e);
       }
       setScheduleSaving(false);
     }, 800);
     return function() { clearTimeout(timeout); };
-  }, []);
+  }, [schedule, scheduleRows]);
 
   return (
     <div className="page-container">
