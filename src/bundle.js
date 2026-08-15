@@ -3482,7 +3482,7 @@ window.TimeframeAnalyticsPage = function() {
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>Avg Impressions</span>
-                      <strong style={{ color: "var(--accent-cyan)" }}>{fmt(ts.avgImp)}</strong>
+                      <strong style={{ color: "var(--accent-cyan)" }}>{ts.avgImp >= 1000000 ? (ts.avgImp/1000000).toFixed(2)+"M" : ts.avgImp >= 1000 ? (ts.avgImp/1000).toFixed(1)+"K" : ts.avgImp.toLocaleString()}</strong>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>Engagement Rate</span>
