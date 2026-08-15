@@ -87,6 +87,8 @@ const Icon = ({ name, size = 16, color = "currentColor", ...props }) => {
     'tiktok': <svg width={size} height={size} viewBox="0 0 24 24" fill={color}><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm2.5 14.667c-1.294 1.036-3.02 1.668-4.87 1.668-3.87 0-7-3.13-7-7s3.13-7 7-7c1.847 0 3.573.632 4.866 1.667V6c0-.828.672-1.5 1.5-1.5s1.5.672 1.5 1.5v9.167c0 .828-.672 1.5-1.5 1.5s-1.5-.672-1.5-1.5v-.5z"></path></svg>,
     'twitter': <svg width={size} height={size} viewBox="0 0 24 24" fill={color}><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221c.001.134.001.269.001.404 0 4.145-3.15 8.93-8.93 8.93-1.775 0-3.428-.52-4.823-1.409.246.029.497.044.75.044 1.475 0 2.833-.502 3.914-1.344-1.376-.025-2.536-.933-2.937-2.18.192.037.388.057.589.057.287 0 .565-.038.831-.11-1.44-.289-2.524-1.561-2.524-3.087 0-.013 0-.027 0-.041.424.235.91.377 1.432.394-.845-.564-1.401-1.529-1.401-2.621 0-.577.155-1.117.425-1.581 1.55 1.903 3.869 3.16 6.481 3.292-.054-.232-.081-.474-.081-.722 0-1.748 1.418-3.166 3.166-3.166.911 0 1.733.384 2.311 1.001.721-.142 1.399-.405 2.011-.768-.236.737-.736 1.354-1.386 1.744.64-.077 1.25-.246 1.817-.497-.424.631-.958 1.185-1.574 1.629z"></path></svg>,
     'facebook': <svg width={size} height={size} viewBox="0 0 24 24" fill={color}><path d="M12 0C5.373 0 0 5.373 0 12c0 5.988 4.388 10.954 10.125 11.854V15.47h-3.047v-2.37h3.047V9.356c0-3.015 1.793-4.685 4.532-4.685 1.313 0 2.686.234 2.686.234v2.953h-1.513c-1.491 0-1.956.926-1.956 1.874v2.25h3.328l-.532 2.37h-2.796v8.384C19.612 23.027 24 18.062 24 12c0-6.627-5.373-12-12-12z"></path></svg>,
+    'edit': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
+    'book-open': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>,
   };
   return icons[name] || icons['file'];
 };
@@ -1208,7 +1210,7 @@ function AccountVaultPage() {
 
         {accessibleAccounts.length === 0 && (
           <div className="glass-card" style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem 1.5rem" }}>
-            <i data-lucide="folder-plus" style={{ width: "48px", height: "48px", color: "var(--text-subtle)", marginBottom: "1rem" }}></i>
+            <Icon name="folder-plus" size={48} color="var(--text-subtle)" style={{marginBottom: "1rem"}} />
             <h3 style={{ fontSize: "1.2rem", fontWeight: 700 }}>No Accounts Found</h3>
             <p style={{ color: "var(--text-muted)", margin: "0.5rem 0 1.5rem" }}>You haven't created any social media accounts yet.</p>
             <button onClick={() => setShowAddModal(true)} className="btn btn-primary">Create Your First Account</button>
@@ -1609,7 +1611,7 @@ function Navbar() {
 
                 >
 
-                  <i data-lucide={item.icon} style={{ width: "13px", height: "13px" }}></i>
+                  <Icon name={item.icon} size={13} color="currentColor" />
 
                   {item.label}
 
@@ -1785,7 +1787,7 @@ function AccountCenterPage() {
                   padding: "0.4rem 0.6rem", marginBottom: "0.75rem",
                   overflow: "hidden"
                 }}>
-                  <i data-lucide="link" style={{ width: "12px", height: "12px", flexShrink: 0, color: "var(--accent-cyan)" }}></i>
+                  <Icon name="link" size={12} color="var(--accent-cyan)" style={{flexShrink: 0}} />
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.url}</span>
                 </div>
               )}
@@ -1873,6 +1875,7 @@ function AccountCenterPage() {
 
 function AddContentPage() {
   const { activeAccount, addContent, canEdit, setActivePage } = React.useContext(VaultContext);
+  const { vaultContents } = React.useContext(VaultContext);
 
   const [uploadDate, setUploadDate] = React.useState(() => new Date().toISOString().split("T")[0]);
   const [uploadTime, setUploadTime] = React.useState(() => {
@@ -1893,11 +1896,33 @@ function AddContentPage() {
   const [saves, setSaves] = React.useState("");
   const [status, setStatus] = React.useState("Uploaded");
 
+  // Autocomplete states
+  const [contentTypeSuggestions, setContentTypeSuggestions] = React.useState([]);
+  const [subjectSuggestions, setSubjectSuggestions] = React.useState([]);
+  const [hashtagSuggestions, setHashtagSuggestions] = React.useState([]);
+
   const availablePlatforms = React.useMemo(() => {
     const defaults = ["Instagram", "YouTube", "TikTok", "X (Twitter)", "Facebook", "Threads", "LinkedIn"];
     const connected = (activeAccount?.platforms || []).map(p => p.name);
     return Array.from(new Set([...defaults, ...connected]));
   }, [activeAccount]);
+
+  // Build unique suggestions from existing contents
+  React.useMemo(() => {
+    const allContents = vaultContents.filter(c => c.accountId === activeAccount?.id) || [];
+    
+    // Content type suggestions
+    const types = Array.from(new Set(allContents.map(c => c.contentType).filter(Boolean)));
+    setContentTypeSuggestions(types);
+    
+    // Subject suggestions
+    const subjects = Array.from(new Set(allContents.flatMap(c => c.subjects || [])));
+    setSubjectSuggestions(subjects);
+    
+    // Hashtag suggestions
+    const hashtags = Array.from(new Set(allContents.flatMap(c => c.hashtags || [])));
+    setHashtagSuggestions(hashtags);
+  }, [vaultContents, activeAccount]);
 
   if (!activeAccount) return <div className="page-container"><p>No active account selected.</p></div>;
 
@@ -1910,6 +1935,26 @@ function AddContentPage() {
 
   const handleRemoveSubject = (name) => {
     setSubjectsList(subjectsList.filter(s => s !== name));
+  };
+
+  const handleSelectSubjectSuggestion = (suggestion) => {
+    if (!subjectsList.includes(suggestion)) {
+      setSubjectsList([...subjectsList, suggestion]);
+    }
+    setSubjectInput("");
+  };
+
+  const handleSelectHashtagSuggestion = (tag) => {
+    const current = hashtagsInput.trim();
+    if (current) {
+      setHashtagsInput(current + " " + tag);
+    } else {
+      setHashtagsInput(tag);
+    }
+  };
+
+  const handleSelectContentTypeSuggestion = (type) => {
+    setContentType(type);
   };
 
   const handleSubmit = (e) => {
@@ -1976,6 +2021,30 @@ function AddContentPage() {
                 value={contentType}
                 onChange={e => setContentType(e.target.value)}
               />
+              {contentType && contentTypeSuggestions.length > 0 && (
+                <div style={{ marginTop: "0.5rem", display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                  {contentTypeSuggestions.filter(t => t.toLowerCase().includes(contentType.toLowerCase())).slice(0, 5).map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => handleSelectContentTypeSuggestion(type)}
+                      style={{
+                        padding: "0.35rem 0.7rem",
+                        borderRadius: "4px",
+                        border: "1px solid var(--accent-primary)",
+                        background: "rgba(139,92,246,0.1)",
+                        color: "var(--accent-primary)",
+                        cursor: "pointer",
+                        fontSize: "0.8rem",
+                        fontWeight: 600,
+                        transition: "all 0.2s"
+                      }}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1987,6 +2056,30 @@ function AddContentPage() {
           <div className="form-group">
             <label className="form-label">Hashtags (space or comma separated)</label>
             <input type="text" className="form-input" placeholder="e.g. #tech #gadgets" value={hashtagsInput} onChange={e => setHashtagsInput(e.target.value)} />
+            {hashtagSuggestions.length > 0 && (
+              <div style={{ marginTop: "0.5rem", display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                {hashtagSuggestions.slice(0, 5).map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => handleSelectHashtagSuggestion(tag)}
+                    style={{
+                      padding: "0.35rem 0.7rem",
+                      borderRadius: "4px",
+                      border: "1px solid var(--accent-cyan)",
+                      background: "rgba(6,182,212,0.1)",
+                      color: "var(--accent-cyan)",
+                      cursor: "pointer",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="form-group">
@@ -2007,6 +2100,30 @@ function AddContentPage() {
               />
               <button type="button" onClick={handleAddSubject} className="btn btn-secondary">Add Person</button>
             </div>
+            {subjectInput && subjectSuggestions.length > 0 && (
+              <div style={{ marginBottom: "0.75rem", display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                {subjectSuggestions.filter(s => s.toLowerCase().includes(subjectInput.toLowerCase())).slice(0, 5).map(suggestion => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => handleSelectSubjectSuggestion(suggestion)}
+                    style={{
+                      padding: "0.35rem 0.7rem",
+                      borderRadius: "4px",
+                      border: "1px solid var(--accent-lime)",
+                      background: "rgba(132,204,22,0.1)",
+                      color: "var(--accent-lime)",
+                      cursor: "pointer",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
               {subjectsList.map(name => (
                 <span key={name} className="chip chip-subject" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
@@ -3297,7 +3414,7 @@ window.TimeframeAnalyticsPage = function() {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.25rem" }}>
-                      <div style={{ width:"36px", height:"36px", borderRadius:"9px", background:"rgba(139,92,246,0.12)", border:"1px solid rgba(139,92,246,0.2)", display:"flex", alignItems:"center", justifyContent:"center" }}><i data-lucide={contentTypeIcons[stat.type] || "file"} style={{ width:"18px", height:"18px", color:"var(--accent-primary)" }}></i></div>
+                      <div style={{ width:"36px", height:"36px", borderRadius:"9px", background:"rgba(139,92,246,0.12)", border:"1px solid rgba(139,92,246,0.2)", display:"flex", alignItems:"center", justifyContent:"center" }}><Icon name={contentTypeIcons[stat.type] || "file"} size={18} color="var(--accent-primary)" /></div>
                       <div>
                         <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-main)", margin: 0 }}>{stat.type}</h3>
                         <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.25rem 0 0 0" }}>{stat.count} content{stat.count !== 1 ? "s" : ""}</p>
@@ -3643,7 +3760,7 @@ window.HashtagAnalyticsPage = function() {
                 boxShadow: isActive ? "0 0 12px "+c+"20" : "none",
                 transition:"all 0.2s ease"
               }}>
-              <i data-lucide={ic} style={{ width:"13px", height:"13px", flexShrink:0 }}></i>
+              <Icon name={ic} size={13} color="" />
               {plat}
               <span style={{
                 fontSize:"0.7rem", fontWeight:700,
@@ -3724,7 +3841,7 @@ window.HashtagAnalyticsPage = function() {
                           fontSize:"0.7rem", fontWeight:600, padding:"0.15rem 0.45rem",
                           borderRadius:"var(--radius-full)", background:"rgba(255,255,255,0.1)",
                           color:"rgba(255,255,255,0.8)" }}>
-                          <i data-lucide={pIcon(p)} style={{ width:"9px", height:"9px" }}></i>{p}
+                          <Icon name={pIcon(p)} size={9} color="" />{p}
                         </span>
                       );
                     })}
@@ -3770,7 +3887,7 @@ window.HashtagAnalyticsPage = function() {
             <div style={{ width:"28px", height:"28px", borderRadius:"8px",
               background:scopeColor+"18", border:"1px solid "+scopeColor+"30",
               display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <i data-lucide={scopeIcon} style={{ width:"13px", height:"13px", color:scopeColor }}></i>
+              <Icon name={scopeIcon} size={13} color={scopeColor} />
             </div>
             <div>
               <div style={{ fontSize:"1rem", fontWeight:700, color:"var(--text-main)" }}>
@@ -3789,9 +3906,7 @@ window.HashtagAnalyticsPage = function() {
           </div>
           <div style={{ display:"flex", gap:"0.65rem", alignItems:"center", flexWrap:"wrap" }}>
             <div style={{ position:"relative" }}>
-              <i data-lucide="search" style={{ position:"absolute", left:"0.65rem", top:"50%",
-                transform:"translateY(-50%)", width:"13px", height:"13px",
-                color:"var(--text-subtle)", pointerEvents:"none" }}></i>
+              <Icon name="search" size={13} color="var(--text-subtle)" style={{ position:"absolute", left:"0.65rem", top:"50%", transform:"translateY(-50%)", pointerEvents:"none" }} />
               <input type="text" className="form-input" placeholder="Search hashtag..."
                 value={searchHashtag}
                 onChange={function(e) { setSearchHashtag(e.target.value); }}
@@ -3862,7 +3977,7 @@ window.HashtagAnalyticsPage = function() {
                                 fontSize:"0.7rem", padding:"0.12rem 0.4rem", borderRadius:"var(--radius-full)",
                                 background:pColor(p)+"15", border:"1px solid "+pColor(p)+"30",
                                 color:pColor(p), fontWeight:600, whiteSpace:"nowrap" }}>
-                                <i data-lucide={pIcon(p)} style={{ width:"9px", height:"9px", flexShrink:0 }}></i>{p}
+                                <Icon name={pIcon(p)} size={9} color="" />{p}
                               </span>
                             );
                           })}
@@ -3902,7 +4017,7 @@ window.HashtagAnalyticsPage = function() {
                       padding:"0.45rem 0.85rem", borderRadius:"var(--radius-sm)",
                       border:"1px solid "+c+"30", background:c+"0C",
                       cursor:"pointer", transition:"all 0.2s", color:c, fontSize:"0.82rem", fontWeight:600 }}>
-                    <i data-lucide={pIcon(p)} style={{ width:"12px", height:"12px" }}></i>
+                    <Icon name={pIcon(p)} size={12} color="" />
                     {p}
                     <span style={{ fontSize:"0.72rem", fontWeight:800, color:"var(--text-muted)" }}>{pCount} tags</span>
                     <Icon name="arrow-right" size={10} color="var(--text-subtle)" />
@@ -4881,7 +4996,7 @@ function ReportSummaryPage() {
           {canEdit && (
             <button onClick={briefOpen ? cancelBrief : openBrief} className="btn btn-secondary btn-sm"
               style={{ gap:"0.4rem" }}>
-              <i data-lucide={briefOpen ? "x" : (hasBrief ? "pencil" : "plus")} style={{ width:"13px", height:"13px" }}></i>
+              <Icon name={briefOpen ? "x" : (hasBrief ? "pencil" : "plus")} size={13} color="currentColor" />
               {briefOpen ? "Cancel" : (hasBrief ? "Edit Brief" : "Add Brief")}
             </button>
           )}
@@ -4902,7 +5017,7 @@ function ReportSummaryPage() {
               return (
                 <div key={field.label} style={{ display:"flex", gap:"0.65rem", alignItems:"flex-start" }}>
                   <div style={{ width:"28px", height:"28px", borderRadius:"7px", background:"rgba(139,92,246,0.1)", border:"1px solid rgba(139,92,246,0.2)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:"0.1rem" }}>
-                    <i data-lucide={field.icon} style={{ width:"12px", height:"12px", color:"var(--accent-primary)" }}></i>
+                    <Icon name={field.icon} size={12} color="var(--accent-primary)" />
                   </div>
                   <div>
                     <div style={{ fontSize:"0.7rem", fontWeight:700, color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.2rem" }}>{field.label}</div>
@@ -5043,7 +5158,7 @@ function ReportSummaryPage() {
               { icon:"clock",             text: "Generated "+today },
             ].map(function(m){ return (
               <div key={m.icon} className="report-hero-meta-item">
-                <i data-lucide={m.icon} style={{ width:"13px", height:"13px" }}></i>
+                <Icon name={m.icon} size={13} color="" />
                 <span>{m.text}</span>
               </div>
             ); })}
@@ -5147,7 +5262,7 @@ function ReportSummaryPage() {
             ].map(function(item){ return (
               <div key={item.label} className="engagement-bar-row">
                 <div className="engagement-bar-label">
-                  <i data-lucide={item.icon} style={{ width:"13px", height:"13px", color:item.c, flexShrink:0 }}></i>{item.label}
+                  <Icon name={item.icon} size={13} color={item.c} style={{flexShrink:0}} />{item.label}
                 </div>
                 <div className="engagement-bar-track">
                   <div className="engagement-bar-fill" style={{ width:item.p+"%", background:item.g }}></div>
@@ -5195,7 +5310,7 @@ function ReportSummaryPage() {
                 return (
                   <div key={s.key} style={{ padding:"1rem", borderRadius:"var(--radius-md)", background:s.bg, border:"1px solid "+s.border }}>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.5rem" }}>
-                      <i data-lucide={s.icon} style={{ width:"15px", height:"15px", color:s.color }}></i>
+                      <Icon name={s.icon} size={15} color={s.color} />
                       <span style={{ fontSize:"0.7rem", color:s.color, fontWeight:700 }}>{pct(count,combined.count)}%</span>
                     </div>
                     <div style={{ fontSize:"1.6rem", fontWeight:800, fontFamily:"var(--font-heading)", color:s.color, lineHeight:1 }}>{count}</div>
@@ -5257,7 +5372,7 @@ function ReportSummaryPage() {
                           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.25rem" }}>
                             <div style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
                               <span style={{ fontSize:"0.68rem", fontWeight:800, color:isLast?"#F43F5E":"var(--text-subtle)", width:"14px" }}>#{rank+1}</span>
-                              <i data-lucide={pIcon(pl.name)} style={{ width:"11px", height:"11px", color:c }}></i>
+                              <Icon name={pIcon(pl.name)} size={11} color={c} />
                               <span style={{ fontSize:"0.78rem", fontWeight:600, color:isLast?"#F43F5E":"var(--text-secondary)" }}>{pl.name}</span>
                               {isLast && <span style={{ fontSize:"0.62rem", color:"#F43F5E", fontWeight:700 }}>Lowest</span>}
                             </div>
@@ -5297,7 +5412,7 @@ function ReportSummaryPage() {
           <div key={pl.name} className="report-section" style={{ marginBottom:"1.5rem" }}>
             <div className="report-section-head" style={{ background:"linear-gradient(135deg,"+color+"10,"+color+"04)", borderBottom:"1px solid "+color+"20" }}>
               <div style={{ width:"36px", height:"36px", borderRadius:"10px", background:color+"18", border:"1px solid "+color+"35", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                <i data-lucide={pIcon(pl.name)} style={{ width:"16px", height:"16px", color:color }}></i>
+                <Icon name={pIcon(pl.name)} size={16} color={color} />
               </div>
               <div style={{ flex:1 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:"0.65rem", flexWrap:"wrap" }}>
@@ -5348,7 +5463,7 @@ function ReportSummaryPage() {
                     { label:"Saves",    icon:"bookmark",       v:pl.sav, p:pl.savPct, c:"#10B981", g:"linear-gradient(90deg,#10B981,#34D399)" },
                   ].map(function(item){ return (
                     <div key={item.label} className="engagement-bar-row">
-                      <div className="engagement-bar-label"><i data-lucide={item.icon} style={{ width:"13px", height:"13px", color:item.c, flexShrink:0 }}></i>{item.label}</div>
+                      <div className="engagement-bar-label"><Icon name={item.icon} size={13} color={item.c} style={{flexShrink:0}} />{item.label}</div>
                       <div className="engagement-bar-track"><div className="engagement-bar-fill" style={{ width:item.p+"%", background:item.g }}></div></div>
                       <div className="engagement-bar-value">{fmt(item.v)}</div>
                       <div className="engagement-bar-pct">{item.p}%</div>
@@ -5477,7 +5592,7 @@ function ReportSummaryPage() {
                   <div key={c.id||i} style={{ padding:"0.85rem", borderRadius:"var(--radius-md)", border:"1px solid "+(i===0?"rgba(245,158,11,0.3)":"var(--border-color)"), background:i===0?"linear-gradient(135deg,rgba(245,158,11,0.07),rgba(245,158,11,0.02))":"rgba(7,9,15,0.4)", marginBottom:"0.75rem" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.5rem" }}>
                       <span style={{ fontSize:"0.72rem", fontWeight:800, color:i===0?"#F59E0B":"var(--text-muted)", padding:"0.12rem 0.45rem", borderRadius:"4px", background:i===0?"rgba(245,158,11,0.15)":"rgba(255,255,255,0.05)", border:i===0?"1px solid rgba(245,158,11,0.3)":"1px solid var(--border-color)" }}>{ranks[i]}</span>
-                      <i data-lucide={pIcon(c.platform)} style={{ width:"12px", height:"12px", color:col }}></i>
+                      <Icon name={pIcon(c.platform)} size={12} color={col} />
                       <span style={{ fontSize:"0.78rem", fontWeight:600, color:col }}>{c.platform}</span>
                       <span style={{ fontSize:"0.72rem", color:"var(--text-muted)" }}>{fmtDate(c.uploadDate)}</span>
                     </div>
@@ -5511,8 +5626,8 @@ function ReportSummaryPage() {
                 return (
                   <div key={c.id||i} style={{ padding:"0.85rem", borderRadius:"var(--radius-md)", border:"1px solid rgba(244,63,94,0.2)", background:"linear-gradient(135deg,rgba(244,63,94,0.06),rgba(244,63,94,0.02))", marginBottom:"0.75rem" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.5rem" }}>
-                      <i data-lucide="alert-triangle" style={{ width:"11px", height:"11px", color:"#F43F5E", flexShrink:0 }}></i>
-                      <i data-lucide={pIcon(c.platform)} style={{ width:"11px", height:"11px", color:col }}></i>
+                      <Icon name="alert-triangle" size={11} color="#F43F5E" />
+                      <Icon name={pIcon(c.platform)} size={11} color={col} />
                       <span style={{ fontSize:"0.78rem", fontWeight:600, color:col }}>{c.platform}</span>
                       <span style={{ fontSize:"0.72rem", color:"var(--text-muted)" }}>{fmtDate(c.uploadDate)}</span>
                     </div>
@@ -5677,7 +5792,7 @@ function ReportSummaryPage() {
 
           {/* Info message */}
           <div style={{ marginTop:"0.75rem", fontSize:"0.8rem", color:"var(--text-muted)", lineHeight:1.6, padding:"0.75rem 1rem", background:"rgba(6,182,212,0.08)", border:"1px solid rgba(6,182,212,0.2)", borderRadius:"var(--radius-sm)" }}>
-            <i data-lucide="info" style={{ width:"12px", height:"12px", marginRight:"0.4rem", display:"inline" }}></i>
+            <Icon name="info" size={12} color="var(--text-muted)" style={{marginRight:"0.4rem", display:"inline"}} />
             This report is generated locally from your data. No API key needed. Fast, private, and always available.
           </div>
 
@@ -5766,7 +5881,7 @@ function ReportSummaryPage() {
             <div className="report-section-label">Strategic Recommendations</div>
             {hasBrief && (
               <div style={{ fontSize:"0.75rem", color:"var(--accent-primary-light)", marginTop:"0.15rem" }}>
-                <i data-lucide="book-open" style={{ width:"10px", height:"10px", display:"inline", verticalAlign:"middle", marginRight:"0.3rem" }}></i>
+                <Icon name="book-open" size={10} color="currentColor" style={{display:"inline", verticalAlign:"middle", marginRight:"0.3rem"}} />
                 Personalised based on your Account Brief
               </div>
             )}
@@ -6195,4 +6310,5 @@ function MainApp() {
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<MainApp />);
+
 
