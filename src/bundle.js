@@ -3431,6 +3431,85 @@ window.TimeframeAnalyticsPage = function() {
       {/* Content Type Analytics Section - Bottom of Page */}
       <div style={{ marginTop: "2.5rem" }}>
         <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "1.5rem" }}>
+           Upload Time Performance Analysis
+        </h2>
+
+        {(() => {
+          // Analyze upload times
+          const timeData = {};
+          contents.forEach(c => {
+            if (c.accountId === activeAccount.id && c.uploadTime) {
+              const hour = parseInt(c.uploadTime.split(':')[0]);
+              const timeSlot = hour < 12 ? 'Morning (6am-12pm)' : hour < 17 ? 'Afternoon (12pm-5pm)' : 'Evening (5pm-11pm)';
+              if (!timeData[timeSlot]) {
+                timeData[timeSlot] = { count: 0, impressions: 0, engagement: 0, posts: [] };
+              }
+              const eng = (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0);
+              timeData[timeSlot].count += 1;
+              timeData[timeSlot].impressions += (c.impressions || 0);
+              timeData[timeSlot].engagement += eng;
+              timeData[timeSlot].posts.push(c);
+            }
+          });
+
+          const timeSlots = Object.entries(timeData).map(([slot, data]) => ({
+            slot,
+            count: data.count,
+            avgImp: Math.round(data.impressions / data.count),
+            totalImp: data.impressions,
+            engRate: data.posts.length > 0 ? ((data.engagement / (data.posts.reduce((sum, p) => sum + (p.reach || 0), 0) || 1)) * 100).toFixed(2) : 0,
+            posts: data.posts
+          })).sort((a, b) => b.totalImp - a.totalImp);
+
+          const bestTime = timeSlots[0];
+          const worstTime = timeSlots[timeSlots.length - 1];
+
+          return (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.5rem", marginBottom: "2rem" }}>
+              {timeSlots.map((ts, idx) => (
+                <div key={ts.slot} className="glass-card" style={{ padding: "1.5rem", borderLeft: ts === bestTime ? "4px solid var(--accent-lime)" : ts === worstTime ? "4px solid #F43F5E" : "4px solid var(--border-color)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                    <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0, color: "var(--text-main)" }}>{ts.slot}</h3>
+                    {ts === bestTime && <span style={{ fontSize: "0.65rem", fontWeight: 800, color: "var(--accent-lime)", background: "rgba(132,204,22,0.15)", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>BEST TIME</span>}
+                    {ts === worstTime && timeSlots.length > 1 && <span style={{ fontSize: "0.65rem", fontWeight: 800, color: "#F43F5E", background: "rgba(244,63,94,0.15)", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>LOWEST</span>}
+                  </div>
+                  <div style={{ display: "grid", gap: "0.75rem", marginBottom: "1rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>Posts</span>
+                      <strong>{ts.count}</strong>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>Avg Impressions</span>
+                      <strong style={{ color: "var(--accent-cyan)" }}>{fmt(ts.avgImp)}</strong>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>Engagement Rate</span>
+                      <strong style={{ color: "var(--accent-primary)" }}>{ts.engRate}%</strong>
+                    </div>
+                  </div>
+                  <div style={{ padding: "0.75rem", background: "rgba(255,255,255,0.03)", borderRadius: "8px", fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.6 }}>
+                    {ts === bestTime ? "✓ Your audience is most active at this time. Prioritize posting here." : ts === worstTime && timeSlots.length > 1 ? "⚠ Lower engagement at this time. Consider posting at peak hours instead." : "Moderate engagement. Test different times to optimize."}
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
+        <div style={{ background: "linear-gradient(135deg,rgba(34,197,94,0.1),rgba(59,130,246,0.1))", border: "1px solid rgba(34,197,94,0.2)", borderRadius: "var(--radius-md)", padding: "1.25rem", marginBottom: "2rem" }}>
+          <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-main)", marginTop: 0 }}>📅 Upload Time Recommendations</h4>
+          <ul style={{ margin: "0.75rem 0 0", paddingLeft: "1.25rem", fontSize: "0.9rem", color: "var(--text-secondary)", lineHeight: 1.8 }}>
+            <li>Post consistently at your best performing time slot</li>
+            <li>Test the same content at different times to identify platform-specific peaks</li>
+            <li>Consider time zones if you have a global audience</li>
+            <li>Use scheduling tools to post at optimal times automatically</li>
+            <li>Track engagement after changing posting times to measure impact</li>
+          </ul>
+        </div>
+      </div>
+
+      <div style={{ marginTop: "2.5rem" }}>
+        <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "1.5rem" }}>
            Content Type Performance
         </h2>
 
@@ -3989,11 +4068,11 @@ window.HashtagAnalyticsPage = function() {
           </div>
           <div style={{ display:"flex", gap:"0.65rem", alignItems:"center", flexWrap:"wrap" }}>
             <div style={{ position:"relative" }}>
-              <Icon name="search" size={13} color="var(--text-subtle)" style={{ position:"absolute", left:"0.65rem", top:"50%", transform:"translateY(-50%)", pointerEvents:"none" }} />
+              <Icon name="search" size={13} color="var(--text-subtle)" style={{ position:"absolute", left:"0.85rem", top:"50%", transform:"translateY(-50%)", pointerEvents:"none" }} />
               <input type="text" className="form-input" placeholder="Search hashtag..."
                 value={searchHashtag}
                 onChange={function(e) { setSearchHashtag(e.target.value); }}
-                style={{ paddingLeft:"2rem", width:"170px", minHeight:"36px", fontSize:"0.85rem" }} />
+                style={{ paddingLeft:"2.3rem", width:"170px", minHeight:"36px", fontSize:"0.85rem" }} />
             </div>
             <select className="form-select" value={hashtagSortBy}
               onChange={function(e) { setHashtagSortBy(e.target.value); }}

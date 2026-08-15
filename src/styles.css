@@ -873,6 +873,197 @@ a:hover {
   to   { opacity: 1; transform: translateY(0)    scale(1);    }
 }
 
+/* ========== NEW ANIMATIONS ========== */
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse {
+  0%,  100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.3), var(--shadow-sm); }
+  50%      { box-shadow: 0 0 35px rgba(139, 92, 246, 0.5), var(--shadow-md); }
+}
+
+/* Animation utility classes */
+.animate-fade-in {
+  animation: fadeIn 0.4s var(--ease-out) forwards;
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown 0.4s var(--ease-out) forwards;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s var(--ease-out) forwards;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.35s var(--ease-smooth) forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.35s var(--ease-smooth) forwards;
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow 2.5s ease-in-out infinite;
+}
+
+/* Card animations on load */
+.glass-card {
+  animation: fadeInUp 0.4s var(--ease-out) both;
+}
+
+.glass-card:nth-child(2) { animation-delay: 0.05s; }
+.glass-card:nth-child(3) { animation-delay: 0.1s; }
+.glass-card:nth-child(4) { animation-delay: 0.15s; }
+.glass-card:nth-child(5) { animation-delay: 0.2s; }
+.glass-card:nth-child(6) { animation-delay: 0.25s; }
+.glass-card:nth-child(n+7) { animation-delay: 0.3s; }
+
+/* Button hover animations */
+.btn {
+  transition: all var(--transition);
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4), var(--shadow-inset);
+}
+
+/* Smooth transitions for form inputs */
+.form-input,
+.form-select,
+.form-textarea {
+  transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  transform: scale(1.01);
+}
+
+/* Table row hover effect */
+.custom-table tbody tr {
+  transition: background var(--transition), transform 0.2s var(--ease-smooth);
+}
+
+.custom-table tbody tr:hover {
+  transform: scale(1.01);
+}
+
+/* Stat card animation */
+.stat-card {
+  animation: fadeInUp 0.5s var(--ease-out) both;
+}
+
+.stat-card:nth-child(2) { animation-delay: 0.05s; }
+.stat-card:nth-child(3) { animation-delay: 0.1s; }
+.stat-card:nth-child(4) { animation-delay: 0.15s; }
+.stat-card:nth-child(5) { animation-delay: 0.2s; }
+
+/* Report KPI card animations */
+.report-kpi-card {
+  animation: fadeInUp 0.4s var(--ease-out) both;
+  transition: border-color var(--transition), transform var(--transition), box-shadow 0.3s var(--ease-smooth);
+}
+
+.report-kpi-card:nth-child(2) { animation-delay: 0.05s; }
+.report-kpi-card:nth-child(3) { animation-delay: 0.1s; }
+.report-kpi-card:nth-child(4) { animation-delay: 0.15s; }
+.report-kpi-card:nth-child(5) { animation-delay: 0.2s; }
+
+.report-kpi-card:hover {
+  box-shadow: 0 0 25px rgba(139, 92, 246, 0.15), var(--shadow-md);
+}
+
+/* Modal animations */
+.modal-overlay {
+  animation: fadeIn 0.25s var(--ease-out);
+}
+
+.modal-content {
+  animation: slideUp 0.3s var(--ease-spring);
+}
+
+/* Smooth page transitions */
+.page-container {
+  animation: fadeInUp 0.5s var(--ease-out);
+}
+
+/* Badge animations */
+.badge {
+  animation: scaleIn 0.3s var(--ease-smooth);
+}
+
+/* Chip animations */
+.chip {
+  animation: fadeIn 0.3s var(--ease-out);
+  transition: background var(--transition), transform var(--transition);
+}
+
+.chip:hover {
+  transform: scale(1.05);
+}
+
+/* Icon animations */
+.icon-rotate {
+  animation: rotate 0.6s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Smooth state transitions for all elements */
+* {
+  transition: color var(--transition), background var(--transition), border-color var(--transition);
+}
+
 /* ==========================================================================
    Section Headers (premium pill style)
    ========================================================================== */
