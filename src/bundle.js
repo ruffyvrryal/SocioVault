@@ -1179,11 +1179,11 @@ function AccountVaultPage() {
                     </span>
                     {role === 'owner' && (
                       <>
-                        <button onClick={(e) => openEditModal(e, acc)} className="btn btn-secondary btn-icon" title="Edit Account" style={{ width: "30px", height: "30px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <Icon name="pencil" size={14} color="" />
+                        <button onClick={(e) => openEditModal(e, acc)} className="btn btn-secondary btn-icon" title="Edit Account" style={{ width: "36px", height: "36px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px" }}>
+                          <Icon name="pencil" size={16} color="var(--accent-primary)" />
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete account "${acc.name}"?`)) removeAccount(acc.id); }} className="btn btn-danger btn-icon" title="Delete Account" style={{ width: "30px", height: "30px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <Icon name="trash-2" size={14} color="" />
+                        <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete account "${acc.name}"?`)) removeAccount(acc.id); }} className="btn btn-danger btn-icon" title="Delete Account" style={{ width: "36px", height: "36px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px" }}>
+                          <Icon name="trash-2" size={16} color="#F43F5E" />
                         </button>
                       </>
                     )}
