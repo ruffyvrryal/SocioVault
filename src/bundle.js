@@ -56,6 +56,52 @@ window.INITIAL_DATA = {
   ]
 };
 
+// 1.5 SIMPLE ICON COMPONENT - Replace Lucide with safe SVG icons
+const Icon = ({ name, size = 16, color = "currentColor", ...props }) => {
+  const icons = {
+    'layers': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><polygon points="12 2 2 7 2 17 12 22 22 17 22 7 12 2"></polygon><polyline points="2 7 12 12 22 7"></polyline><polyline points="12 12 12 22"></polyline></svg>,
+    'log-in': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>,
+    'plus': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
+    'calendar-days': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><circle cx="8" cy="15" r="1"></circle><circle cx="12" cy="15" r="1"></circle><circle cx="16" cy="15" r="1"></circle><circle cx="8" cy="19" r="1"></circle><circle cx="12" cy="19" r="1"></circle><circle cx="16" cy="19" r="1"></circle></svg>,
+    'check': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>,
+    'x': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
+    'trash-2': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>,
+    'loader-2': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>,
+    'pencil': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19H4v-3L16.5 3.5z"></path></svg>,
+    'folder-plus': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>,
+    'log-out': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>,
+    'plus-circle': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>,
+    'file-plus': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline><line x1="12" y1="13" x2="12" y2="19"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg>,
+    'trash': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
+    'link': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>,
+    'external-link': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>,
+    'link-2-off': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M9 9l10 10"></path><path d="M7.07 7.07a5 5 0 0 0 7.07 7.07"></path><path d="M12.55 12.55a5 5 0 1 1-7.07-7.07"></path><path d="M16.93 16.93a5 5 0 0 0-7.07-7.07"></path></svg>,
+    'edit-2': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>,
+    'search': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>,
+    'arrow-right': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>,
+    'file': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>,
+    'alert-triangle': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05l-8.47-14.14a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
+    'info': <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>,
+    'instagram': <svg width={size} height={size} viewBox="0 0 24 24" fill={color}><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect></svg>,
+    'youtube': <svg width={size} height={size} viewBox="0 0 24 24" fill={color}><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm4.441 16.892c-2.102.144-6.784.144-8.883 0-2.276-.156-2.541-1.27-2.566-4.892.025-3.622.29-4.736 2.566-4.892 2.099-.144 6.782-.144 8.883 0 2.277.156 2.541 1.27 2.566 4.892-.025 3.622-.289 4.736-2.566 4.892z"></path></svg>,
+    'tiktok': <svg width={size} height={size} viewBox="0 0 24 24" fill={color}><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm2.5 14.667c-1.294 1.036-3.02 1.668-4.87 1.668-3.87 0-7-3.13-7-7s3.13-7 7-7c1.847 0 3.573.632 4.866 1.667V6c0-.828.672-1.5 1.5-1.5s1.5.672 1.5 1.5v9.167c0 .828-.672 1.5-1.5 1.5s-1.5-.672-1.5-1.5v-.5z"></path></svg>,
+    'twitter': <svg width={size} height={size} viewBox="0 0 24 24" fill={color}><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221c.001.134.001.269.001.404 0 4.145-3.15 8.93-8.93 8.93-1.775 0-3.428-.52-4.823-1.409.246.029.497.044.75.044 1.475 0 2.833-.502 3.914-1.344-1.376-.025-2.536-.933-2.937-2.18.192.037.388.057.589.057.287 0 .565-.038.831-.11-1.44-.289-2.524-1.561-2.524-3.087 0-.013 0-.027 0-.041.424.235.91.377 1.432.394-.845-.564-1.401-1.529-1.401-2.621 0-.577.155-1.117.425-1.581 1.55 1.903 3.869 3.16 6.481 3.292-.054-.232-.081-.474-.081-.722 0-1.748 1.418-3.166 3.166-3.166.911 0 1.733.384 2.311 1.001.721-.142 1.399-.405 2.011-.768-.236.737-.736 1.354-1.386 1.744.64-.077 1.25-.246 1.817-.497-.424.631-.958 1.185-1.574 1.629z"></path></svg>,
+    'facebook': <svg width={size} height={size} viewBox="0 0 24 24" fill={color}><path d="M12 0C5.373 0 0 5.373 0 12c0 5.988 4.388 10.954 10.125 11.854V15.47h-3.047v-2.37h3.047V9.356c0-3.015 1.793-4.685 4.532-4.685 1.313 0 2.686.234 2.686.234v2.953h-1.513c-1.491 0-1.956.926-1.956 1.874v2.25h3.328l-.532 2.37h-2.796v8.384C19.612 23.027 24 18.062 24 12c0-6.627-5.373-12-12-12z"></path></svg>,
+  };
+  return icons[name] || icons['file'];
+};
+
+// Initialize Lucide for existing data-lucide elements (fallback for dynamic icons)
+function initLucideIcons() {
+  if (typeof lucide !== 'undefined' && lucide.createIcons) {
+    try {
+      lucide.createIcons();
+    } catch (e) {
+      // Silently fail - icons may already be rendered
+    }
+  }
+}
+
 // 2. CONTEXTS
 const AuthContext = React.createContext();
 const VaultContext = React.createContext();
@@ -549,7 +595,7 @@ function LoginPage() {
 
         <div className="login-brand-icon">
 
-          <i data-lucide="layers" style={{ width: "28px", height: "28px", color: "#fff" }}></i>
+          <Icon name="layers" size={28} color="#fff" />
 
         </div>
 
@@ -667,7 +713,7 @@ function LoginPage() {
 
           <button type="submit" className="btn btn-primary" style={{ width: "100%", minHeight: "46px" }}>
 
-            <i data-lucide="log-in" style={{ width: "16px", height: "16px" }}></i>
+            <Icon name="log-in" size={16} color="" />
 
             Sign In / Register
 
@@ -994,7 +1040,7 @@ function AccountVaultPage() {
           <p className="page-subtitle">Select an account workspace to view platforms, content tables, and analytics.</p>
         </div>
         <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
-          <i data-lucide="plus" style={{ width: "18px", height: "18px" }}></i>
+          <Icon name="plus" size={18} color="" />
           Add New Account
         </button>
       </div>
@@ -1005,7 +1051,7 @@ function AccountVaultPage() {
           <div className="upload-schedule-head">
             <div className="upload-schedule-brand">
               <div className="upload-schedule-icon">
-                <i data-lucide="calendar-days" style={{ width:"16px", height:"16px", color:"#fff" }}></i>
+                <Icon name="calendar-days" size={16} color="#fff" />
               </div>
               <div>
                 <div className="upload-schedule-title">UPLOAD SCHEDULE</div>
@@ -1066,7 +1112,7 @@ function AccountVaultPage() {
                               disabled={!accId}
                               title={accId ? (isActive ? "Remove" : "Add") : "Select account first"}
                             >
-                              {isActive ? <i data-lucide="check" style={{ width:"14px", height:"14px" }}></i> : <i data-lucide="x" style={{ width:"14px", height:"14px" }}></i>}
+                              {isActive ? <Icon name="check" size={14} color="" /> : <Icon name="x" size={14} color="" />}
                             </button>
                           </td>
                         );
@@ -1078,7 +1124,7 @@ function AccountVaultPage() {
                           onClick={function() { removeScheduleRow(rowIdx); }}
                           title="Remove this row"
                         >
-                          <i data-lucide="trash-2" style={{ width:"14px", height:"14px" }}></i>
+                          <Icon name="trash-2" size={14} color="" />
                         </button>
                       </td>
                     </tr>
@@ -1095,11 +1141,11 @@ function AccountVaultPage() {
               onClick={addScheduleRow}
               style={{ fontSize:"0.85rem", gap:"0.5rem" }}
             >
-              <i data-lucide="plus" style={{ width:"14px", height:"14px" }}></i>
+              <Icon name="plus" size={14} color="" />
               Add Row
             </button>
             <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:"0.4rem", fontSize:"0.78rem", color:"var(--text-subtle)" }}>
-              {scheduleSaving && <i data-lucide="loader-2" style={{ width:"12px", height:"12px", animation:"spin 0.8s linear infinite" }}></i>}
+              {scheduleSaving && <Icon name="loader-2" size={12} style={{animation: "spin 0.8s linear infinite"}} />}
               <span>Schedule saved to cloud</span>
             </div>
           </div>
@@ -1132,10 +1178,10 @@ function AccountVaultPage() {
                     {role === 'owner' && (
                       <>
                         <button onClick={(e) => openEditModal(e, acc)} className="btn btn-secondary btn-icon" title="Edit Account" style={{ width: "30px", height: "30px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <i data-lucide="pencil" style={{ width: "14px", height: "14px" }}></i>
+                          <Icon name="pencil" size={14} color="" />
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete account "${acc.name}"?`)) removeAccount(acc.id); }} className="btn btn-danger btn-icon" title="Delete Account" style={{ width: "30px", height: "30px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <i data-lucide="trash-2" style={{ width: "14px", height: "14px" }}></i>
+                          <Icon name="trash-2" size={14} color="" />
                         </button>
                       </>
                     )}
@@ -1373,7 +1419,7 @@ function Navbar() {
 
             <div className="brand-icon">
 
-              <i data-lucide="layers" style={{ width: "16px", height: "16px", color: "#fff" }}></i>
+              <Icon name="layers" size={16} color="#fff" />
 
             </div>
 
@@ -1527,7 +1573,7 @@ function Navbar() {
 
               >
 
-                <i data-lucide="log-out" style={{ width: "15px", height: "15px" }}></i>
+                <Icon name="log-out" size={15} color="" />
 
               </button>
 
@@ -1683,11 +1729,11 @@ function AccountCenterPage() {
         <div style={{ display: "flex", gap: "0.75rem" }}>
           {canEdit && (
             <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
-              <i data-lucide="plus-circle" style={{ width: "18px", height: "18px" }}></i> Add Platform Channel
+              <Icon name="plus-circle" size={18} color="" /> Add Platform Channel
             </button>
           )}
           <button onClick={() => setActivePage("add-content")} className="btn btn-secondary">
-            <i data-lucide="file-plus" style={{ width: "18px", height: "18px" }}></i> Create Content Entry
+            <Icon name="file-plus" size={18} color="" /> Create Content Entry
           </button>
         </div>
       </div>
@@ -1727,7 +1773,7 @@ function AccountCenterPage() {
                 </div>
                 {canEdit && (
                   <button onClick={() => confirm(`Remove ${p.name}?`) && removePlatform(activeAccount.id, p.id)} className="btn btn-danger btn-icon">
-                    <i data-lucide="trash" style={{ width: "14px", height: "14px" }}></i>
+                    <Icon name="trash" size={14} color="" />
                   </button>
                 )}
               </div>
@@ -1757,12 +1803,12 @@ function AccountCenterPage() {
                     textDecoration: "none"
                   }}
                 >
-                  <i data-lucide="external-link" style={{ width: "13px", height: "13px" }}></i>
+                  <Icon name="external-link" size={13} color="" />
                   View Channel
                 </a>
               ) : (
                 <span style={{ color: "var(--text-subtle)", fontSize: "0.82rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-                  <i data-lucide="link-2-off" style={{ width: "13px", height: "13px" }}></i>
+                  <Icon name="link-2-off" size={13} color="" />
                   No link added
                 </span>
               )}
@@ -2157,7 +2203,7 @@ function ContentTablePage() {
         </div>
         {canEdit && (
           <button onClick={() => setActivePage("add-content")} className="btn btn-primary">
-            <i data-lucide="plus" style={{ width: "18px", height: "18px" }}></i> Add Content Entry
+            <Icon name="plus" size={18} color="" /> Add Content Entry
           </button>
         )}
       </div>
@@ -2237,8 +2283,8 @@ function ContentTablePage() {
                   <td><span className={`badge badge-${item.status.toLowerCase()}`}>{item.status}</span></td>
                   {canEdit && (
                     <td>
-                      <button onClick={() => handleOpenEdit(item)} className="btn btn-secondary btn-icon" title="Edit Content"><i data-lucide="edit-2" style={{ width: "14px", height: "14px" }}></i></button>
-                      <button onClick={() => confirm("Delete content?") && deleteContent(item.id)} className="btn btn-danger btn-icon" style={{ marginLeft: "0.75rem" }} title="Delete Content"><i data-lucide="trash-2" style={{ width: "14px", height: "14px" }}></i></button>
+                      <button onClick={() => handleOpenEdit(item)} className="btn btn-secondary btn-icon" title="Edit Content"><Icon name="edit-2" size={14} color="" /></button>
+                      <button onClick={() => confirm("Delete content?") && deleteContent(item.id)} className="btn btn-danger btn-icon" style={{ marginLeft: "0.75rem" }} title="Delete Content"><Icon name="trash-2" size={14} color="" /></button>
                     </td>
                   )}
                 </tr>
@@ -3859,7 +3905,7 @@ window.HashtagAnalyticsPage = function() {
                     <i data-lucide={pIcon(p)} style={{ width:"12px", height:"12px" }}></i>
                     {p}
                     <span style={{ fontSize:"0.72rem", fontWeight:800, color:"var(--text-muted)" }}>{pCount} tags</span>
-                    <i data-lucide="arrow-right" style={{ width:"10px", height:"10px", color:"var(--text-subtle)" }}></i>
+                    <Icon name="arrow-right" size={10} color="var(--text-subtle)" />
                   </button>
                 );
               })}
@@ -4818,7 +4864,7 @@ function ReportSummaryPage() {
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"1rem 1.5rem", borderBottom: hasBrief ? "1px solid rgba(139,92,246,0.15)" : "none", gap:"1rem", flexWrap:"wrap" }}>
           <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>
             <div style={{ width:"36px", height:"36px", borderRadius:"10px", background:"linear-gradient(135deg,#8B5CF6,#06B6D4)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 4px 12px rgba(139,92,246,0.3)" }}>
-              <i data-lucide="book-open" style={{ width:"16px", height:"16px", color:"#fff" }}></i>
+              <Icon name="book-open" size={16} color="#fff" />
             </div>
             <div>
               <div style={{ fontWeight:700, fontSize:"0.95rem", color:"var(--text-main)" }}>Account Brief</div>
@@ -4828,7 +4874,7 @@ function ReportSummaryPage() {
             </div>
             {briefSaved && (
               <span style={{ display:"inline-flex", alignItems:"center", gap:"0.35rem", fontSize:"0.75rem", fontWeight:700, color:"#10B981", padding:"0.2rem 0.6rem", borderRadius:"var(--radius-full)", background:"rgba(16,185,129,0.12)", border:"1px solid rgba(16,185,129,0.3)" }}>
-                <i data-lucide="check" style={{ width:"11px", height:"11px" }}></i> Saved
+                <Icon name="check" size={11} color="" /> Saved
               </span>
             )}
           </div>
@@ -4881,7 +4927,7 @@ function ReportSummaryPage() {
             })}
             {canEdit && (
               <button onClick={openBrief} className="btn btn-primary btn-sm" style={{ gap:"0.4rem" }}>
-                <i data-lucide="plus" style={{ width:"12px", height:"12px" }}></i>
+                <Icon name="plus" size={12} color="" />
                 Fill in Brief
               </button>
             )}
@@ -4897,7 +4943,7 @@ function ReportSummaryPage() {
               {/* Niche */}
               <div className="form-group" style={{ margin:0 }}>
                 <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                  <i data-lucide="tag" style={{ width:"11px", height:"11px" }}></i> Niche / Industry
+                  <Icon name="tag" size={11} color="" /> Niche / Industry
                 </label>
                 <input type="text" className="form-input" placeholder="e.g. Tech & Lifestyle, Beauty, Finance..."
                   value={draftNiche} onChange={function(e){ setDraftNiche(e.target.value); }} />
@@ -4906,7 +4952,7 @@ function ReportSummaryPage() {
               {/* Target Audience */}
               <div className="form-group" style={{ margin:0 }}>
                 <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                  <i data-lucide="users" style={{ width:"11px", height:"11px" }}></i> Target Audience
+                  <Icon name="users" size={11} color="" /> Target Audience
                 </label>
                 <input type="text" className="form-input" placeholder="e.g. Tech-savvy millennials aged 22-35..."
                   value={draftAudience} onChange={function(e){ setDraftAudience(e.target.value); }} />
@@ -4915,7 +4961,7 @@ function ReportSummaryPage() {
               {/* Content Tone */}
               <div className="form-group" style={{ margin:0 }}>
                 <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                  <i data-lucide="mic-2" style={{ width:"11px", height:"11px" }}></i> Content Tone
+                  <Icon name="mic-2" size={11} color="" /> Content Tone
                 </label>
                 <input type="text" className="form-input" placeholder="e.g. Educational, Entertaining, Professional..."
                   value={draftTone} onChange={function(e){ setDraftTone(e.target.value); }} />
@@ -4924,7 +4970,7 @@ function ReportSummaryPage() {
               {/* Content Pillars */}
               <div className="form-group" style={{ margin:0 }}>
                 <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                  <i data-lucide="columns" style={{ width:"11px", height:"11px" }}></i> Content Pillars
+                  <Icon name="columns" size={11} color="" /> Content Pillars
                 </label>
                 <input type="text" className="form-input" placeholder="e.g. Product reviews, tutorials, behind-the-scenes..."
                   value={draftPillars} onChange={function(e){ setDraftPillars(e.target.value); }} />
@@ -4933,7 +4979,7 @@ function ReportSummaryPage() {
               {/* Goals — full width */}
               <div className="form-group" style={{ margin:0, gridColumn:"1 / -1" }}>
                 <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                  <i data-lucide="target" style={{ width:"11px", height:"11px" }}></i> Goals & Objectives
+                  <Icon name="target" size={11} color="" /> Goals & Objectives
                 </label>
                 <textarea className="form-textarea" rows={3}
                   placeholder="e.g. Grow to 500K followers by Dec 2026. Increase brand deal revenue by 40%. Build authority in AI & gadget space..."
@@ -4944,7 +4990,7 @@ function ReportSummaryPage() {
               {/* Additional Context — full width */}
               <div className="form-group" style={{ margin:0, gridColumn:"1 / -1" }}>
                 <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                  <i data-lucide="message-square" style={{ width:"11px", height:"11px" }}></i> Additional Context
+                  <Icon name="message-square" size={11} color="" /> Additional Context
                   <span style={{ fontSize:"0.68rem", color:"var(--text-subtle)", fontWeight:400, marginLeft:"0.25rem" }}>(optional — anything else the analysis should know)</span>
                 </label>
                 <textarea className="form-textarea" rows={3}
@@ -4961,8 +5007,8 @@ function ReportSummaryPage() {
               <button onClick={saveBrief} className="btn btn-primary btn-sm" disabled={briefSaving}
                 style={{ gap:"0.45rem", minWidth:"110px" }}>
                 {briefSaving
-                  ? <><i data-lucide="loader-2" style={{ width:"13px", height:"13px" }}></i> Saving...</>
-                  : <><i data-lucide="save" style={{ width:"13px", height:"13px" }}></i> Save Brief</>
+                  ? <><Icon name="loader-2" size={13} color="" /> Saving...</>
+                  : <><Icon name="save" size={13} color="" /> Save Brief</>
                 }
               </button>
             </div>
@@ -4977,7 +5023,7 @@ function ReportSummaryPage() {
       <div className="report-hero">
         <div className="report-hero-content">
           <div className="report-title-eyebrow">
-            <i data-lucide="file-bar-chart" style={{ width:"12px", height:"12px" }}></i>
+            <Icon name="file-bar-chart" size={12} color="" />
             Performance Analytics Report
           </div>
           <h1 className="report-hero-title">{activeAccount.name}</h1>
@@ -5005,10 +5051,10 @@ function ReportSummaryPage() {
         </div>
         <div style={{ position:"absolute", top:"1.5rem", right:"1.5rem", display:"flex", gap:"0.6rem" }}>
           <button className="btn btn-export btn-sm" onClick={handleExportDocx}>
-            <i data-lucide="download" style={{ width:"13px", height:"13px" }}></i> Export DOCX
+            <Icon name="download" size={13} color="" /> Export DOCX
           </button>
           <button className="btn btn-print btn-sm" onClick={function(){ window.print(); }}>
-            <i data-lucide="printer" style={{ width:"13px", height:"13px" }}></i> Print
+            <Icon name="printer" size={13} color="" /> Print
           </button>
         </div>
       </div>
@@ -5037,7 +5083,7 @@ function ReportSummaryPage() {
       <div className="report-section" style={{ marginBottom:"1.5rem" }}>
         <div className="report-section-head">
           <div className="report-section-icon" style={{ background:"rgba(6,182,212,0.1)", border:"1px solid rgba(6,182,212,0.2)" }}>
-            <i data-lucide="clipboard-list" style={{ width:"16px", height:"16px", color:"#06B6D4" }}></i>
+            <Icon name="clipboard-list" size={16} color="#06B6D4" />
           </div>
           <div className="report-section-label">Executive Summary</div>
         </div>
@@ -5088,7 +5134,7 @@ function ReportSummaryPage() {
         <div className="report-section" style={{ marginBottom:0 }}>
           <div className="report-section-head">
             <div className="report-section-icon" style={{ background:"rgba(139,92,246,0.1)", border:"1px solid rgba(139,92,246,0.2)" }}>
-              <i data-lucide="bar-chart-2" style={{ width:"16px", height:"16px", color:"var(--accent-primary)" }}></i>
+              <Icon name="bar-chart-2" size={16} color="var(--accent-primary)" />
             </div>
             <div className="report-section-label">Engagement Breakdown</div>
           </div>
@@ -5132,7 +5178,7 @@ function ReportSummaryPage() {
         <div className="report-section" style={{ marginBottom:0 }}>
           <div className="report-section-head">
             <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.2)" }}>
-              <i data-lucide="layout-list" style={{ width:"16px", height:"16px", color:"var(--accent-amber)" }}></i>
+              <Icon name="layout-list" size={16} color="var(--accent-amber)" />
             </div>
             <div className="report-section-label">Content Status</div>
           </div>
@@ -5183,7 +5229,7 @@ function ReportSummaryPage() {
         <div className="report-section" style={{ marginBottom:"1.5rem" }}>
           <div className="report-section-head">
             <div className="report-section-icon" style={{ background:"rgba(99,102,241,0.1)", border:"1px solid rgba(99,102,241,0.2)" }}>
-              <i data-lucide="bar-chart-horizontal" style={{ width:"16px", height:"16px", color:"#6366F1" }}></i>
+              <Icon name="bar-chart-horizontal" size={16} color="#6366F1" />
             </div>
             <div className="report-section-label">Cross-Platform Comparison</div>
           </div>
@@ -5333,7 +5379,7 @@ function ReportSummaryPage() {
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1rem", marginBottom:"1.5rem" }}>
                   <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"linear-gradient(135deg,rgba(245,158,11,0.08),rgba(245,158,11,0.03))", border:"1px solid rgba(245,158,11,0.25)" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.6rem" }}>
-                      <i data-lucide="award" style={{ width:"14px", height:"14px", color:"#F59E0B" }}></i>
+                      <Icon name="award" size={14} color="#F59E0B" />
                       <span style={{ fontSize:"0.72rem", color:"#F59E0B", fontWeight:800, textTransform:"uppercase", letterSpacing:"0.05em" }}>Best Post on {pl.name}</span>
                     </div>
                     <p style={{ fontSize:"0.82rem", color:"var(--text-secondary)", lineHeight:1.5, marginBottom:"0.75rem" }}>"{(pl.topPost.caption||"").substring(0,90)}{pl.topPost.caption&&pl.topPost.caption.length>90?"...":""}"</p>
@@ -5349,7 +5395,7 @@ function ReportSummaryPage() {
                   {pl.worstPost && pl.worstPost.id !== pl.topPost.id && (
                     <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"linear-gradient(135deg,rgba(244,63,94,0.07),rgba(244,63,94,0.02))", border:"1px solid rgba(244,63,94,0.2)" }}>
                       <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.6rem" }}>
-                        <i data-lucide="alert-triangle" style={{ width:"14px", height:"14px", color:"#F43F5E" }}></i>
+                        <Icon name="alert-triangle" size={14} color="#F43F5E" />
                         <span style={{ fontSize:"0.72rem", color:"#F43F5E", fontWeight:800, textTransform:"uppercase", letterSpacing:"0.05em" }}>Lowest Post — Needs Review</span>
                       </div>
                       <p style={{ fontSize:"0.82rem", color:"var(--text-secondary)", lineHeight:1.5, marginBottom:"0.75rem" }}>"{(pl.worstPost.caption||"").substring(0,90)}{pl.worstPost.caption&&pl.worstPost.caption.length>90?"...":""}"</p>
@@ -5418,7 +5464,7 @@ function ReportSummaryPage() {
           <div className="report-section" style={{ marginBottom:0 }}>
             <div className="report-section-head">
               <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.2)" }}>
-                <i data-lucide="award" style={{ width:"16px", height:"16px", color:"var(--accent-amber)" }}></i>
+                <Icon name="award" size={16} color="var(--accent-amber)" />
               </div>
               <div className="report-section-label">Top 3 Performing Content</div>
             </div>
@@ -5454,7 +5500,7 @@ function ReportSummaryPage() {
           <div className="report-section" style={{ marginBottom:0 }}>
             <div className="report-section-head">
               <div className="report-section-icon" style={{ background:"rgba(244,63,94,0.1)", border:"1px solid rgba(244,63,94,0.2)" }}>
-                <i data-lucide="alert-triangle" style={{ width:"16px", height:"16px", color:"#F43F5E" }}></i>
+                <Icon name="alert-triangle" size={16} color="#F43F5E" />
               </div>
               <div className="report-section-label">Lowest Performing — Needs Attention</div>
             </div>
@@ -5499,7 +5545,7 @@ function ReportSummaryPage() {
         <div className="report-section" style={{ marginBottom:"1.5rem" }}>
           <div className="report-section-head">
             <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.2)" }}>
-              <i data-lucide="film" style={{ width:"16px", height:"16px", color:"var(--accent-amber)" }}></i>
+              <Icon name="film" size={16} color="var(--accent-amber)" />
             </div>
             <div className="report-section-label">Content Type Performance</div>
           </div>
@@ -5550,7 +5596,7 @@ function ReportSummaryPage() {
         <div className="report-section" style={{ marginBottom:"1.5rem" }}>
           <div className="report-section-head">
             <div className="report-section-icon" style={{ background:"rgba(236,72,153,0.1)", border:"1px solid rgba(236,72,153,0.2)" }}>
-              <i data-lucide="users" style={{ width:"16px", height:"16px", color:"#EC4899" }}></i>
+              <Icon name="users" size={16} color="#EC4899" />
             </div>
             <div className="report-section-label">Subject & Talent Performance</div>
           </div>
@@ -5603,7 +5649,7 @@ function ReportSummaryPage() {
         <div className="ai-advisor-head">
           <div className="ai-advisor-brand">
             <div className="ai-advisor-icon">
-              <i data-lucide="sparkles" style={{ width:"20px", height:"20px", color:"#fff" }}></i>
+              <Icon name="sparkles" size={20} color="#fff" />
             </div>
             <div>
               <div className="ai-advisor-title">AI Growth Advisor</div>
@@ -5624,8 +5670,8 @@ function ReportSummaryPage() {
             onClick={function(){ generateAiAnalysis(combined, platformData, contentTypeData, subjectData, brief, fmt, fmtFull, fmtDate, calcEr, pct); }}
           >
             {aiLoading
-              ? <><i data-lucide="loader-2" style={{ width:"16px", height:"16px" }}></i> Generating Report...</>
-              : <><i data-lucide="sparkles" style={{ width:"16px", height:"16px" }}></i> Generate Professional Report</>
+              ? <><Icon name="loader-2" size={16} color="" /> Generating Report...</>
+              : <><Icon name="sparkles" size={16} color="" /> Generate Professional Report</>
             }
           </button>
 
@@ -5649,7 +5695,7 @@ function ReportSummaryPage() {
           {aiError && !aiLoading && (
             <div className="ai-error-box">
               <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.35rem", fontWeight:700 }}>
-                <i data-lucide="alert-triangle" style={{ width:"14px", height:"14px" }}></i>
+                <Icon name="alert-triangle" size={14} color="" />
                 Error
               </div>
               {aiError}
@@ -5661,7 +5707,7 @@ function ReportSummaryPage() {
             <div className="ai-output">
               <div className="ai-output-head">
                 <div className="ai-output-label">
-                  <i data-lucide="sparkles" style={{ width:"12px", height:"12px" }}></i>
+                  <Icon name="sparkles" size={12} color="" />
                   AI Analysis — {activeAccount.name}
                 </div>
                 <button
@@ -5670,7 +5716,7 @@ function ReportSummaryPage() {
                   style={{ gap:"0.35rem", fontSize:"0.72rem", padding:"0.25rem 0.65rem", minHeight:"28px" }}
                   title="Copy to clipboard"
                 >
-                  <i data-lucide="copy" style={{ width:"11px", height:"11px" }}></i>
+                  <Icon name="copy" size={11} color="" />
                   Copy
                 </button>
               </div>
@@ -5714,7 +5760,7 @@ function ReportSummaryPage() {
       <div className="report-section">
         <div className="report-section-head">
           <div className="report-section-icon" style={{ background:"rgba(52,211,153,0.1)", border:"1px solid rgba(52,211,153,0.2)" }}>
-            <i data-lucide="target" style={{ width:"16px", height:"16px", color:"var(--accent-emerald)" }}></i>
+            <Icon name="target" size={16} color="var(--accent-emerald)" />
           </div>
           <div>
             <div className="report-section-label">Strategic Recommendations</div>
@@ -5775,7 +5821,7 @@ function ReportSummaryPage() {
                 <div style={{ fontSize:"0.8rem", color:"var(--text-muted)" }}>Fill in the Account Brief above to get personalised recommendations based on your niche, goals, and target audience.</div>
               </div>
               <button onClick={openBrief} className="btn btn-primary btn-sm" style={{ gap:"0.4rem", flexShrink:0 }}>
-                <i data-lucide="book-open" style={{ width:"13px", height:"13px" }}></i>
+                <Icon name="book-open" size={13} color="" />
                 Add Account Brief
               </button>
             </div>
@@ -5787,7 +5833,7 @@ function ReportSummaryPage() {
       <div style={{ marginTop:"2.5rem", paddingTop:"1.5rem", borderTop:"1px solid var(--border-subtle)", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:"1rem" }}>
         <div style={{ display:"flex", alignItems:"center", gap:"0.6rem" }}>
           <div style={{ width:"24px", height:"24px", borderRadius:"7px", background:"var(--gradient-primary)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <i data-lucide="layers" style={{ width:"12px", height:"12px", color:"#fff" }}></i>
+            <Icon name="layers" size={12} color="#fff" />
           </div>
           <span style={{ fontSize:"0.8rem", fontWeight:700, color:"var(--text-muted)" }}>SocioVault</span>
           {hasBrief && brief.niche && (
@@ -5799,10 +5845,10 @@ function ReportSummaryPage() {
         </div>
         <div style={{ display:"flex", gap:"0.5rem" }}>
           <button className="btn btn-export btn-sm" onClick={handleExportDocx}>
-            <i data-lucide="download" style={{ width:"12px", height:"12px" }}></i> Export DOCX
+            <Icon name="download" size={12} color="" /> Export DOCX
           </button>
           <button className="btn btn-print btn-sm" onClick={function(){ window.print(); }}>
-            <i data-lucide="printer" style={{ width:"12px", height:"12px" }}></i> Print
+            <Icon name="printer" size={12} color="" /> Print
           </button>
         </div>
       </div>
@@ -5851,7 +5897,7 @@ function CollaboratorsPage() {
       <div className="glass-card" style={{ marginBottom: "1.5rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
           <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-primary))", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <i data-lucide="link" style={{ width: "18px", height: "18px", color: "#fff" }}></i>
+            <Icon name="link" size={18} color="#fff" />
           </div>
           <div>
             <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "0.1rem" }}> Shareable Vault Link</h3>
@@ -5874,7 +5920,7 @@ function CollaboratorsPage() {
         <div className="glass-card" style={{ marginBottom: "1.5rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
             <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, var(--accent-emerald), var(--accent-cyan))", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <i data-lucide="user-plus" style={{ width: "18px", height: "18px", color: "#fff" }}></i>
+              <Icon name="user-plus" size={18} color="#fff" />
             </div>
             <h3 style={{ fontSize: "1.05rem", fontWeight: 700 }}>+ Invite Collaborator</h3>
           </div>
@@ -5927,7 +5973,7 @@ function CollaboratorsPage() {
               <span className="badge badge-scheduled">{c.role}</span>
               {isOwner && (
                 <button onClick={() => confirm(`Remove ${c.email} from this vault?`) && removeCollaborator(activeAccount.id, c.email)} className="btn btn-danger btn-icon" title="Remove collaborator">
-                  <i data-lucide="user-x" style={{ width: "14px", height: "14px" }}></i>
+                  <Icon name="user-x" size={14} color="" />
                 </button>
               )}
             </div>
@@ -6001,7 +6047,7 @@ function NotesPage() {
         <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>
           {notesSaving && (
             <div style={{ display:"flex", alignItems:"center", gap:"0.35rem", fontSize:"0.8rem", color:"var(--text-muted)" }}>
-              <i data-lucide="loader-2" style={{ width:"14px", height:"14px", animation:"spin 0.8s linear infinite" }}></i>
+              <Icon name="loader-2" size={14} style={{animation: "spin 0.8s linear infinite"}} />
               Saving...
             </div>
           )}
@@ -6060,12 +6106,14 @@ function AppContent() {
   const { user, authLoading } = React.useContext(AuthContext);
   const { activeAccountId, activePage, dataLoading } = React.useContext(VaultContext);
 
-  // Initialize Lucide icons after each render
+  // Initialize Lucide icons safely after render
   React.useEffect(function() {
-    if (typeof lucide !== 'undefined' && lucide.createIcons) {
-      lucide.createIcons();
-    }
-  });
+    // Use timeout to ensure DOM is fully updated before initializing icons
+    const timer = setTimeout(function() {
+      initLucideIcons();
+    }, 0);
+    return function() { clearTimeout(timer); };
+  }, [activeAccountId, activePage]);
 
   React.useEffect(() => {
     if (window.lucide) {
@@ -6147,3 +6195,4 @@ function MainApp() {
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<MainApp />);
+
