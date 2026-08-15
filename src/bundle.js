@@ -1634,9 +1634,10 @@ function Navbar() {
 };
 
 function AccountCenterPage() {
-  const { activeAccount, addPlatform, removePlatform, contents, canEdit, setActivePage } = React.useContext(VaultContext);
+  const { activeAccount, addPlatform, removePlatform, contents, canEdit, editAccount, setActivePage } = React.useContext(VaultContext);
 
   const [showAddModal, setShowAddModal] = React.useState(false);
+  const [editingPlatform, setEditingPlatform] = React.useState(null);
   const [platformName, setPlatformName] = React.useState("TikTok");
   const [handle, setHandle] = React.useState("");
   const [followers, setFollowers] = React.useState("");
@@ -1774,9 +1775,14 @@ function AccountCenterPage() {
                   <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>{p.handle}</p>
                 </div>
                 {canEdit && (
-                  <button onClick={() => confirm(`Remove ${p.name}?`) && removePlatform(activeAccount.id, p.id)} className="btn btn-danger btn-icon">
-                    <Icon name="trash" size={14} color="" />
-                  </button>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <button onClick={() => setEditingPlatform({ ...p })} className="btn btn-secondary btn-icon" style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px" }} title="Edit Platform">
+                      <Icon name="edit-2" size={16} color="var(--accent-primary)" />
+                    </button>
+                    <button onClick={() => confirm(`Remove ${p.name}?`) && removePlatform(activeAccount.id, p.id)} className="btn btn-danger btn-icon" style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px" }}>
+                      <Icon name="trash" size={16} color="#F43F5E" />
+                    </button>
+                  </div>
                 )}
               </div>
               {p.url && p.url !== "#" && (
@@ -1869,11 +1875,80 @@ function AccountCenterPage() {
           </div>
         </div>
       )}
+
+      {/* -- Edit Platform Modal -- */}
+      {editingPlatform && (
+        <div className="modal-overlay" onClick={() => setEditingPlatform(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Edit Platform Details</h2>
+              <button type="button" onClick={() => setEditingPlatform(null)} className="btn btn-secondary btn-icon" style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }} title="Close">
+                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>x</span>
+              </button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!editingPlatform.name || !editingPlatform.handle) {
+                alert("Platform name and handle are required");
+                return;
+              }
+              const updatedPlatforms = activeAccount.platforms.map(p => 
+                p.id === editingPlatform.id ? editingPlatform : p
+              );
+              editAccount(activeAccount.id, { platforms: updatedPlatforms });
+              setEditingPlatform(null);
+            }}>
+              <div className="form-group">
+                <label className="form-label">Platform Name</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  required
+                  value={editingPlatform.name} 
+                  onChange={e => setEditingPlatform({ ...editingPlatform, name: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Handle / Username</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  required
+                  value={editingPlatform.handle} 
+                  onChange={e => setEditingPlatform({ ...editingPlatform, handle: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Followers</label>
+                <input 
+                  type="number" 
+                  className="form-input" 
+                  min="0"
+                  value={editingPlatform.followers} 
+                  onChange={e => setEditingPlatform({ ...editingPlatform, followers: Number(e.target.value) })}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">URL (Profile Link)</label>
+                <input 
+                  type="url" 
+                  className="form-input" 
+                  placeholder="https://..."
+                  value={editingPlatform.url} 
+                  onChange={e => setEditingPlatform({ ...editingPlatform, url: e.target.value })}
+                />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
+                <button type="button" onClick={() => setEditingPlatform(null)} className="btn btn-secondary">Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-function AddContentPage() {
   const { activeAccount, addContent, canEdit, setActivePage, contents } = React.useContext(VaultContext);
 
   const [uploadDate, setUploadDate] = React.useState(() => new Date().toISOString().split("T")[0]);
@@ -2400,8 +2475,8 @@ function ContentTablePage() {
                   <td><span className={`badge badge-${item.status.toLowerCase()}`}>{item.status}</span></td>
                   {canEdit && (
                     <td>
-                      <button onClick={() => handleOpenEdit(item)} className="btn btn-secondary btn-icon" title="Edit Content"><Icon name="edit-2" size={14} color="" /></button>
-                      <button onClick={() => confirm("Delete content?") && deleteContent(item.id)} className="btn btn-danger btn-icon" style={{ marginLeft: "0.75rem" }} title="Delete Content"><Icon name="trash-2" size={14} color="" /></button>
+                      <button onClick={() => handleOpenEdit(item)} className="btn btn-secondary btn-icon" title="Edit Content" style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px" }}><Icon name="edit-2" size={16} color="var(--accent-primary)" /></button>
+                      <button onClick={() => confirm("Delete content?") && deleteContent(item.id)} className="btn btn-danger btn-icon" style={{ marginLeft: "0.75rem", width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px" }} title="Delete Content"><Icon name="trash-2" size={16} color="#F43F5E" /></button>
                     </td>
                   )}
                 </tr>
