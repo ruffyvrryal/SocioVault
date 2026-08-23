@@ -96,13 +96,39 @@ window.AccountVaultPage = function() {
     setActivePage("account-center");
   };
 
-  const handleDayAdd = (day) => {
-    if (accessibleAccounts.length > 0) {
-      setActiveAccountId(accessibleAccounts[0].id);
-      setActivePage("add-content");
-    } else {
-      setShowAddModal(true);
-    }
+  // ── Weekly Schedule State: { Mon: ["accId1", ""], ... } ──────────────────
+  const DAYS_KEY = "smh_weekly_day_schedule";
+
+  const [scheduleByDay, setScheduleByDay] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem(DAYS_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    return { Mon: [""], Tue: [""], Wed: [""], Thu: [""], Fri: [""], Sat: [""], Sun: [""] };
+  });
+
+  // Persist schedule to localStorage on change
+  React.useEffect(() => {
+    try { localStorage.setItem(DAYS_KEY, JSON.stringify(scheduleByDay)); } catch(e) {}
+  }, [scheduleByDay]);
+
+  const addSlotForDay = (day) => {
+    setScheduleByDay(prev => ({ ...prev, [day]: [...(prev[day] || []), ""] }));
+  };
+
+  const removeSlotForDay = (day, idx) => {
+    setScheduleByDay(prev => {
+      const slots = (prev[day] || []).filter((_, i) => i !== idx);
+      return { ...prev, [day]: slots.length > 0 ? slots : [""] };
+    });
+  };
+
+  const updateSlotForDay = (day, idx, accId) => {
+    setScheduleByDay(prev => {
+      const slots = [...(prev[day] || [])];
+      slots[idx] = accId;
+      return { ...prev, [day]: slots };
+    });
   };
 
   return (
@@ -212,81 +238,87 @@ window.AccountVaultPage = function() {
         )}
       </div>
 
-      {/* WEEKLY SCHEDULE TABLE HUB (SCREENSHOT MATCHED DESIGN) */}
-      <div style={{ marginBottom: "1rem" }}>
+      {/* WEEKLY SCHEDULE TABLE HUB — Account Picker per Day */}
+      <div style={{ marginBottom: "2rem" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
           <div>
             <h2 style={{ fontSize: "1.35rem", fontWeight: 700, color: "#FFFFFF" }}>Global Weekly Schedule Hub</h2>
-            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>Interactive weekly posting calendar & schedule table across all account vaults</p>
+            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>Assign which accounts post on each day of the week</p>
           </div>
         </div>
 
         <div className="weekly-schedule-card">
-          {/* Header Row: Mon, Tue, Wed, Thu, Fri, Sat, Sun */}
+          {/* Header Row: Mon – Sun */}
           <div className="weekly-table-header">
             {daysOfWeek.map(day => (
-              <div key={day} className="weekly-header-col">
-                {day}
-              </div>
+              <div key={day} className="weekly-header-col">{day}</div>
             ))}
           </div>
 
-          {/* Grid Columns */}
+          {/* Grid Columns — each pill is an account-picker <select> */}
           <div className="weekly-table-grid">
             {daysOfWeek.map(day => {
-              const dayContents = contents.filter(c => getDayOfWeek(c.uploadDate) === day);
-              const TOTAL_SLOTS = 8;
-              const emptySlotsCount = Math.max(0, TOTAL_SLOTS - dayContents.length);
-
+              const slots = scheduleByDay[day] || [""];
               return (
                 <div key={day} className="weekly-day-column">
-                  {dayContents.map(item => (
-                    <div 
-                      key={item.id} 
-                      className="weekly-pill-item"
-                      onClick={() => {
-                        setActiveAccountId(item.accountId);
-                        setActivePage("content-table");
-                      }}
-                      title={`${item.platform}: ${item.caption} (${item.status})`}
-                    >
-                      <span style={{ 
-                        width: "6px", 
-                        height: "6px", 
-                        borderRadius: "50%", 
-                        flexShrink: 0,
-                        background: item.status === "Uploaded" ? "var(--accent-emerald)" : item.status === "Scheduled" ? "var(--accent-cyan)" : item.status === "Privated" ? "var(--accent-amber)" : "var(--accent-rose)" 
-                      }}></span>
-                      <span className="pill-text">{item.caption.length > 14 ? item.caption.substring(0, 14) + "…" : item.caption}</span>
-                    </div>
-                  ))}
-
-                  {Array.from({ length: emptySlotsCount }).map((_, idx) => (
-                    <div 
-                      key={`empty-${day}-${idx}`} 
-                      className="weekly-pill-item pill-empty"
-                      onClick={() => handleDayAdd(day)}
-                      title="Click to schedule content"
-                    >
-                      <span className="pill-text">Dropdown</span>
-                    </div>
-                  ))}
+                  {slots.map((accId, idx) => {
+                    const selectedAcc = accessibleAccounts.find(a => a.id === accId);
+                    return (
+                      <div key={idx} className={`weekly-pill-item${accId ? "" : " pill-empty"}`} style={{ position: "relative", padding: 0, overflow: "visible" }}>
+                        <select
+                          value={accId}
+                          onChange={e => updateSlotForDay(day, idx, e.target.value)}
+                          title={selectedAcc ? selectedAcc.name : "Pick an account"}
+                          style={{
+                            width: "100%",
+                            background: "transparent",
+                            border: "none",
+                            color: accId ? "#fff" : "rgba(255,255,255,0.45)",
+                            fontSize: "0.78rem",
+                            fontWeight: accId ? 600 : 400,
+                            cursor: "pointer",
+                            outline: "none",
+                            padding: "0 0.6rem",
+                            height: "32px",
+                            appearance: "none",
+                            WebkitAppearance: "none",
+                          }}
+                        >
+                          <option value="" style={{ background: "#0f1024", color: "rgba(255,255,255,0.5)" }}>Dropdown</option>
+                          {accessibleAccounts.map(acc => (
+                            <option key={acc.id} value={acc.id} style={{ background: "#0f1024", color: "#fff" }}>
+                              {acc.name}
+                            </option>
+                          ))}
+                        </select>
+                        {accId && (
+                          <button
+                            onClick={() => removeSlotForDay(day, idx)}
+                            title="Remove"
+                            style={{
+                              position: "absolute", right: "4px", top: "50%", transform: "translateY(-50%)",
+                              background: "none", border: "none", color: "rgba(255,255,255,0.35)",
+                              cursor: "pointer", fontSize: "0.7rem", lineHeight: 1, padding: "2px", display: "flex"
+                            }}
+                          >✕</button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
           </div>
 
-          {/* Bottom Action Footer Row with Plus Button for each day */}
+          {/* Footer: "+" button per day to add a new account slot */}
           <div className="weekly-add-footer">
             {daysOfWeek.map(day => (
               <div key={day} className="weekly-add-col">
-                <button 
+                <button
                   className="weekly-add-btn"
-                  title={`Add new content entry for ${day}`}
-                  onClick={() => handleDayAdd(day)}
-                >
-                  +
-                </button>
+                  title={`Add account slot for ${day}`}
+                  onClick={() => addSlotForDay(day)}
+                >+</button>
               </div>
             ))}
           </div>
