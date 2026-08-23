@@ -136,7 +136,6 @@ window.AccountVaultPage = function() {
               <div>
                 {/* Card Top Row: Avatar + Badges + Actions */}
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1rem" }}>
-<<<<<<< HEAD
                   {/* Profile Photo or Initial */}
                   {acc.photoURL ? (
                     <img
@@ -294,10 +293,7 @@ window.AccountVaultPage = function() {
         </div>
       </div>
 
-      {/* Add Account Modal */}
-=======
       {/* ── Add Account Modal ── */}
->>>>>>> origin/main
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>

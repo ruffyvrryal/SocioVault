@@ -1,4 +1,4 @@
-﻿// Complete Standalone Application Bundle for Social Media Hub (with Subject Sorting & Pagination + Top Post Highlight Card)
+// Complete Standalone Application Bundle for Social Media Hub (with Subject Sorting & Pagination + Top Post Highlight Card)
 
 // 1. INITIAL MOCK DATA
 window.INITIAL_DATA = {
@@ -824,25 +824,31 @@ function LoginPage() {
         </div>
 
 
+            </button>
+
+          </div>
+        </div>
 
       </div>
-
     </div>
-
   );
-
 };
 
 function AccountVaultPage() {
   const { user } = React.useContext(AuthContext);
   const { accounts, setActiveAccountId, setActivePage, addAccount, removeAccount, editAccount, contents, getUserRole } = React.useContext(VaultContext);
 
-  // Add modal state
   const [showAddModal, setShowAddModal] = React.useState(false);
   const [accountName, setAccountName] = React.useState("");
   const [accountDesc, setAccountDesc] = React.useState("");
 
-<<<<<<< HEAD
+  const [editingAcc, setEditingAcc] = React.useState(null);
+  const [editName, setEditName] = React.useState("");
+  const [editDesc, setEditDesc] = React.useState("");
+  const [editPhoto, setEditPhoto] = React.useState("");
+  const [editPhotoMode, setEditPhotoMode] = React.useState("url");
+  const [editPhotoPreview, setEditPhotoPreview] = React.useState("");
+
   const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   const getDayOfWeek = (dateStr) => {
@@ -856,22 +862,9 @@ function AccountVaultPage() {
 
   const accessibleAccounts = React.useMemo(() => {
     if (!user) return [];
-    return accounts.filter(acc => acc.ownerEmail === user.email || (acc.collaborators && acc.collaborators.some(c => c.email === user.email)));
-=======
-  // Edit modal state
-  const [editingAcc, setEditingAcc] = React.useState(null);
-  const [editName, setEditName] = React.useState("");
-  const [editDesc, setEditDesc] = React.useState("");
-  const [editPhoto, setEditPhoto] = React.useState("");
-  const [editPhotoMode, setEditPhotoMode] = React.useState("url");
-  const [editPhotoPreview, setEditPhotoPreview] = React.useState("");
-
-  const accessibleAccounts = React.useMemo(() => {
-    if (!user) return [];
     return accounts
-      .filter(acc => acc.ownerEmail === user.email || acc.collaborators.some(c => c.email === user.email))
+      .filter(acc => acc.ownerEmail === user.email || (acc.collaborators && acc.collaborators.some(c => c.email === user.email)))
       .sort((a, b) => (a.name || "").localeCompare((b.name || "")));
->>>>>>> origin/main
   }, [accounts, user]);
 
   const handleCreate = (e) => {
@@ -910,7 +903,9 @@ function AccountVaultPage() {
   const handleEditSave = (e) => {
     e.preventDefault();
     if (!editName.trim()) return;
-    editAccount(editingAcc.id, { name: editName.trim(), description: editDesc.trim(), photoURL: editPhoto.trim() });
+    if (editAccount) {
+      editAccount(editingAcc.id, { name: editName.trim(), description: editDesc.trim(), photoURL: editPhoto.trim() });
+    }
     setEditingAcc(null);
   };
 
@@ -919,7 +914,6 @@ function AccountVaultPage() {
     setActivePage("account-center");
   };
 
-<<<<<<< HEAD
   const handleDayAdd = (day) => {
     if (accessibleAccounts.length > 0) {
       setActiveAccountId(accessibleAccounts[0].id);
@@ -928,139 +922,6 @@ function AccountVaultPage() {
       setShowAddModal(true);
     }
   };
-=======
-  // ── Upload Schedule ──────────────────────────────────────────────────────────
-  // Stored in localStorage as { [accountId]: string[] } where strings are day keys
-  var DAYS = [
-    { key: "mon", label: "Mon" },
-    { key: "tue", label: "Tue" },
-    { key: "wed", label: "Wed" },
-    { key: "thu", label: "Thu" },
-    { key: "fri", label: "Fri" },
-    { key: "sat", label: "Sat" },
-    { key: "sun", label: "Sun" }
-  ];
-
-  // ── Upload Schedule (dropdown rows + day toggles) ────────────────────────
-  const [schedule, setSchedule] = React.useState(function() {
-    var initial = {};
-    if (accessibleAccounts.length > 0) {
-      var firstAcc = accessibleAccounts[0];
-      initial = firstAcc.uploadSchedule || {};
-    }
-    return initial;
-  });
-
-  // Sync schedule from Firestore when account changes
-  React.useEffect(function() {
-    if (accessibleAccounts.length > 0) {
-      var firstAcc = accessibleAccounts[0];
-      setSchedule(firstAcc.uploadSchedule || {});
-    }
-  }, [accessibleAccounts[0]?.id, accessibleAccounts[0]?.uploadSchedule]);
-
-  const [scheduleRows, setScheduleRows] = React.useState(function() {
-    // Initialize rows from schedule keys (account IDs that have any days)
-    var rows = [];
-    var seen = {};
-    Object.keys(schedule).forEach(function(accId) {
-      if (!seen[accId]) {
-        rows.push(accId);
-        seen[accId] = true;
-      }
-    });
-    return rows.length > 0 ? rows : [""];
-  });
-
-  const [scheduleSaving, setScheduleSaving] = React.useState(false);
-
-  function addScheduleRow() {
-    setScheduleRows(function(prev) { return prev.concat([""]);  });
-  }
-
-  function removeScheduleRow(idx) {
-    setScheduleRows(function(prev) {
-      var row = prev[idx];
-      var next = prev.filter(function(_, i) { return i !== idx; });
-      // Clear schedule for this account if removed
-      if (row && schedule[row]) {
-        setSchedule(function(s) {
-          var newS = Object.assign({}, s);
-          delete newS[row];
-          return newS;
-        });
-      }
-      return next;
-    });
-  }
-
-  function updateScheduleRow(idx, newAccId) {
-    var oldAccId = scheduleRows[idx];
-    setScheduleRows(function(prev) {
-      var next = prev.slice();
-      next[idx] = newAccId;
-      return next;
-    });
-    // Move schedule data from old account to new
-    if (oldAccId && oldAccId !== newAccId && schedule[oldAccId]) {
-      setSchedule(function(s) {
-        var newS = Object.assign({}, s);
-        if (newAccId) {
-          newS[newAccId] = newS[oldAccId];
-        }
-        delete newS[oldAccId];
-        return newS;
-      });
-    }
-  }
-
-  function toggleScheduleDay(accId, dayKey) {
-    if (!accId) return;
-    setSchedule(function(prev) {
-      var days = prev[accId] ? prev[accId].slice() : [];
-      var idx = days.indexOf(dayKey);
-      if (idx >= 0) days.splice(idx, 1);
-      else days.push(dayKey);
-      var next = Object.assign({}, prev, { [accId]: days });
-      if (days.length === 0) delete next[accId];
-      return next;
-    });
-  }
-
-  function isScheduledDay(accId, dayKey) {
-    return !!(accId && schedule[accId] && schedule[accId].indexOf(dayKey) >= 0);
-  }
-
-  // Save to Firestore — call after any schedule change
-  var scheduleRef = React.useRef(null);
-  var scheduleRowsRef = React.useRef(null);
-  var accessibleAccountsRef = React.useRef(null);
-  
-  scheduleRef.current = schedule;
-  scheduleRowsRef.current = scheduleRows;
-  accessibleAccountsRef.current = accessibleAccounts;
-
-  React.useEffect(function() {
-    var timeout = setTimeout(async function() {
-      if (accessibleAccountsRef.current.length === 0) return;
-      setScheduleSaving(true);
-      try {
-        var firstAcc = accessibleAccountsRef.current[0];
-        // Only save if schedule actually changed
-        if (firstAcc && scheduleRef.current && Object.keys(scheduleRef.current).length > 0) {
-          await editAccount(firstAcc.id, { uploadSchedule: scheduleRef.current });
-        } else if (firstAcc && (!scheduleRef.current || Object.keys(scheduleRef.current).length === 0)) {
-          // Save empty schedule if all rows removed
-          await editAccount(firstAcc.id, { uploadSchedule: {} });
-        }
-      } catch(e) {
-        console.error("Failed to save schedule:", e);
-      }
-      setScheduleSaving(false);
-    }, 800);
-    return function() { clearTimeout(timeout); };
-  }, [schedule, scheduleRows]);
->>>>>>> origin/main
 
   return (
     <div className="page-container">
@@ -1070,123 +931,12 @@ function AccountVaultPage() {
           <p className="page-subtitle">Select an account workspace to view platforms, content tables, and analytics.</p>
         </div>
         <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
-          <Icon name="plus" size={18} color="" />
+          <i data-lucide="plus" style={{ width: "18px", height: "18px" }}></i>
           Add New Account
         </button>
       </div>
 
-<<<<<<< HEAD
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
-=======
-      {/* ══ UPLOAD SCHEDULE ═══════════════════════════════════════════════════ */}
-      {accessibleAccounts.length > 0 && (
-        <div className="upload-schedule-card">
-          <div className="upload-schedule-head">
-            <div className="upload-schedule-brand">
-              <div className="upload-schedule-icon">
-                <Icon name="calendar-days" size={16} color="#fff" />
-              </div>
-              <div>
-                <div className="upload-schedule-title">UPLOAD SCHEDULE</div>
-                <div className="upload-schedule-sub">Select accounts and mark posting days</div>
-              </div>
-            </div>
-            <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
-              <span style={{ fontSize:"0.72rem", color:"var(--text-subtle)" }}>
-                {scheduleRows.filter(function(r) { return r; }).length} row{scheduleRows.filter(function(r) { return r; }).length !== 1 ? "s" : ""}
-              </span>
-            </div>
-          </div>
-
-          <div className="upload-schedule-scroll">
-            <table className="upload-schedule-table-new">
-              <thead>
-                <tr>
-                  <th className="usched-new-th usched-new-account-col">Account</th>
-                  {DAYS.map(function(d) {
-                    return (
-                      <th key={d.key} className="usched-new-th usched-new-day-col">
-                        {d.label}
-                      </th>
-                    );
-                  })}
-                  <th className="usched-new-th usched-new-action-col"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {scheduleRows.map(function(accId, rowIdx) {
-                  return (
-                    <tr key={rowIdx} className="usched-new-row">
-                      {/* Account dropdown cell */}
-                      <td className="usched-new-account-cell">
-                        <select
-                          className="usched-new-dropdown"
-                          value={accId || ""}
-                          onChange={function(e) { updateScheduleRow(rowIdx, e.target.value); }}
-                        >
-                          <option value="">Select account...</option>
-                          {accessibleAccounts.map(function(acc) {
-                            return (
-                              <option key={acc.id} value={acc.id}>
-                                {acc.name}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </td>
-                      {/* Day toggle cells */}
-                      {DAYS.map(function(d) {
-                        var isActive = isScheduledDay(accId, d.key);
-                        return (
-                          <td key={d.key} className="usched-new-day-cell">
-                            <button
-                              className={"usched-new-toggle" + (isActive ? " usched-new-toggle-on" : "")}
-                              onClick={function() { toggleScheduleDay(accId, d.key); }}
-                              disabled={!accId}
-                              title={accId ? (isActive ? "Remove" : "Add") : "Select account first"}
-                            >
-                              {isActive ? <Icon name="check" size={14} color="" /> : <Icon name="x" size={14} color="" />}
-                            </button>
-                          </td>
-                        );
-                      })}
-                      {/* Remove button */}
-                      <td className="usched-new-action-cell">
-                        <button
-                          className="usched-new-remove"
-                          onClick={function() { removeScheduleRow(rowIdx); }}
-                          title="Remove this row"
-                        >
-                          <Icon name="trash-2" size={14} color="" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Add row button + footer */}
-          <div className="upload-schedule-footer">
-            <button
-              className="btn btn-secondary"
-              onClick={addScheduleRow}
-              style={{ fontSize:"0.85rem", gap:"0.5rem" }}
-            >
-              <Icon name="plus" size={14} color="" />
-              Add Row
-            </button>
-            <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:"0.4rem", fontSize:"0.78rem", color:"var(--text-subtle)" }}>
-              {scheduleSaving && <Icon name="loader-2" size={12} style={{animation: "spin 0.8s linear infinite"}} />}
-              <span>Schedule saved to cloud</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.5rem" }}>
->>>>>>> origin/main
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.5rem", marginBottom: "2.5rem" }}>
         {accessibleAccounts.map(acc => {
           const role = getUserRole(acc);
           const accContents = contents.filter(c => c.accountId === acc.id);
@@ -1195,61 +945,38 @@ function AccountVaultPage() {
           return (
             <div key={acc.id} className="glass-card glass-card-interactive" style={{ cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "space-between" }} onClick={() => selectAccount(acc.id)}>
               <div>
-                {/* Card Top Row: Avatar + Badges + Actions */}
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1rem" }}>
-<<<<<<< HEAD
-                  <div style={{
-                    width: "44px", height: "44px", borderRadius: "12px", background: "rgba(139, 92, 246, 0.15)",
-                    border: "1px solid rgba(139, 92, 246, 0.3)", display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "var(--accent-primary)", fontSize: "1.2rem", fontWeight: 700
-                  }}>
-                    {acc.name ? acc.name.charAt(0) : "V"}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-=======
                   {acc.photoURL ? (
                     <img src={acc.photoURL} alt={acc.name} style={{ width: "48px", height: "48px", borderRadius: "12px", objectFit: "cover", border: "2px solid rgba(139,92,246,0.4)" }} onError={e => { e.target.style.display = "none"; }} />
                   ) : (
                     <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "linear-gradient(135deg, rgba(139,92,246,0.25), rgba(6,182,212,0.2))", border: "1px solid rgba(139,92,246,0.35)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", fontSize: "1.35rem", fontWeight: 800 }}>
-                      {acc.name.charAt(0).toUpperCase()}
+                      {acc.name ? acc.name.charAt(0).toUpperCase() : "V"}
                     </div>
                   )}
 
                   <div style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
->>>>>>> origin/main
                     <span className={`badge ${role === 'owner' ? 'badge-uploaded' : role === 'editor' ? 'badge-scheduled' : 'badge-privated'}`}>
                       {role}
                     </span>
                     {role === 'owner' && (
                       <>
-                        <button onClick={(e) => openEditModal(e, acc)} className="btn btn-secondary btn-icon" title="Edit Account" style={{ width: "36px", height: "36px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px" }}>
-                          <Icon name="pencil" size={16} color="var(--accent-primary)" />
+                        <button onClick={(e) => openEditModal(e, acc)} className="btn btn-secondary btn-icon" title="Edit Account" style={{ width: "32px", height: "32px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <i data-lucide="edit-2" style={{ width: "14px", height: "14px" }}></i>
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete account "${acc.name}"?`)) removeAccount(acc.id); }} className="btn btn-danger btn-icon" title="Delete Account" style={{ width: "36px", height: "36px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px" }}>
-                          <Icon name="trash-2" size={16} color="#F43F5E" />
+                        <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete account "${acc.name}"?`)) removeAccount(acc.id); }} className="btn btn-danger btn-icon" title="Delete Account" style={{ width: "32px", height: "32px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <i data-lucide="trash-2" style={{ width: "14px", height: "14px" }}></i>
                         </button>
                       </>
                     )}
                   </div>
                 </div>
 
-<<<<<<< HEAD
-                <h3 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "0.4rem" }}>{acc.name}</h3>
-                <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1.25rem" }}>{acc.description}</p>
-                
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1.25rem" }}>
-                  {(acc.platforms || []).map(p => (
-                    <span key={p.id || p.name} className="chip" style={{ fontSize: "0.75rem" }}>
-                      {p.name}: {p.handle}
-                    </span>
-=======
                 <h3 style={{ fontSize: "1.2rem", fontWeight: 700, marginBottom: "0.35rem" }}>{acc.name}</h3>
                 <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1.1rem", lineHeight: 1.5 }}>{acc.description}</p>
 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1.1rem" }}>
-                  {acc.platforms.map(p => (
-                    <span key={p.id} className="chip" style={{ fontSize: "0.75rem" }}>{p.name}: {p.handle}</span>
->>>>>>> origin/main
+                  {(acc.platforms || []).map(p => (
+                    <span key={p.id || p.name} className="chip" style={{ fontSize: "0.75rem" }}>{p.name}: {p.handle}</span>
                   ))}
                 </div>
               </div>
@@ -1264,7 +991,7 @@ function AccountVaultPage() {
 
         {accessibleAccounts.length === 0 && (
           <div className="glass-card" style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem 1.5rem" }}>
-            <Icon name="folder-plus" size={48} color="var(--text-subtle)" style={{marginBottom: "1rem"}} />
+            <i data-lucide="folder-plus" style={{ width: "48px", height: "48px", color: "var(--text-subtle)", marginBottom: "1rem" }}></i>
             <h3 style={{ fontSize: "1.2rem", fontWeight: 700 }}>No Accounts Found</h3>
             <p style={{ color: "var(--text-muted)", margin: "0.5rem 0 1.5rem" }}>You haven't created any social media accounts yet.</p>
             <button onClick={() => setShowAddModal(true)} className="btn btn-primary">Create Your First Account</button>
@@ -1272,8 +999,6 @@ function AccountVaultPage() {
         )}
       </div>
 
-<<<<<<< HEAD
-      {/* WEEKLY SCHEDULE TABLE HUB (SCREENSHOT MATCHED DESIGN) */}
       <div style={{ marginBottom: "1rem" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
           <div>
@@ -1288,75 +1013,40 @@ function AccountVaultPage() {
               <div key={day} className="weekly-header-col">{day}</div>
             ))}
           </div>
-
           <div className="weekly-table-grid">
             {daysOfWeek.map(day => {
               const dayContents = contents.filter(c => getDayOfWeek(c.uploadDate) === day);
-              const TOTAL_SLOTS = 8;
-              const emptySlotsCount = Math.max(0, TOTAL_SLOTS - dayContents.length);
-
               return (
                 <div key={day} className="weekly-day-column">
                   {dayContents.map(item => (
-                    <div 
-                      key={item.id} 
-                      className="weekly-pill-item"
-                      onClick={() => { setActiveAccountId(item.accountId); setActivePage("content-table"); }}
-                      title={`${item.platform}: ${item.caption} (${item.status})`}
-                    >
-                      <span style={{ 
-                        width: "6px", height: "6px", borderRadius: "50%", flexShrink: 0,
-                        background: item.status === "Uploaded" ? "var(--accent-emerald)" : item.status === "Scheduled" ? "var(--accent-cyan)" : item.status === "Privated" ? "var(--accent-amber)" : "var(--accent-rose)" 
-                      }}></span>
-                      <span className="pill-text">{item.caption.length > 14 ? item.caption.substring(0, 14) + "…" : item.caption}</span>
-                    </div>
-                  ))}
-
-                  {Array.from({ length: emptySlotsCount }).map((_, idx) => (
-                    <div 
-                      key={`empty-${day}-${idx}`} 
-                      className="weekly-pill-item pill-empty"
-                      onClick={() => handleDayAdd(day)}
-                      title="Click to schedule content"
-                    >
-                      <span className="pill-text">Dropdown</span>
+                    <div key={item.id} className="weekly-pill-item" onClick={() => { setActiveAccountId(item.accountId); setActivePage("content-table"); }}>
+                      <span className="pill-text">{item.caption.substring(0, 14)}…</span>
                     </div>
                   ))}
                 </div>
               );
             })}
           </div>
-
-          <div className="weekly-add-footer">
-            {daysOfWeek.map(day => (
-              <div key={day} className="weekly-add-col">
-                <button className="weekly-add-btn" title={`Add new content entry for ${day}`} onClick={() => handleDayAdd(day)}>+</button>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
-=======
-      {/* -- Add Account Modal -- */}
->>>>>>> origin/main
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Add New Social Account Vault</h2>
               <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon" style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>x</span>
+                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>✕</span>
               </button>
             </div>
             <form onSubmit={handleCreate}>
               <div className="form-group">
                 <label className="form-label">Account / Brand Name</label>
-                <input type="text" className="form-input" placeholder="e.g. Creator Gaming Hub" required value={accountName} onChange={e => setAccountName(e.target.value)} />
+                <input type="text" className="form-input" required value={accountName} onChange={e => setAccountName(e.target.value)} />
               </div>
               <div className="form-group">
                 <label className="form-label">Description / Niche</label>
-                <textarea className="form-textarea" placeholder="e.g. Gaming news, live highlights, short-form clips" rows="3" value={accountDesc} onChange={e => setAccountDesc(e.target.value)}></textarea>
+                <textarea className="form-textarea" rows="3" value={accountDesc} onChange={e => setAccountDesc(e.target.value)}></textarea>
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
                 <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary">Cancel</button>
@@ -1367,50 +1057,38 @@ function AccountVaultPage() {
         </div>
       )}
 
-      {/* -- Edit Account Modal -- */}
       {editingAcc && (
         <div className="modal-overlay" onClick={() => setEditingAcc(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: "520px" }}>
             <div className="modal-header">
               <h2 className="modal-title">Edit Account</h2>
               <button type="button" onClick={() => setEditingAcc(null)} className="btn btn-secondary btn-icon" style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>x</span>
+                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>✕</span>
               </button>
             </div>
             <form onSubmit={handleEditSave}>
-              {/* Photo Preview */}
               <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem" }}>
                 {editPhotoPreview ? (
                   <img src={editPhotoPreview} alt="Preview" style={{ width: "80px", height: "80px", borderRadius: "16px", objectFit: "cover", border: "2px solid rgba(139,92,246,0.4)" }} onError={e => { e.target.style.display = "none"; }} />
                 ) : (
                   <div style={{ width: "80px", height: "80px", borderRadius: "16px", background: "linear-gradient(135deg, rgba(139,92,246,0.25), rgba(6,182,212,0.2))", border: "2px dashed rgba(139,92,246,0.4)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", fontSize: "2rem", fontWeight: 800 }}>
-                    {editName.charAt(0).toUpperCase() || "?"}
+                    {editName ? editName.charAt(0).toUpperCase() : "?"}
                   </div>
                 )}
               </div>
-
-              {/* Account Name */}
               <div className="form-group">
                 <label className="form-label">Account / Brand Name</label>
-                <input type="text" className="form-input" required value={editName} onChange={e => setEditName(e.target.value)} placeholder="e.g. Creator Gaming Hub" />
+                <input type="text" className="form-input" required value={editName} onChange={e => setEditName(e.target.value)} />
               </div>
-
-              {/* Description */}
               <div className="form-group">
                 <label className="form-label">Description / Niche</label>
-                <textarea className="form-textarea" rows="3" value={editDesc} onChange={e => setEditDesc(e.target.value)} placeholder="e.g. Gaming, tech reviews, lifestyle..."></textarea>
+                <textarea className="form-textarea" rows="3" value={editDesc} onChange={e => setEditDesc(e.target.value)}></textarea>
               </div>
-
-              {/* Profile Photo */}
               <div className="form-group">
                 <label className="form-label">Profile Photo</label>
                 <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
-                  <button type="button" onClick={() => setEditPhotoMode("url")} className={`btn ${editPhotoMode === "url" ? "btn-primary" : "btn-secondary"}`} style={{ fontSize: "0.82rem", padding: "0.35rem 0.9rem" }}>
-                     Image URL
-                  </button>
-                  <button type="button" onClick={() => setEditPhotoMode("upload")} className={`btn ${editPhotoMode === "upload" ? "btn-primary" : "btn-secondary"}`} style={{ fontSize: "0.82rem", padding: "0.35rem 0.9rem" }}>
-                     Local Upload
-                  </button>
+                  <button type="button" onClick={() => setEditPhotoMode("url")} className={`btn ${editPhotoMode === "url" ? "btn-primary" : "btn-secondary"}`} style={{ fontSize: "0.82rem", padding: "0.35rem 0.9rem" }}>Image URL</button>
+                  <button type="button" onClick={() => setEditPhotoMode("upload")} className={`btn ${editPhotoMode === "upload" ? "btn-primary" : "btn-secondary"}`} style={{ fontSize: "0.82rem", padding: "0.35rem 0.9rem" }}>Local Upload</button>
                 </div>
                 {editPhotoMode === "url" ? (
                   <input type="url" className="form-input" placeholder="https://example.com/photo.jpg" value={editPhoto} onChange={e => handleEditPhotoUrlChange(e.target.value)} />
@@ -1418,12 +1096,9 @@ function AccountVaultPage() {
                   <input type="file" accept="image/*" className="form-input" style={{ padding: "0.45rem" }} onChange={handleEditPhotoUpload} />
                 )}
                 {editPhotoPreview && (
-                  <button type="button" onClick={() => { setEditPhoto(""); setEditPhotoPreview(""); }} className="btn btn-link" style={{ marginTop: "0.5rem", fontSize: "0.82rem", padding: "0.25rem 0" }}>
-                    <Icon name="x" size={12} color="#F43F5E" style={{marginRight: "0.25rem"}} /> Remove photo
-                  </button>
+                  <button type="button" onClick={() => { setEditPhoto(""); setEditPhotoPreview(""); }} className="btn btn-secondary" style={{ marginTop: "0.5rem", fontSize: "0.82rem", padding: "0.25rem 0.6rem" }}>Remove photo</button>
                 )}
               </div>
-
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
                 <button type="button" onClick={() => setEditingAcc(null)} className="btn btn-secondary">Cancel</button>
                 <button type="submit" className="btn btn-primary">Save Changes</button>
@@ -1435,9 +1110,6 @@ function AccountVaultPage() {
     </div>
   );
 }
-
-// Navbar Component — Premium Top Navigation
-// Navbar Component — Premium Top Navigation & Account Switcher
 
 function Navbar() {
 
@@ -2505,14 +2177,6 @@ function ContentTablePage() {
             </button>
           )}
         </div>
-<<<<<<< HEAD
-=======
-        {canEdit && (
-          <button onClick={() => setActivePage("add-content")} className="btn btn-primary">
-            <Icon name="plus" size={18} color="" /> Add Content Entry
-          </button>
-        )}
->>>>>>> origin/main
       </div>
 
       {/* Filter Controls */}
@@ -2564,7 +2228,6 @@ function ContentTablePage() {
               const emptySlotsCount = Math.max(0, TOTAL_SLOTS - dayContents.length);
 
               return (
-<<<<<<< HEAD
                 <div key={day} className="weekly-day-column">
                   {dayContents.map(item => (
                     <div 
@@ -2595,35 +2258,6 @@ function ContentTablePage() {
                     </div>
                   ))}
                 </div>
-=======
-                <tr key={item.id}>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>{item.uploadDate}</div>
-                    {item.uploadTime && <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>at {item.uploadTime}</div>}
-                  </td>
-                  <td><span className="chip">{item.platform}</span></td>
-                  <td><span className="chip" style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.06)" }}>{item.contentType || "Feed Post / Image"}</span></td>
-                  <td><div style={{ maxWidth: "220px", fontWeight: 500 }}>{item.caption}</div></td>
-                  <td>{item.hashtags.map(h => <span key={h} className="chip" style={{ fontSize: "0.75rem" }}>{h}</span>)}</td>
-                  <td>{item.subjects.map(s => <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}> {s}</span>)}</td>
-                  <td style={{ color: "var(--accent-cyan)", fontWeight: 700 }}>{item.impressions.toLocaleString()}</td>
-                  <td>{item.reach.toLocaleString()}</td>
-                  <td>{item.likes.toLocaleString()}</td>
-                  <td>{item.comments.toLocaleString()}</td>
-                  <td>{item.shares.toLocaleString()}</td>
-                  <td>{item.saves.toLocaleString()}</td>
-                  <td style={{ color: "var(--accent-emerald)", fontWeight: 700 }}>{er}%</td>
-                  <td><span className={`badge badge-${item.status.toLowerCase()}`}>{item.status}</span></td>
-                  {canEdit && (
-                    <td>
-                      <div style={{ display: "flex", gap: "0.65rem", alignItems: "center" }}>
-                        <button onClick={() => handleOpenEdit(item)} className="btn btn-secondary btn-icon" title="Edit Content" style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px", padding: 0 }}><Icon name="edit-2" size={16} color="var(--accent-primary)" /></button>
-                        <button onClick={() => confirm("Delete content?") && deleteContent(item.id)} className="btn btn-danger btn-icon" title="Delete Content" style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px", padding: 0 }}><Icon name="trash-2" size={16} color="#F43F5E" /></button>
-                      </div>
-                    </td>
-                  )}
-                </tr>
->>>>>>> origin/main
               );
             })}
           </div>
