@@ -2122,7 +2122,6 @@ function AddContentPage() {
 // CONTENT TABLE PAGE (WITH WEEKLY GRID TABLE & DETAILED VIEW)
 function ContentTablePage() {
   const { activeAccount, contents, updateContent, deleteContent, canEdit, setActivePage } = React.useContext(VaultContext);
-  const [viewMode, setViewMode] = React.useState("weekly");
   const [searchTerm, setSearchTerm] = React.useState("");
   const [platformFilter, setPlatformFilter] = React.useState("ALL");
   const [statusFilter, setStatusFilter] = React.useState("ALL");
@@ -2131,17 +2130,6 @@ function ContentTablePage() {
 
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 10;
-
-  const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-  const getDayOfWeek = (dateStr) => {
-    if (!dateStr) return "Mon";
-    const parts = dateStr.split("-").map(Number);
-    if (parts.length < 3) return "Mon";
-    const date = new Date(parts[0], parts[1] - 1, parts[2]);
-    const dayIndex = date.getDay();
-    return dayIndex === 0 ? "Sun" : daysOfWeek[dayIndex - 1];
-  };
 
   const availablePlatforms = React.useMemo(() => {
     const defaults = ["Instagram", "YouTube", "TikTok", "X (Twitter)", "Facebook", "Threads", "LinkedIn"];
@@ -2216,36 +2204,14 @@ function ContentTablePage() {
     });
   };
 
-  const handleAddForDay = (dayName) => {
-    setActivePage("add-content");
-  };
-
   return (
     <div className="page-container">
       <div className="page-header">
         <div>
           <h1 className="page-title">{activeAccount.name} - Content Table Hub</h1>
-          <p className="page-subtitle">Weekly schedule table grid & detailed metrics tracking</p>
+          <p className="page-subtitle">Detailed content metrics tracking & table</p>
         </div>
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-          {/* View Mode Toggle */}
-          <div style={{ display: "flex", gap: "0.25rem", background: "rgba(15, 23, 42, 0.7)", padding: "3px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
-            <button 
-              onClick={() => setViewMode("weekly")} 
-              className={`btn ${viewMode === "weekly" ? "btn-primary" : "btn-secondary"}`}
-              style={{ padding: "0.4rem 0.85rem", fontSize: "0.85rem", minHeight: "36px" }}
-            >
-              <i data-lucide="calendar" style={{ width: "15px", height: "15px" }}></i> Weekly Grid
-            </button>
-            <button 
-              onClick={() => setViewMode("detailed")} 
-              className={`btn ${viewMode === "detailed" ? "btn-primary" : "btn-secondary"}`}
-              style={{ padding: "0.4rem 0.85rem", fontSize: "0.85rem", minHeight: "36px" }}
-            >
-              <i data-lucide="table" style={{ width: "15px", height: "15px" }}></i> Detailed Table
-            </button>
-          </div>
-
           {canEdit && (
             <button onClick={() => setActivePage("add-content")} className="btn btn-primary">
               <i data-lucide="plus" style={{ width: "18px", height: "18px" }}></i> Add Content Entry
@@ -2283,143 +2249,72 @@ function ContentTablePage() {
         </div>
       </div>
 
-      {/* WEEKLY SCHEDULE TABLE GRID VIEW */}
-      {viewMode === "weekly" ? (
-        <div className="weekly-schedule-card">
-          {/* Header Row: Mon, Tue, Wed, Thu, Fri, Sat, Sun */}
-          <div className="weekly-table-header">
-            {daysOfWeek.map(day => (
-              <div key={day} className="weekly-header-col">
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Grid Columns */}
-          <div className="weekly-table-grid">
-            {daysOfWeek.map(day => {
-              const dayContents = filteredContents.filter(c => getDayOfWeek(c.uploadDate) === day);
-              const TOTAL_SLOTS = 8;
-              const emptySlotsCount = Math.max(0, TOTAL_SLOTS - dayContents.length);
+      {/* DETAILED TABULAR VIEW */}
+      <div className="table-container">
+        <table className="custom-table">
+          <thead>
+            <tr>
+              <th>Upload Date & Time</th>
+              <th>Platform</th>
+              <th>Type</th>
+              <th>Caption</th>
+              <th>Hashtags</th>
+              <th>Subjects</th>
+              <th>Impressions</th>
+              <th>Reach</th>
+              <th>Likes</th>
+              <th>Comments</th>
+              <th>Shares</th>
+              <th>Saves</th>
+              <th>ER %</th>
+              <th>Status</th>
+              {canEdit && <th>Actions</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedContents.map(item => {
+              const engagement = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
+              const er = item.reach > 0 ? ((engagement / item.reach) * 100).toFixed(2) : "0.00";
 
               return (
-                <div key={day} className="weekly-day-column">
-                  {dayContents.map(item => (
-                    <div 
-                      key={item.id} 
-                      className="weekly-pill-item"
-                      onClick={() => handleOpenEdit(item)}
-                      title={`${item.platform}: ${item.caption} (${item.status})`}
-                    >
-                      <span style={{ 
-                        width: "6px", 
-                        height: "6px", 
-                        borderRadius: "50%", 
-                        flexShrink: 0,
-                        background: item.status === "Uploaded" ? "var(--accent-emerald)" : item.status === "Scheduled" ? "var(--accent-cyan)" : item.status === "Privated" ? "var(--accent-amber)" : "var(--accent-rose)" 
-                      }}></span>
-                      <span className="pill-text">{item.caption.length > 14 ? item.caption.substring(0, 14) + "…" : item.caption}</span>
-                    </div>
-                  ))}
-
-                  {Array.from({ length: emptySlotsCount }).map((_, idx) => (
-                    <div 
-                      key={`empty-${day}-${idx}`} 
-                      className="weekly-pill-item pill-empty"
-                      onClick={() => handleAddForDay(day)}
-                      title="Click to add new content entry"
-                    >
-                      <span className="pill-text">Dropdown</span>
-                    </div>
-                  ))}
-                </div>
+                <tr key={item.id}>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{item.uploadDate}</div>
+                    {item.uploadTime && <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>at {item.uploadTime}</div>}
+                  </td>
+                  <td><span className="chip">{item.platform}</span></td>
+                  <td><span className="chip" style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.06)" }}>{item.contentType || "Feed Post / Image"}</span></td>
+                  <td><div style={{ maxWidth: "220px", fontWeight: 500 }}>{item.caption}</div></td>
+                  <td>{item.hashtags.map(h => <span key={h} className="chip" style={{ fontSize: "0.75rem" }}>{h}</span>)}</td>
+                  <td>{item.subjects.map(s => <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}>👤 {s}</span>)}</td>
+                  <td style={{ color: "var(--accent-cyan)", fontWeight: 700 }}>{item.impressions.toLocaleString()}</td>
+                  <td>{item.reach.toLocaleString()}</td>
+                  <td>{item.likes.toLocaleString()}</td>
+                  <td>{item.comments.toLocaleString()}</td>
+                  <td>{item.shares.toLocaleString()}</td>
+                  <td>{item.saves.toLocaleString()}</td>
+                  <td style={{ color: "var(--accent-emerald)", fontWeight: 700 }}>{er}%</td>
+                  <td><span className={`badge badge-${item.status.toLowerCase()}`}>{item.status}</span></td>
+                  {canEdit && (
+                    <td>
+                      <button onClick={() => handleOpenEdit(item)} className="btn btn-secondary btn-icon" title="Edit Content"><i data-lucide="edit-2" style={{ width: "14px", height: "14px" }}></i></button>
+                      <button onClick={() => confirm("Delete content?") && deleteContent(item.id)} className="btn btn-danger btn-icon" style={{ marginLeft: "0.3rem" }} title="Delete Content"><i data-lucide="trash-2" style={{ width: "14px", height: "14px" }}></i></button>
+                    </td>
+                  )}
+                </tr>
               );
             })}
-          </div>
 
-          {/* Bottom Action Footer Row with Plus Button for each day */}
-          <div className="weekly-add-footer">
-            {daysOfWeek.map(day => (
-              <div key={day} className="weekly-add-col">
-                <button 
-                  className="weekly-add-btn"
-                  title={`Add new content entry for ${day}`}
-                  onClick={() => handleAddForDay(day)}
-                >
-                  +
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        /* DETAILED TABULAR VIEW */
-        <div className="table-container">
-          <table className="custom-table">
-            <thead>
+            {filteredContents.length === 0 && (
               <tr>
-                <th>Upload Date & Time</th>
-                <th>Platform</th>
-                <th>Type</th>
-                <th>Caption</th>
-                <th>Hashtags</th>
-                <th>Subjects</th>
-                <th>Impressions</th>
-                <th>Reach</th>
-                <th>Likes</th>
-                <th>Comments</th>
-                <th>Shares</th>
-                <th>Saves</th>
-                <th>ER %</th>
-                <th>Status</th>
-                {canEdit && <th>Actions</th>}
+                <td colSpan="15" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
+                  No content records match your filter criteria.
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {paginatedContents.map(item => {
-                const engagement = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
-                const er = item.reach > 0 ? ((engagement / item.reach) * 100).toFixed(2) : "0.00";
-
-                return (
-                  <tr key={item.id}>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{item.uploadDate}</div>
-                      {item.uploadTime && <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>at {item.uploadTime}</div>}
-                    </td>
-                    <td><span className="chip">{item.platform}</span></td>
-                    <td><span className="chip" style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.06)" }}>{item.contentType || "Feed Post / Image"}</span></td>
-                    <td><div style={{ maxWidth: "220px", fontWeight: 500 }}>{item.caption}</div></td>
-                    <td>{item.hashtags.map(h => <span key={h} className="chip" style={{ fontSize: "0.75rem" }}>{h}</span>)}</td>
-                    <td>{item.subjects.map(s => <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}>👤 {s}</span>)}</td>
-                    <td style={{ color: "var(--accent-cyan)", fontWeight: 700 }}>{item.impressions.toLocaleString()}</td>
-                    <td>{item.reach.toLocaleString()}</td>
-                    <td>{item.likes.toLocaleString()}</td>
-                    <td>{item.comments.toLocaleString()}</td>
-                    <td>{item.shares.toLocaleString()}</td>
-                    <td>{item.saves.toLocaleString()}</td>
-                    <td style={{ color: "var(--accent-emerald)", fontWeight: 700 }}>{er}%</td>
-                    <td><span className={`badge badge-${item.status.toLowerCase()}`}>{item.status}</span></td>
-                    {canEdit && (
-                      <td>
-                        <button onClick={() => handleOpenEdit(item)} className="btn btn-secondary btn-icon" title="Edit Content"><i data-lucide="edit-2" style={{ width: "14px", height: "14px" }}></i></button>
-                        <button onClick={() => confirm("Delete content?") && deleteContent(item.id)} className="btn btn-danger btn-icon" style={{ marginLeft: "0.3rem" }} title="Delete Content"><i data-lucide="trash-2" style={{ width: "14px", height: "14px" }}></i></button>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-
-              {filteredContents.length === 0 && (
-                <tr>
-                  <td colSpan="15" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
-                    No content records match your filter criteria.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {filteredContents.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem", marginTop: "1.25rem" }}>
