@@ -88,7 +88,7 @@ window.AddContentPage = function() {
       <div className="glass-card" style={{ maxWidth: "800px", margin: "0 auto" }}>
         <form onSubmit={handleSubmit}>
           
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" }}>
             <div className="form-group">
               <label className="form-label">Upload / Scheduled Date</label>
               <input 
@@ -101,6 +101,17 @@ window.AddContentPage = function() {
               />
             </div>
 
+            <div className="form-group">
+              <label className="form-label">Upload Time</label>
+              <input 
+                type="time" 
+                className="form-input"
+                disabled={!canEdit}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" }}>
             <div className="form-group">
               <label className="form-label">Platform</label>
               <select 

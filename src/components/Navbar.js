@@ -1,60 +1,84 @@
-// Navbar Component - Top Header Navigation & Account Switcher
+// Navbar Component — Premium Top Navigation & Account Switcher
 window.Navbar = function() {
   const { user, logout } = React.useContext(window.AuthContext);
-  const { 
-    accounts, 
-    activeAccountId, 
-    setActiveAccountId, 
-    activeAccount, 
-    activePage, 
-    setActivePage, 
+  const {
+    accounts,
+    activeAccountId,
+    setActiveAccountId,
+    activeAccount,
+    activePage,
+    setActivePage,
     activeUserRole,
     getUserRole
   } = React.useContext(window.VaultContext);
 
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-
   const navItems = [
-    { id: "account-center", label: "Account Center", icon: "layout-grid" },
-    { id: "add-content", label: "Add Content", icon: "plus-circle" },
-    { id: "content-table", label: "Content Table", icon: "table" },
-    { id: "timeframe-analytics", label: "Timeframe Analytics", icon: "line-chart" },
-    { id: "hashtag-analytics", label: "Hashtag Studio", icon: "hash" },
-    { id: "subject-analytics", label: "Subject Analytics", icon: "users" },
-    { id: "collaborators", label: "Collaborators", icon: "share-2" }
+    { id: "account-center",      label: "Overview",         icon: "layout-grid"  },
+    { id: "add-content",         label: "Add Content",      icon: "plus-circle"  },
+    { id: "content-table",       label: "Content Table",    icon: "table-2"      },
+    { id: "timeframe-analytics", label: "Timeframe",        icon: "line-chart"   },
+    { id: "hashtag-analytics",   label: "Hashtag Studio",   icon: "hash"         },
+    { id: "subject-analytics",   label: "Subjects",         icon: "users"        },
+    { id: "report-summary",      label: "Report",           icon: "file-bar-chart"},
+    { id: "collaborators",       label: "Collaborators",    icon: "share-2"      }
   ];
 
-  // Accessible accounts dropdown
-  const accessibleAccounts = accounts.filter(acc => 
-    user && (acc.ownerEmail === user.email || acc.collaborators.some(c => c.email === user.email))
+  const accessibleAccounts = accounts.filter(acc =>
+    user && (
+      acc.ownerEmail === user.email ||
+      acc.collaborators.some(c => c.email === user.email)
+    )
   );
+
+  const roleBadgeClass =
+    activeUserRole === 'owner'  ? 'badge-uploaded' :
+    activeUserRole === 'editor' ? 'badge-scheduled' :
+                                  'badge-privated';
 
   return (
     <nav className="navbar">
+      {/* ── Primary Row ── */}
       <div className="navbar-container">
-        {/* Brand & Account Selector */}
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          <div className="navbar-brand" onClick={() => { setActiveAccountId(null); setActivePage("account-vault"); }}>
-            <i data-lucide="layers" style={{ color: "var(--accent-primary)" }}></i>
-            <span>SocialVault</span>
+
+        {/* Left: Brand + Account Switcher */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.9rem", minWidth: 0 }}>
+
+          {/* Brand Logo */}
+          <div
+            className="navbar-brand"
+            onClick={() => { setActiveAccountId(null); setActivePage("account-vault"); }}
+            title="Return to Account Vault"
+          >
+            <div className="brand-icon">
+              <i data-lucide="layers" style={{ width: "16px", height: "16px", color: "#fff" }}></i>
+            </div>
+            <span>SocioVault</span>
           </div>
 
+          {/* Account Switcher */}
           {activeAccount && (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <span style={{ color: "var(--text-subtle)", fontSize: "0.9rem" }}>/</span>
-              <select 
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0 }}>
+              <span style={{ color: "var(--border-hover)", fontSize: "1rem", opacity: 0.5 }}>/</span>
+
+              <select
                 className="form-select"
-                style={{ padding: "0.4rem 0.75rem", fontSize: "0.85rem", width: "auto", background: "rgba(31, 41, 55, 0.8)", fontWeight: 600 }}
+                style={{
+                  padding:    "0.35rem 2rem 0.35rem 0.7rem",
+                  fontSize:   "0.82rem",
+                  fontWeight: 600,
+                  width:      "auto",
+                  minHeight:  "unset",
+                  background: "rgba(22, 30, 46, 0.9)",
+                  border:     "1px solid var(--border-color)",
+                  maxWidth:   "200px"
+                }}
                 value={activeAccountId || ""}
-                onChange={(e) => {
-                  if (e.target.value === "VAULT_HUB") {
-                    setActiveAccountId(null);
-                  } else {
-                    setActiveAccountId(e.target.value);
-                  }
+                onChange={e => {
+                  if (e.target.value === "VAULT_HUB") setActiveAccountId(null);
+                  else setActiveAccountId(e.target.value);
                 }}
               >
-                <option value="VAULT_HUB">← Account Vault Hub</option>
+                <option value="VAULT_HUB">← Vault Hub</option>
                 {accessibleAccounts.map(acc => (
                   <option key={acc.id} value={acc.id}>
                     {acc.name} ({getUserRole(acc)})
@@ -62,49 +86,70 @@ window.Navbar = function() {
                 ))}
               </select>
 
-              <span className={`badge ${activeUserRole === 'owner' ? 'badge-uploaded' : activeUserRole === 'editor' ? 'badge-scheduled' : 'badge-privated'}`}>
+              <span className={`badge ${roleBadgeClass}`}
+                style={{ fontSize: "0.65rem" }}>
                 {activeUserRole}
               </span>
             </div>
           )}
         </div>
 
-        {/* User Profile & Logout */}
+        {/* Right: User Menu */}
         <div className="user-menu">
           {user && (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-              <img 
-                src={user.photoURL} 
+            <>
+              <div style={{ textAlign: "right", display: "none" }}>
+                <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-main)" }}>
+                  {user.displayName}
+                </div>
+                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                  {user.email}
+                </div>
+              </div>
+              <img
+                src={user.photoURL}
                 alt={user.displayName}
-                style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid var(--border-color)" }}
+                title={`${user.displayName} · ${user.email}`}
+                style={{
+                  width:        "34px",
+                  height:       "34px",
+                  borderRadius: "50%",
+                  border:       "2px solid var(--border-color)",
+                  objectFit:    "cover",
+                  transition:   "border-color 0.2s"
+                }}
+                onMouseOver={e => e.target.style.borderColor = "var(--accent-primary)"}
+                onMouseOut={e  => e.target.style.borderColor = "var(--border-color)"}
               />
-              <span style={{ fontSize: "0.85rem", fontWeight: 500, display: "none" }}>{user.displayName}</span>
-              <button 
-                onClick={logout} 
+              <button
+                onClick={logout}
                 className="btn btn-secondary btn-icon"
-                title={`Signed in as ${user.email}. Click to Logout`}
+                title={`Sign out (${user.email})`}
+                style={{ minHeight: "36px", minWidth: "36px", padding: "0.4rem" }}
               >
-                <i data-lucide="log-out" style={{ width: "16px", height: "16px" }}></i>
+                <i data-lucide="log-out" style={{ width: "15px", height: "15px" }}></i>
               </button>
-            </div>
+            </>
           )}
         </div>
       </div>
 
-      {/* Navigation Pages Bar (Only visible when inside an account) */}
+      {/* ── Navigation Row (only inside an account) ── */}
       {activeAccount && (
-        <div className="navbar-container" style={{ marginTop: "0.75rem", borderTop: "1px solid var(--border-color)", paddingTop: "0.5rem" }}>
-          <div className="navbar-nav">
-            {navItems.map(item => (
-              <div 
-                key={item.id}
-                className={`nav-link ${activePage === item.id ? 'active' : ''}`}
-                onClick={() => setActivePage(item.id)}
-              >
-                <i data-lucide={item.icon} style={{ width: "16px", height: "16px" }}></i>
-                {item.label}
-              </div>
-            ))}
+        <div className="navbar-nav-row">
+          <div className="navbar-container">
+            <div className="navbar-nav">
+              {navItems.map(item => (
+                <div
+                  key={item.id}
+                  className={`nav-link ${activePage === item.id ? 'active' : ''}`}
+                  onClick={() => setActivePage(item.id)}
+                >
+                  <i data-lucide={item.icon} style={{ width: "13px", height: "13px" }}></i>
+                  {item.label}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

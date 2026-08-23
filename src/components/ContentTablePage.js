@@ -260,6 +260,8 @@ window.ContentTablePage = function() {
                 </div>
               );
             })}
+              );
+            })}
           </div>
 
           {/* Bottom Action Footer Row with Plus Button for each day */}

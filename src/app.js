@@ -40,6 +40,8 @@ function AppContent() {
         return <window.HashtagAnalyticsPage />;
       case "subject-analytics":
         return <window.SubjectAnalyticsPage />;
+      case "report-summary":
+        return <window.ReportSummaryPage />;
       case "collaborators":
         return <window.CollaboratorsPage />;
       default:
