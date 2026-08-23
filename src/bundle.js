@@ -823,12 +823,6 @@ function LoginPage() {
 
         </div>
 
-
-            </button>
-
-          </div>
-        </div>
-
       </div>
     </div>
   );
