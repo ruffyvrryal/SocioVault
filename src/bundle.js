@@ -747,9 +747,20 @@ function AccountVaultPage() {
   const [accountName, setAccountName] = React.useState("");
   const [accountDesc, setAccountDesc] = React.useState("");
 
+  const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  const getDayOfWeek = (dateStr) => {
+    if (!dateStr) return "Mon";
+    const parts = dateStr.split("-").map(Number);
+    if (parts.length < 3) return "Mon";
+    const date = new Date(parts[0], parts[1] - 1, parts[2]);
+    const dayIndex = date.getDay();
+    return dayIndex === 0 ? "Sun" : daysOfWeek[dayIndex - 1];
+  };
+
   const accessibleAccounts = React.useMemo(() => {
     if (!user) return [];
-    return accounts.filter(acc => acc.ownerEmail === user.email || acc.collaborators.some(c => c.email === user.email));
+    return accounts.filter(acc => acc.ownerEmail === user.email || (acc.collaborators && acc.collaborators.some(c => c.email === user.email)));
   }, [accounts, user]);
 
   const handleCreate = (e) => {
@@ -762,6 +773,15 @@ function AccountVaultPage() {
   const selectAccount = (accId) => {
     setActiveAccountId(accId);
     setActivePage("account-center");
+  };
+
+  const handleDayAdd = (day) => {
+    if (accessibleAccounts.length > 0) {
+      setActiveAccountId(accessibleAccounts[0].id);
+      setActivePage("add-content");
+    } else {
+      setShowAddModal(true);
+    }
   };
 
   return (
@@ -777,7 +797,7 @@ function AccountVaultPage() {
         </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))", gap: "1.25rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
         {accessibleAccounts.map(acc => {
           const role = getUserRole(acc);
           const accContents = contents.filter(c => c.accountId === acc.id);
@@ -792,7 +812,7 @@ function AccountVaultPage() {
                     border: "1px solid rgba(139, 92, 246, 0.3)", display: "flex", alignItems: "center", justifyContent: "center",
                     color: "var(--accent-primary)", fontSize: "1.2rem", fontWeight: 700
                   }}>
-                    {acc.name.charAt(0)}
+                    {acc.name ? acc.name.charAt(0) : "V"}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                     <span className={`badge ${role === 'owner' ? 'badge-uploaded' : role === 'editor' ? 'badge-scheduled' : 'badge-privated'}`}>
@@ -810,8 +830,8 @@ function AccountVaultPage() {
                 <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1.25rem" }}>{acc.description}</p>
                 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1.25rem" }}>
-                  {acc.platforms.map(p => (
-                    <span key={p.id} className="chip" style={{ fontSize: "0.75rem" }}>
+                  {(acc.platforms || []).map(p => (
+                    <span key={p.id || p.name} className="chip" style={{ fontSize: "0.75rem" }}>
                       {p.name}: {p.handle}
                     </span>
                   ))}
@@ -825,6 +845,70 @@ function AccountVaultPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* WEEKLY SCHEDULE TABLE HUB (SCREENSHOT MATCHED DESIGN) */}
+      <div style={{ marginBottom: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+          <div>
+            <h2 style={{ fontSize: "1.35rem", fontWeight: 700, color: "#FFFFFF" }}>Global Weekly Schedule Hub</h2>
+            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>Interactive weekly posting calendar & schedule table across all account vaults</p>
+          </div>
+        </div>
+
+        <div className="weekly-schedule-card">
+          <div className="weekly-table-header">
+            {daysOfWeek.map(day => (
+              <div key={day} className="weekly-header-col">{day}</div>
+            ))}
+          </div>
+
+          <div className="weekly-table-grid">
+            {daysOfWeek.map(day => {
+              const dayContents = contents.filter(c => getDayOfWeek(c.uploadDate) === day);
+              const TOTAL_SLOTS = 8;
+              const emptySlotsCount = Math.max(0, TOTAL_SLOTS - dayContents.length);
+
+              return (
+                <div key={day} className="weekly-day-column">
+                  {dayContents.map(item => (
+                    <div 
+                      key={item.id} 
+                      className="weekly-pill-item"
+                      onClick={() => { setActiveAccountId(item.accountId); setActivePage("content-table"); }}
+                      title={`${item.platform}: ${item.caption} (${item.status})`}
+                    >
+                      <span style={{ 
+                        width: "6px", height: "6px", borderRadius: "50%", flexShrink: 0,
+                        background: item.status === "Uploaded" ? "var(--accent-emerald)" : item.status === "Scheduled" ? "var(--accent-cyan)" : item.status === "Privated" ? "var(--accent-amber)" : "var(--accent-rose)" 
+                      }}></span>
+                      <span className="pill-text">{item.caption.length > 14 ? item.caption.substring(0, 14) + "…" : item.caption}</span>
+                    </div>
+                  ))}
+
+                  {Array.from({ length: emptySlotsCount }).map((_, idx) => (
+                    <div 
+                      key={`empty-${day}-${idx}`} 
+                      className="weekly-pill-item pill-empty"
+                      onClick={() => handleDayAdd(day)}
+                      title="Click to schedule content"
+                    >
+                      <span className="pill-text">Dropdown</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="weekly-add-footer">
+            {daysOfWeek.map(day => (
+              <div key={day} className="weekly-add-col">
+                <button className="weekly-add-btn" title={`Add new content entry for ${day}`} onClick={() => handleDayAdd(day)}>+</button>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {showAddModal && (
@@ -1299,9 +1383,10 @@ function AddContentPage() {
   );
 }
 
-// CONTENT TABLE PAGE (WITH PAGINATION: 10 CONTENTS PER PAGE)
+// CONTENT TABLE PAGE (WITH WEEKLY GRID TABLE & DETAILED VIEW)
 function ContentTablePage() {
   const { activeAccount, contents, updateContent, deleteContent, canEdit, setActivePage } = React.useContext(VaultContext);
+  const [viewMode, setViewMode] = React.useState("weekly");
   const [searchTerm, setSearchTerm] = React.useState("");
   const [platformFilter, setPlatformFilter] = React.useState("ALL");
   const [statusFilter, setStatusFilter] = React.useState("ALL");
@@ -1310,6 +1395,17 @@ function ContentTablePage() {
 
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 10;
+
+  const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  const getDayOfWeek = (dateStr) => {
+    if (!dateStr) return "Mon";
+    const parts = dateStr.split("-").map(Number);
+    if (parts.length < 3) return "Mon";
+    const date = new Date(parts[0], parts[1] - 1, parts[2]);
+    const dayIndex = date.getDay();
+    return dayIndex === 0 ? "Sun" : daysOfWeek[dayIndex - 1];
+  };
 
   const availablePlatforms = React.useMemo(() => {
     const defaults = ["Instagram", "YouTube", "TikTok", "X (Twitter)", "Facebook", "Threads", "LinkedIn"];
@@ -1384,72 +1480,45 @@ function ContentTablePage() {
     });
   };
 
-  const handleAddEditSubject = () => {
-    if (!editingContent || !editingContent.subjectInput.trim()) return;
-    const clean = editingContent.subjectInput.trim();
-    if (!editingContent.subjectsList.includes(clean)) {
-      setEditingContent({
-        ...editingContent,
-        subjectsList: [...editingContent.subjectsList, clean],
-        subjectInput: ""
-      });
-    } else {
-      setEditingContent({ ...editingContent, subjectInput: "" });
-    }
-  };
-
-  const handleRemoveEditSubject = (name) => {
-    if (!editingContent) return;
-    setEditingContent({
-      ...editingContent,
-      subjectsList: editingContent.subjectsList.filter(s => s !== name)
-    });
-  };
-
-  const handleSaveEdit = (e) => {
-    e.preventDefault();
-    if (!editingContent) return;
-
-    const hashtagsArray = editingContent.hashtagsInput
-      .split(/[\s,]+/)
-      .map(t => t.trim())
-      .filter(Boolean)
-      .map(t => t.startsWith("#") ? t : "#" + t);
-
-    updateContent(editingContent.id, {
-      uploadDate: editingContent.uploadDate,
-      uploadTime: editingContent.uploadTime || "12:00",
-      platform: editingContent.platform,
-      contentType: editingContent.contentType,
-      caption: editingContent.caption,
-      hashtags: hashtagsArray,
-      subjects: editingContent.subjectsList,
-      impressions: Number(editingContent.impressions) || 0,
-      reach: Number(editingContent.reach) || 0,
-      likes: Number(editingContent.likes) || 0,
-      comments: Number(editingContent.comments) || 0,
-      shares: Number(editingContent.shares) || 0,
-      saves: Number(editingContent.saves) || 0,
-      status: editingContent.status
-    });
-
-    setEditingContent(null);
+  const handleAddForDay = (dayName) => {
+    setActivePage("add-content");
   };
 
   return (
     <div className="page-container">
       <div className="page-header">
         <div>
-          <h1 className="page-title">{activeAccount.name} - Content Table</h1>
-          <p className="page-subtitle">Paginated content table tracking dates, subjects, metrics, and hashtags</p>
+          <h1 className="page-title">{activeAccount.name} - Content Table Hub</h1>
+          <p className="page-subtitle">Weekly schedule table grid & detailed metrics tracking</p>
         </div>
-        {canEdit && (
-          <button onClick={() => setActivePage("add-content")} className="btn btn-primary">
-            <i data-lucide="plus" style={{ width: "18px", height: "18px" }}></i> Add Content Entry
-          </button>
-        )}
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          {/* View Mode Toggle */}
+          <div style={{ display: "flex", gap: "0.25rem", background: "rgba(15, 23, 42, 0.7)", padding: "3px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+            <button 
+              onClick={() => setViewMode("weekly")} 
+              className={`btn ${viewMode === "weekly" ? "btn-primary" : "btn-secondary"}`}
+              style={{ padding: "0.4rem 0.85rem", fontSize: "0.85rem", minHeight: "36px" }}
+            >
+              <i data-lucide="calendar" style={{ width: "15px", height: "15px" }}></i> Weekly Grid
+            </button>
+            <button 
+              onClick={() => setViewMode("detailed")} 
+              className={`btn ${viewMode === "detailed" ? "btn-primary" : "btn-secondary"}`}
+              style={{ padding: "0.4rem 0.85rem", fontSize: "0.85rem", minHeight: "36px" }}
+            >
+              <i data-lucide="table" style={{ width: "15px", height: "15px" }}></i> Detailed Table
+            </button>
+          </div>
+
+          {canEdit && (
+            <button onClick={() => setActivePage("add-content")} className="btn btn-primary">
+              <i data-lucide="plus" style={{ width: "18px", height: "18px" }}></i> Add Content Entry
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* Filter Controls */}
       <div className="glass-card" style={{ marginBottom: "1.5rem", padding: "1rem" }}>
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
           <input type="text" className="form-input" placeholder="Search caption, hashtag, subject..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ flex: 1 }} />
@@ -1478,71 +1547,143 @@ function ContentTablePage() {
         </div>
       </div>
 
-      <div className="table-container">
-        <table className="custom-table">
-          <thead>
-            <tr>
-              <th>Upload Date & Time</th>
-              <th>Platform</th>
-              <th>Type</th>
-              <th>Caption</th>
-              <th>Hashtags</th>
-              <th>Subjects</th>
-              <th>Impressions</th>
-              <th>Reach</th>
-              <th>Likes</th>
-              <th>Comments</th>
-              <th>Shares</th>
-              <th>Saves</th>
-              <th>ER %</th>
-              <th>Status</th>
-              {canEdit && <th>Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedContents.map(item => {
-              const engagement = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
-              const er = item.reach > 0 ? ((engagement / item.reach) * 100).toFixed(2) : "0.00";
+      {/* WEEKLY SCHEDULE TABLE GRID VIEW */}
+      {viewMode === "weekly" ? (
+        <div className="weekly-schedule-card">
+          {/* Header Row: Mon, Tue, Wed, Thu, Fri, Sat, Sun */}
+          <div className="weekly-table-header">
+            {daysOfWeek.map(day => (
+              <div key={day} className="weekly-header-col">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {/* Grid Columns */}
+          <div className="weekly-table-grid">
+            {daysOfWeek.map(day => {
+              const dayContents = filteredContents.filter(c => getDayOfWeek(c.uploadDate) === day);
+              const TOTAL_SLOTS = 8;
+              const emptySlotsCount = Math.max(0, TOTAL_SLOTS - dayContents.length);
 
               return (
-                <tr key={item.id}>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>{item.uploadDate}</div>
-                    {item.uploadTime && <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>at {item.uploadTime}</div>}
-                  </td>
-                  <td><span className="chip">{item.platform}</span></td>
-                  <td><span className="chip" style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.06)" }}>{item.contentType || "Feed Post / Image"}</span></td>
-                  <td><div style={{ maxWidth: "220px", fontWeight: 500 }}>{item.caption}</div></td>
-                  <td>{item.hashtags.map(h => <span key={h} className="chip" style={{ fontSize: "0.75rem" }}>{h}</span>)}</td>
-                  <td>{item.subjects.map(s => <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}>👤 {s}</span>)}</td>
-                  <td style={{ color: "var(--accent-cyan)", fontWeight: 700 }}>{item.impressions.toLocaleString()}</td>
-                  <td>{item.reach.toLocaleString()}</td>
-                  <td>{item.likes.toLocaleString()}</td>
-                  <td>{item.comments.toLocaleString()}</td>
-                  <td>{item.shares.toLocaleString()}</td>
-                  <td>{item.saves.toLocaleString()}</td>
-                  <td style={{ color: "var(--accent-emerald)", fontWeight: 700 }}>{er}%</td>
-                  <td><span className={`badge badge-${item.status.toLowerCase()}`}>{item.status}</span></td>
-                  {canEdit && (
-                    <td>
-                      <button onClick={() => handleOpenEdit(item)} className="btn btn-secondary btn-icon" title="Edit Content"><i data-lucide="edit-2" style={{ width: "14px", height: "14px" }}></i></button>
-                      <button onClick={() => confirm("Delete content?") && deleteContent(item.id)} className="btn btn-danger btn-icon" style={{ marginLeft: "0.3rem" }} title="Delete Content"><i data-lucide="trash-2" style={{ width: "14px", height: "14px" }}></i></button>
-                    </td>
-                  )}
-                </tr>
+                <div key={day} className="weekly-day-column">
+                  {dayContents.map(item => (
+                    <div 
+                      key={item.id} 
+                      className="weekly-pill-item"
+                      onClick={() => handleOpenEdit(item)}
+                      title={`${item.platform}: ${item.caption} (${item.status})`}
+                    >
+                      <span style={{ 
+                        width: "6px", 
+                        height: "6px", 
+                        borderRadius: "50%", 
+                        flexShrink: 0,
+                        background: item.status === "Uploaded" ? "var(--accent-emerald)" : item.status === "Scheduled" ? "var(--accent-cyan)" : item.status === "Privated" ? "var(--accent-amber)" : "var(--accent-rose)" 
+                      }}></span>
+                      <span className="pill-text">{item.caption.length > 14 ? item.caption.substring(0, 14) + "…" : item.caption}</span>
+                    </div>
+                  ))}
+
+                  {Array.from({ length: emptySlotsCount }).map((_, idx) => (
+                    <div 
+                      key={`empty-${day}-${idx}`} 
+                      className="weekly-pill-item pill-empty"
+                      onClick={() => handleAddForDay(day)}
+                      title="Click to add new content entry"
+                    >
+                      <span className="pill-text">Dropdown</span>
+                    </div>
+                  ))}
+                </div>
               );
             })}
+          </div>
 
-            {filteredContents.length === 0 && (
+          {/* Bottom Action Footer Row with Plus Button for each day */}
+          <div className="weekly-add-footer">
+            {daysOfWeek.map(day => (
+              <div key={day} className="weekly-add-col">
+                <button 
+                  className="weekly-add-btn"
+                  title={`Add new content entry for ${day}`}
+                  onClick={() => handleAddForDay(day)}
+                >
+                  +
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        /* DETAILED TABULAR VIEW */
+        <div className="table-container">
+          <table className="custom-table">
+            <thead>
               <tr>
-                <td colSpan="15" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
-                  No content records match your filter criteria.
-                </td>
+                <th>Upload Date & Time</th>
+                <th>Platform</th>
+                <th>Type</th>
+                <th>Caption</th>
+                <th>Hashtags</th>
+                <th>Subjects</th>
+                <th>Impressions</th>
+                <th>Reach</th>
+                <th>Likes</th>
+                <th>Comments</th>
+                <th>Shares</th>
+                <th>Saves</th>
+                <th>ER %</th>
+                <th>Status</th>
+                {canEdit && <th>Actions</th>}
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {paginatedContents.map(item => {
+                const engagement = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
+                const er = item.reach > 0 ? ((engagement / item.reach) * 100).toFixed(2) : "0.00";
+
+                return (
+                  <tr key={item.id}>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{item.uploadDate}</div>
+                      {item.uploadTime && <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>at {item.uploadTime}</div>}
+                    </td>
+                    <td><span className="chip">{item.platform}</span></td>
+                    <td><span className="chip" style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.06)" }}>{item.contentType || "Feed Post / Image"}</span></td>
+                    <td><div style={{ maxWidth: "220px", fontWeight: 500 }}>{item.caption}</div></td>
+                    <td>{item.hashtags.map(h => <span key={h} className="chip" style={{ fontSize: "0.75rem" }}>{h}</span>)}</td>
+                    <td>{item.subjects.map(s => <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}>👤 {s}</span>)}</td>
+                    <td style={{ color: "var(--accent-cyan)", fontWeight: 700 }}>{item.impressions.toLocaleString()}</td>
+                    <td>{item.reach.toLocaleString()}</td>
+                    <td>{item.likes.toLocaleString()}</td>
+                    <td>{item.comments.toLocaleString()}</td>
+                    <td>{item.shares.toLocaleString()}</td>
+                    <td>{item.saves.toLocaleString()}</td>
+                    <td style={{ color: "var(--accent-emerald)", fontWeight: 700 }}>{er}%</td>
+                    <td><span className={`badge badge-${item.status.toLowerCase()}`}>{item.status}</span></td>
+                    {canEdit && (
+                      <td>
+                        <button onClick={() => handleOpenEdit(item)} className="btn btn-secondary btn-icon" title="Edit Content"><i data-lucide="edit-2" style={{ width: "14px", height: "14px" }}></i></button>
+                        <button onClick={() => confirm("Delete content?") && deleteContent(item.id)} className="btn btn-danger btn-icon" style={{ marginLeft: "0.3rem" }} title="Delete Content"><i data-lucide="trash-2" style={{ width: "14px", height: "14px" }}></i></button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+
+              {filteredContents.length === 0 && (
+                <tr>
+                  <td colSpan="15" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
+                    No content records match your filter criteria.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {filteredContents.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem", marginTop: "1.25rem" }}>

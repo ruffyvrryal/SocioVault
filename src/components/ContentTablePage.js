@@ -1,7 +1,8 @@
-// ContentTablePage Component - Formatted Interactive Table with Edit & Delete
+// ContentTablePage Component - Formatted Interactive Table & Weekly Schedule Grid
 window.ContentTablePage = function() {
   const { activeAccount, contents, updateContent, deleteContent, canEdit, setActivePage } = React.useContext(window.VaultContext);
 
+  const [viewMode, setViewMode] = React.useState("weekly");
   const [searchTerm, setSearchTerm] = React.useState("");
   const [platformFilter, setPlatformFilter] = React.useState("ALL");
   const [statusFilter, setStatusFilter] = React.useState("ALL");
@@ -10,6 +11,17 @@ window.ContentTablePage = function() {
 
   // Edit Modal State
   const [editingContent, setEditingContent] = React.useState(null);
+
+  const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  const getDayOfWeek = (dateStr) => {
+    if (!dateStr) return "Mon";
+    const parts = dateStr.split("-").map(Number);
+    if (parts.length < 3) return "Mon";
+    const date = new Date(parts[0], parts[1] - 1, parts[2]);
+    const dayIndex = date.getDay();
+    return dayIndex === 0 ? "Sun" : daysOfWeek[dayIndex - 1];
+  };
 
   if (!activeAccount) {
     return <div className="page-container"><p>No active account selected.</p></div>;
@@ -116,19 +128,43 @@ window.ContentTablePage = function() {
     setEditingContent(null);
   };
 
+  const handleAddForDay = (dayName) => {
+    setActivePage("add-content");
+  };
+
   return (
     <div className="page-container">
       <div className="page-header">
         <div>
-          <h1 className="page-title">{activeAccount.name} - Content Table</h1>
-          <p className="page-subtitle">Granular table tracking upload date, subjects, metrics, hashtags, and status</p>
+          <h1 className="page-title">{activeAccount.name} - Content Table Hub</h1>
+          <p className="page-subtitle">Weekly schedule table grid & detailed metrics tracking</p>
         </div>
-        {canEdit && (
-          <button onClick={() => setActivePage("add-content")} className="btn btn-primary">
-            <i data-lucide="plus" style={{ width: "18px", height: "18px" }}></i>
-            Add Content Entry
-          </button>
-        )}
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          {/* View Mode Switcher */}
+          <div style={{ display: "flex", gap: "0.25rem", background: "rgba(15, 23, 42, 0.7)", padding: "3px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+            <button 
+              onClick={() => setViewMode("weekly")} 
+              className={`btn ${viewMode === "weekly" ? "btn-primary" : "btn-secondary"}`}
+              style={{ padding: "0.4rem 0.85rem", fontSize: "0.85rem", minHeight: "36px" }}
+            >
+              <i data-lucide="calendar" style={{ width: "15px", height: "15px" }}></i> Weekly Grid
+            </button>
+            <button 
+              onClick={() => setViewMode("detailed")} 
+              className={`btn ${viewMode === "detailed" ? "btn-primary" : "btn-secondary"}`}
+              style={{ padding: "0.4rem 0.85rem", fontSize: "0.85rem", minHeight: "36px" }}
+            >
+              <i data-lucide="table" style={{ width: "15px", height: "15px" }}></i> Detailed Table
+            </button>
+          </div>
+
+          {canEdit && (
+            <button onClick={() => setActivePage("add-content")} className="btn btn-primary">
+              <i data-lucide="plus" style={{ width: "18px", height: "18px" }}></i>
+              Add Content Entry
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filter Controls Bar */}
@@ -172,109 +208,180 @@ window.ContentTablePage = function() {
         </div>
       </div>
 
-      {/* Formatted Content Data Table */}
-      <div className="table-container">
-        <table className="custom-table">
-          <thead>
-            <tr>
-              <th>Upload Date</th>
-              <th>Platform</th>
-              <th>Caption / Text</th>
-              <th>Hashtags</th>
-              <th>Subject(s) Featured</th>
-              <th>Impressions</th>
-              <th>Reach</th>
-              <th>Likes</th>
-              <th>Comments</th>
-              <th>Shares</th>
-              <th>Saves</th>
-              <th>ER %</th>
-              <th>Status</th>
-              {canEdit && <th>Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredContents.map(item => {
-              const engagement = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
-              const er = item.reach > 0 ? ((engagement / item.reach) * 100).toFixed(2) : "0.00";
+      {/* WEEKLY SCHEDULE TABLE GRID VIEW */}
+      {viewMode === "weekly" ? (
+        <div className="weekly-schedule-card">
+          {/* Header Row: Mon, Tue, Wed, Thu, Fri, Sat, Sun */}
+          <div className="weekly-table-header">
+            {daysOfWeek.map(day => (
+              <div key={day} className="weekly-header-col">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {/* Grid Columns */}
+          <div className="weekly-table-grid">
+            {daysOfWeek.map(day => {
+              const dayContents = filteredContents.filter(c => getDayOfWeek(c.uploadDate) === day);
+              const TOTAL_SLOTS = 8;
+              const emptySlotsCount = Math.max(0, TOTAL_SLOTS - dayContents.length);
 
               return (
-                <tr key={item.id}>
-                  <td style={{ whiteSpace: "nowrap", fontWeight: 500 }}>{item.uploadDate}</td>
-                  <td>
-                    <span className="chip" style={{ background: "rgba(255,255,255,0.06)", color: "#fff" }}>
-                      {item.platform}
-                    </span>
-                  </td>
-                  <td style={{ maxWidth: "260px", minWidth: "180px" }}>
-                    <div style={{ fontWeight: 500, fontSize: "0.88rem", lineHeight: "1.3", color: "var(--text-main)" }}>
-                      {item.caption}
+                <div key={day} className="weekly-day-column">
+                  {dayContents.map(item => (
+                    <div 
+                      key={item.id} 
+                      className="weekly-pill-item"
+                      onClick={() => handleOpenEdit(item)}
+                      title={`${item.platform}: ${item.caption} (${item.status})`}
+                    >
+                      <span style={{ 
+                        width: "6px", 
+                        height: "6px", 
+                        borderRadius: "50%", 
+                        flexShrink: 0,
+                        background: item.status === "Uploaded" ? "var(--accent-emerald)" : item.status === "Scheduled" ? "var(--accent-cyan)" : item.status === "Privated" ? "var(--accent-amber)" : "var(--accent-rose)" 
+                      }}></span>
+                      <span className="pill-text">{item.caption.length > 14 ? item.caption.substring(0, 14) + "…" : item.caption}</span>
                     </div>
-                  </td>
-                  <td>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
-                      {item.hashtags.map(h => (
-                        <span key={h} className="chip" style={{ fontSize: "0.75rem" }}>{h}</span>
-                      ))}
+                  ))}
+
+                  {Array.from({ length: emptySlotsCount }).map((_, idx) => (
+                    <div 
+                      key={`empty-${day}-${idx}`} 
+                      className="weekly-pill-item pill-empty"
+                      onClick={() => handleAddForDay(day)}
+                      title="Click to add new content entry"
+                    >
+                      <span className="pill-text">Dropdown</span>
                     </div>
-                  </td>
-                  <td>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
-                      {item.subjects.map(s => (
-                        <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}>👤 {s}</span>
-                      ))}
-                    </div>
-                  </td>
-                  <td style={{ fontWeight: 600, color: "var(--accent-cyan)" }}>
-                    {item.impressions.toLocaleString()}
-                  </td>
-                  <td>{item.reach.toLocaleString()}</td>
-                  <td>{item.likes.toLocaleString()}</td>
-                  <td>{item.comments.toLocaleString()}</td>
-                  <td>{item.shares.toLocaleString()}</td>
-                  <td>{item.saves.toLocaleString()}</td>
-                  <td style={{ fontWeight: 700, color: "var(--accent-emerald)" }}>{er}%</td>
-                  <td>
-                    <span className={`badge badge-${item.status.toLowerCase()}`}>
-                      {item.status}
-                    </span>
-                  </td>
-                  {canEdit && (
-                    <td>
-                      <div style={{ display: "flex", gap: "0.35rem" }}>
-                        <button 
-                          onClick={() => handleOpenEdit(item)} 
-                          className="btn btn-secondary btn-icon"
-                          title="Edit Content Entry"
-                        >
-                          <i data-lucide="edit-2" style={{ width: "14px", height: "14px" }}></i>
-                        </button>
-                        <button 
-                          onClick={() => {
-                            if (confirm("Delete this content entry?")) deleteContent(item.id);
-                          }} 
-                          className="btn btn-danger btn-icon"
-                          title="Delete Content Entry"
-                        >
-                          <i data-lucide="trash-2" style={{ width: "14px", height: "14px" }}></i>
-                        </button>
-                      </div>
-                    </td>
-                  )}
-                </tr>
+                  ))}
+                </div>
               );
             })}
+          </div>
 
-            {filteredContents.length === 0 && (
+          {/* Bottom Action Footer Row with Plus Button for each day */}
+          <div className="weekly-add-footer">
+            {daysOfWeek.map(day => (
+              <div key={day} className="weekly-add-col">
+                <button 
+                  className="weekly-add-btn"
+                  title={`Add new content entry for ${day}`}
+                  onClick={() => handleAddForDay(day)}
+                >
+                  +
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        /* Formatted Content Data Table */
+        <div className="table-container">
+          <table className="custom-table">
+            <thead>
               <tr>
-                <td colSpan="14" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
-                  No content records match your filter criteria.
-                </td>
+                <th>Upload Date</th>
+                <th>Platform</th>
+                <th>Caption / Text</th>
+                <th>Hashtags</th>
+                <th>Subject(s) Featured</th>
+                <th>Impressions</th>
+                <th>Reach</th>
+                <th>Likes</th>
+                <th>Comments</th>
+                <th>Shares</th>
+                <th>Saves</th>
+                <th>ER %</th>
+                <th>Status</th>
+                {canEdit && <th>Actions</th>}
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {filteredContents.map(item => {
+                const engagement = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
+                const er = item.reach > 0 ? ((engagement / item.reach) * 100).toFixed(2) : "0.00";
+
+                return (
+                  <tr key={item.id}>
+                    <td style={{ whiteSpace: "nowrap", fontWeight: 500 }}>{item.uploadDate}</td>
+                    <td>
+                      <span className="chip" style={{ background: "rgba(255,255,255,0.06)", color: "#fff" }}>
+                        {item.platform}
+                      </span>
+                    </td>
+                    <td style={{ maxWidth: "260px", minWidth: "180px" }}>
+                      <div style={{ fontWeight: 500, fontSize: "0.88rem", lineHeight: "1.3", color: "var(--text-main)" }}>
+                        {item.caption}
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
+                        {item.hashtags.map(h => (
+                          <span key={h} className="chip" style={{ fontSize: "0.75rem" }}>{h}</span>
+                        ))}
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
+                        {item.subjects.map(s => (
+                          <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}>👤 {s}</span>
+                        ))}
+                      </div>
+                    </td>
+                    <td style={{ fontWeight: 600, color: "var(--accent-cyan)" }}>
+                      {item.impressions.toLocaleString()}
+                    </td>
+                    <td>{item.reach.toLocaleString()}</td>
+                    <td>{item.likes.toLocaleString()}</td>
+                    <td>{item.comments.toLocaleString()}</td>
+                    <td>{item.shares.toLocaleString()}</td>
+                    <td>{item.saves.toLocaleString()}</td>
+                    <td style={{ fontWeight: 700, color: "var(--accent-emerald)" }}>{er}%</td>
+                    <td>
+                      <span className={`badge badge-${item.status.toLowerCase()}`}>
+                        {item.status}
+                      </span>
+                    </td>
+                    {canEdit && (
+                      <td>
+                        <div style={{ display: "flex", gap: "0.35rem" }}>
+                          <button 
+                            onClick={() => handleOpenEdit(item)} 
+                            className="btn btn-secondary btn-icon"
+                            title="Edit Content Entry"
+                          >
+                            <i data-lucide="edit-2" style={{ width: "14px", height: "14px" }}></i>
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (confirm("Delete this content entry?")) deleteContent(item.id);
+                            }} 
+                            className="btn btn-danger btn-icon"
+                            title="Delete Content Entry"
+                          >
+                            <i data-lucide="trash-2" style={{ width: "14px", height: "14px" }}></i>
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+
+              {filteredContents.length === 0 && (
+                <tr>
+                  <td colSpan="14" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
+                    No content records match your filter criteria.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Edit Content Modal */}
       {editingContent && (

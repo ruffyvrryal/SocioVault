@@ -50,7 +50,7 @@ window.VaultProvider = function({ children }) {
   const getUserRole = React.useCallback((account) => {
     if (!user || !account) return "viewer";
     if (account.ownerEmail === user.email) return "owner";
-    const collab = account.collaborators.find(c => c.email === user.email);
+    const collab = (account.collaborators || []).find(c => c.email === user.email);
     if (collab) return collab.role; // 'editor' or 'viewer'
     return "viewer";
   }, [user]);
@@ -95,7 +95,7 @@ window.VaultProvider = function({ children }) {
       if (acc.id === accountId) {
         return {
           ...acc,
-          platforms: [...acc.platforms, { id: "p_" + Date.now(), ...platformData }]
+          platforms: [...(acc.platforms || []), { id: "p_" + Date.now(), ...platformData }]
         };
       }
       return acc;
@@ -107,7 +107,7 @@ window.VaultProvider = function({ children }) {
       if (acc.id === accountId) {
         return {
           ...acc,
-          platforms: acc.platforms.filter(p => p.id !== platformId)
+          platforms: (acc.platforms || []).filter(p => p.id !== platformId)
         };
       }
       return acc;
@@ -136,10 +136,11 @@ window.VaultProvider = function({ children }) {
   const addCollaborator = (accountId, email, role) => {
     setAccounts(prev => prev.map(acc => {
       if (acc.id === accountId) {
-        if (acc.collaborators.some(c => c.email === email)) return acc;
+        const collabs = acc.collaborators || [];
+        if (collabs.some(c => c.email === email)) return acc;
         return {
           ...acc,
-          collaborators: [...acc.collaborators, { email, role, joinedAt: new Date().toISOString().split("T")[0] }]
+          collaborators: [...collabs, { email, role, joinedAt: new Date().toISOString().split("T")[0] }]
         };
       }
       return acc;
@@ -151,7 +152,7 @@ window.VaultProvider = function({ children }) {
       if (acc.id === accountId) {
         return {
           ...acc,
-          collaborators: acc.collaborators.map(c => c.email === email ? { ...c, role: newRole } : c)
+          collaborators: (acc.collaborators || []).map(c => c.email === email ? { ...c, role: newRole } : c)
         };
       }
       return acc;
@@ -163,7 +164,7 @@ window.VaultProvider = function({ children }) {
       if (acc.id === accountId) {
         return {
           ...acc,
-          collaborators: acc.collaborators.filter(c => c.email !== email)
+          collaborators: (acc.collaborators || []).filter(c => c.email !== email)
         };
       }
       return acc;

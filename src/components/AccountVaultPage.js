@@ -15,12 +15,23 @@ window.AccountVaultPage = function() {
   const [accountName, setAccountName] = React.useState("");
   const [accountDesc, setAccountDesc] = React.useState("");
 
+  const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  const getDayOfWeek = (dateStr) => {
+    if (!dateStr) return "Mon";
+    const parts = dateStr.split("-").map(Number);
+    if (parts.length < 3) return "Mon";
+    const date = new Date(parts[0], parts[1] - 1, parts[2]);
+    const dayIndex = date.getDay();
+    return dayIndex === 0 ? "Sun" : daysOfWeek[dayIndex - 1];
+  };
+
   // Accounts accessible by current user
   const accessibleAccounts = React.useMemo(() => {
     if (!user) return [];
     return accounts.filter(acc => 
       acc.ownerEmail === user.email || 
-      acc.collaborators.some(c => c.email === user.email)
+      (acc.collaborators && acc.collaborators.some(c => c.email === user.email))
     );
   }, [accounts, user]);
 
@@ -38,6 +49,15 @@ window.AccountVaultPage = function() {
     setActivePage("account-center");
   };
 
+  const handleDayAdd = (day) => {
+    if (accessibleAccounts.length > 0) {
+      setActiveAccountId(accessibleAccounts[0].id);
+      setActivePage("add-content");
+    } else {
+      setShowAddModal(true);
+    }
+  };
+
   return (
     <div className="page-container">
       {/* Header */}
@@ -53,7 +73,7 @@ window.AccountVaultPage = function() {
       </div>
 
       {/* Account Cards Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.5rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.5rem", marginBottom: "2.5rem" }}>
         {accessibleAccounts.map(acc => {
           const role = getUserRole(acc);
           const accContents = contents.filter(c => c.accountId === acc.id);
@@ -69,7 +89,7 @@ window.AccountVaultPage = function() {
               <div>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1rem" }}>
                   <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "rgba(139, 92, 246, 0.15)", border: "1px solid rgba(139, 92, 246, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", fontSize: "1.2rem", fontWeight: 700 }}>
-                    {acc.name.charAt(0)}
+                    {acc.name ? acc.name.charAt(0) : "V"}
                   </div>
                   
                   <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -98,8 +118,8 @@ window.AccountVaultPage = function() {
                 
                 {/* Platform Badges */}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1.25rem" }}>
-                  {acc.platforms.map(p => (
-                    <span key={p.id} className="chip" style={{ fontSize: "0.75rem" }}>
+                  {(acc.platforms || []).map(p => (
+                    <span key={p.id || p.name} className="chip" style={{ fontSize: "0.75rem" }}>
                       {p.name}: {p.handle}
                     </span>
                   ))}
@@ -126,6 +146,87 @@ window.AccountVaultPage = function() {
             <button onClick={() => setShowAddModal(true)} className="btn btn-primary">Create Your First Account</button>
           </div>
         )}
+      </div>
+
+      {/* WEEKLY SCHEDULE TABLE HUB (SCREENSHOT MATCHED DESIGN) */}
+      <div style={{ marginBottom: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+          <div>
+            <h2 style={{ fontSize: "1.35rem", fontWeight: 700, color: "#FFFFFF" }}>Global Weekly Schedule Hub</h2>
+            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>Interactive weekly posting calendar & schedule table across all account vaults</p>
+          </div>
+        </div>
+
+        <div className="weekly-schedule-card">
+          {/* Header Row: Mon, Tue, Wed, Thu, Fri, Sat, Sun */}
+          <div className="weekly-table-header">
+            {daysOfWeek.map(day => (
+              <div key={day} className="weekly-header-col">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {/* Grid Columns */}
+          <div className="weekly-table-grid">
+            {daysOfWeek.map(day => {
+              const dayContents = contents.filter(c => getDayOfWeek(c.uploadDate) === day);
+              const TOTAL_SLOTS = 8;
+              const emptySlotsCount = Math.max(0, TOTAL_SLOTS - dayContents.length);
+
+              return (
+                <div key={day} className="weekly-day-column">
+                  {dayContents.map(item => (
+                    <div 
+                      key={item.id} 
+                      className="weekly-pill-item"
+                      onClick={() => {
+                        setActiveAccountId(item.accountId);
+                        setActivePage("content-table");
+                      }}
+                      title={`${item.platform}: ${item.caption} (${item.status})`}
+                    >
+                      <span style={{ 
+                        width: "6px", 
+                        height: "6px", 
+                        borderRadius: "50%", 
+                        flexShrink: 0,
+                        background: item.status === "Uploaded" ? "var(--accent-emerald)" : item.status === "Scheduled" ? "var(--accent-cyan)" : item.status === "Privated" ? "var(--accent-amber)" : "var(--accent-rose)" 
+                      }}></span>
+                      <span className="pill-text">{item.caption.length > 14 ? item.caption.substring(0, 14) + "…" : item.caption}</span>
+                    </div>
+                  ))}
+
+                  {Array.from({ length: emptySlotsCount }).map((_, idx) => (
+                    <div 
+                      key={`empty-${day}-${idx}`} 
+                      className="weekly-pill-item pill-empty"
+                      onClick={() => handleDayAdd(day)}
+                      title="Click to schedule content"
+                    >
+                      <span className="pill-text">Dropdown</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Bottom Action Footer Row with Plus Button for each day */}
+          <div className="weekly-add-footer">
+            {daysOfWeek.map(day => (
+              <div key={day} className="weekly-add-col">
+                <button 
+                  className="weekly-add-btn"
+                  title={`Add new content entry for ${day}`}
+                  onClick={() => handleDayAdd(day)}
+                >
+                  +
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Add Account Modal */}

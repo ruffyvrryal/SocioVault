@@ -415,6 +415,158 @@ a {
   background: rgba(255, 255, 255, 0.02);
 }
 
+/* ==========================================================================
+   Weekly Schedule Table Grid (Mon - Sun Layout) - Screenshot Matched Design
+   ========================================================================== */
+.weekly-schedule-card {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  background: #080b21;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(99, 102, 241, 0.15);
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+.weekly-table-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  min-width: 750px;
+  background: #0a0b25;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.weekly-header-col {
+  padding: 1.25rem 0.5rem;
+  text-align: center;
+  font-family: var(--font-heading);
+  font-size: 1.65rem;
+  font-weight: 500;
+  color: #FFFFFF;
+  letter-spacing: -0.01em;
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.weekly-header-col:last-child {
+  border-right: none;
+}
+
+.weekly-table-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  min-width: 750px;
+  background: #050718;
+}
+
+.weekly-day-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1.1rem 0.6rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  min-height: 380px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.weekly-day-column:last-child {
+  border-right: none;
+}
+
+.weekly-pill-item {
+  width: 100%;
+  max-width: 125px;
+  border-radius: 9999px;
+  background: rgba(16, 22, 54, 0.95);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  color: #F1F5F9;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 400;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+}
+
+.weekly-pill-item:hover {
+  background: rgba(139, 92, 246, 0.35);
+  border-color: var(--accent-primary);
+  color: #FFFFFF;
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.5);
+  transform: translateY(-2px);
+}
+
+.weekly-pill-item.pill-empty {
+  opacity: 0.6;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(14, 19, 44, 0.8);
+}
+
+.weekly-pill-item.pill-empty:hover {
+  opacity: 1;
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+.weekly-pill-item .pill-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weekly-add-footer {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  min-width: 750px;
+  background: #03040e;
+  padding: 0.85rem 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.weekly-add-col {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.weekly-add-col:last-child {
+  border-right: none;
+}
+
+.weekly-add-btn {
+  width: 100%;
+  max-width: 78px;
+  height: 26px;
+  border-radius: 9999px;
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.weekly-add-btn:hover {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 14px rgba(139, 92, 246, 0.6);
+  transform: scale(1.08);
+}
+
+
 /* Metric Cards Grid */
 .stats-grid {
   display: grid;
