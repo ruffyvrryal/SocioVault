@@ -1,7 +1,8 @@
-// AddContentPage Component - Modern 2-Column Compact Layout for Fast Manual & TikTok API Logging
+// AddContentPage Component - Modern 2-Column Layout with Single Video & Entire TikTok Account Auto-Import
 window.AddContentPage = function() {
-  const { activeAccount, addContent, canEdit, setActivePage, fetchTikTokData } = React.useContext(window.VaultContext);
+  const { activeAccount, addContent, canEdit, setActivePage, fetchTikTokData, syncTikTokAccount } = React.useContext(window.VaultContext);
 
+  const [mode, setMode] = React.useState("single"); // "single" | "account"
   const [uploadDate, setUploadDate] = React.useState(() => new Date().toISOString().split("T")[0]);
   const [uploadTime, setUploadTime] = React.useState(() => {
     const now = new Date();
@@ -21,18 +22,20 @@ window.AddContentPage = function() {
   const [status, setStatus] = React.useState("Uploaded");
   const [contentType, setContentType] = React.useState("Video");
 
-  // TikTok API Auto-Fetch State
+  // TikTok API State
   const [tiktokInput, setTiktokInput] = React.useState("");
+  const [tiktokAccountInput, setTiktokAccountInput] = React.useState("");
   const [tiktokLoading, setTiktokLoading] = React.useState(false);
   const [tiktokError, setTiktokError] = React.useState("");
   const [tiktokSuccess, setTiktokSuccess] = React.useState(null);
+  const [accountSuccess, setAccountSuccess] = React.useState(null);
   const [helpModalOpen, setHelpModalOpen] = React.useState(false);
 
   if (!activeAccount) {
     return <div className="page-container"><p>No active account selected.</p></div>;
   }
 
-  // Handle TikTok API Fetch
+  // Handle Single TikTok Video Fetch
   const handleFetchTikTok = async (e) => {
     if (e) e.preventDefault();
     if (!tiktokInput.trim()) {
@@ -47,7 +50,6 @@ window.AddContentPage = function() {
     try {
       const data = await fetchTikTokData(tiktokInput);
       
-      // Auto-populate all form fields
       setPlatform("TikTok");
       setContentType(data.contentType || "Video");
       setCaption(data.caption || "");
@@ -66,6 +68,34 @@ window.AddContentPage = function() {
       setTiktokSuccess(data);
     } catch (err) {
       setTiktokError(err.message || "Failed to fetch TikTok post data");
+    } finally {
+      setTiktokLoading(false);
+    }
+  };
+
+  // Handle Entire Account Auto-Sync
+  const handleSyncEntireAccount = async (e) => {
+    if (e) e.preventDefault();
+    if (!tiktokAccountInput.trim()) {
+      setTiktokError("Please enter a TikTok account profile link or @handle");
+      return;
+    }
+
+    setTiktokLoading(true);
+    setTiktokError("");
+    setAccountSuccess(null);
+
+    try {
+      const res = await syncTikTokAccount(activeAccount.id, tiktokAccountInput, {
+        importPosts: true,
+        updateFollowers: true
+      });
+      setAccountSuccess(res);
+      setTimeout(() => {
+        setActivePage("content-table");
+      }, 1500);
+    } catch(err) {
+      setTiktokError(err.message || "Failed to sync TikTok account data");
     } finally {
       setTiktokLoading(false);
     }
@@ -130,7 +160,7 @@ window.AddContentPage = function() {
             Add Content Entry
           </h1>
           <p className="page-subtitle" style={{ fontSize: "0.82rem" }}>
-            Log post metrics manually or import in seconds via TikTok API
+            Auto-read single videos or auto-sync your entire TikTok account in real time
           </p>
         </div>
 
@@ -166,50 +196,125 @@ window.AddContentPage = function() {
               </div>
               <div>
                 <h3 style={{ margin: 0, fontSize: "0.98rem", fontWeight: 700, color: "#fff" }}>
-                  TikTok API Auto-Input
+                  TikTok API Auto-Reader
                 </h3>
                 <div style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>
-                  Paste any TikTok link to auto-fill views, likes & caption
+                  Extract single posts or auto-sync all account posts in real time
                 </div>
               </div>
             </div>
 
-            <form onSubmit={handleFetchTikTok} style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-              <input
-                type="text"
-                className="form-input"
-                style={{ background: "rgba(15, 23, 42, 0.7)", fontSize: "0.84rem", minHeight: "38px" }}
-                placeholder="https://www.tiktok.com/@user/video/... or https://vt.tiktok.com/..."
-                value={tiktokInput}
-                onChange={e => setTiktokInput(e.target.value)}
-                disabled={tiktokLoading}
-              />
+            {/* Mode Switcher Tabs */}
+            <div style={{ display: "flex", gap: "0.35rem", marginBottom: "0.85rem", background: "rgba(0,0,0,0.3)", padding: "0.25rem", borderRadius: "8px" }}>
               <button
-                type="submit"
-                className="btn btn-primary btn-sm"
-                disabled={tiktokLoading || !tiktokInput.trim()}
+                type="button"
+                onClick={() => setMode("single")}
                 style={{
-                  background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
-                  color: "#000",
-                  fontWeight: 800,
+                  flex: 1,
+                  padding: "0.35rem",
+                  borderRadius: "6px",
                   border: "none",
-                  width: "100%",
-                  minHeight: "36px"
+                  background: mode === "single" ? "rgba(37,244,238,0.2)" : "transparent",
+                  color: mode === "single" ? "#25F4EE" : "var(--text-muted)",
+                  fontWeight: mode === "single" ? 700 : 500,
+                  fontSize: "0.76rem",
+                  cursor: "pointer"
                 }}
               >
-                {tiktokLoading ? "⏳ Extracting Post Data..." : "⚡ Auto-Fill Post Details"}
+                🔗 Single Video
               </button>
-            </form>
+              <button
+                type="button"
+                onClick={() => setMode("account")}
+                style={{
+                  flex: 1,
+                  padding: "0.35rem",
+                  borderRadius: "6px",
+                  border: "none",
+                  background: mode === "account" ? "linear-gradient(135deg, rgba(37,244,238,0.25), rgba(254,44,85,0.25))" : "transparent",
+                  color: mode === "account" ? "#fff" : "var(--text-muted)",
+                  fontWeight: mode === "account" ? 700 : 500,
+                  fontSize: "0.76rem",
+                  cursor: "pointer"
+                }}
+              >
+                🌐 Entire TikTok Account
+              </button>
+            </div>
+
+            {/* Form for Single Video */}
+            {mode === "single" ? (
+              <form onSubmit={handleFetchTikTok} style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ background: "rgba(15, 23, 42, 0.7)", fontSize: "0.84rem", minHeight: "38px" }}
+                  placeholder="https://www.tiktok.com/@user/video/... or https://vt.tiktok.com/..."
+                  value={tiktokInput}
+                  onChange={e => setTiktokInput(e.target.value)}
+                  disabled={tiktokLoading}
+                />
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  disabled={tiktokLoading || !tiktokInput.trim()}
+                  style={{
+                    background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
+                    color: "#000",
+                    fontWeight: 800,
+                    border: "none",
+                    width: "100%",
+                    minHeight: "36px"
+                  }}
+                >
+                  {tiktokLoading ? "⏳ Extracting Post Data..." : "⚡ Auto-Fill Post Details"}
+                </button>
+              </form>
+            ) : (
+              /* Form for Entire Account Auto-Sync */
+              <form onSubmit={handleSyncEntireAccount} style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ background: "rgba(15, 23, 42, 0.7)", fontSize: "0.84rem", minHeight: "38px" }}
+                  placeholder="https://www.tiktok.com/@yourbrand or @yourbrand"
+                  value={tiktokAccountInput}
+                  onChange={e => setTiktokAccountInput(e.target.value)}
+                  disabled={tiktokLoading}
+                />
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  disabled={tiktokLoading || !tiktokAccountInput.trim()}
+                  style={{
+                    background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
+                    color: "#000",
+                    fontWeight: 800,
+                    border: "none",
+                    width: "100%",
+                    minHeight: "36px"
+                  }}
+                >
+                  {tiktokLoading ? "🔄 Reading Profile & All Videos..." : "⚡ Auto-Import All Account Videos in Real-Time"}
+                </button>
+              </form>
+            )}
 
             {tiktokError && (
               <div style={{ marginTop: "0.65rem", padding: "0.5rem 0.75rem", borderRadius: "6px", background: "rgba(244,63,94,0.15)", border: "1px solid rgba(244,63,94,0.3)", color: "#F43F5E", fontSize: "0.78rem" }}>
                 ⚠️ {tiktokError}
               </div>
             )}
+
+            {accountSuccess && (
+              <div style={{ marginTop: "0.65rem", padding: "0.65rem 0.85rem", borderRadius: "8px", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: "#10B981", fontSize: "0.8rem" }}>
+                ✅ Successfully imported <strong>{accountSuccess.videos.length} videos</strong> from @{accountSuccess.profile.username}! Redirecting to table...
+              </div>
+            )}
           </div>
 
-          {/* Live Extracted Card Preview */}
-          {tiktokSuccess && (
+          {/* Live Extracted Card Preview for Single Post */}
+          {tiktokSuccess && mode === "single" && (
             <div className="glass-card" style={{
               padding: "1.1rem",
               borderRadius: "12px",
@@ -240,7 +345,7 @@ window.AddContentPage = function() {
 
           {/* Quick Pro-Tip Box */}
           <div style={{ padding: "0.85rem 1rem", borderRadius: "10px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
-            💡 <strong>Instant Sync Tip:</strong> All auto-filled numbers remain 100% editable on the right before saving. After adding, you can real-time sync metrics anytime on the Content Table!
+            💡 <strong>Zero Manual Input:</strong> Paste your TikTok account profile link once under <em>"Entire TikTok Account"</em> to import all your videos with live views, likes, comments, and captions automatically!
           </div>
         </div>
 

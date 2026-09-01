@@ -1,4 +1,4 @@
-// AccountCenterPage Component - Modern, Compact, High-Impact Account Overview
+// AccountCenterPage Component - Modern, Compact Account Overview with Real-Time TikTok Account Auto-Sync
 window.AccountCenterPage = function() {
   const { 
     activeAccount, 
@@ -7,15 +7,23 @@ window.AccountCenterPage = function() {
     contents, 
     canEdit, 
     setActivePage,
+    syncTikTokAccount,
     syncAllTikTokPosts,
     isSyncingTikTok
   } = React.useContext(window.VaultContext);
 
   const [showAddModal, setShowAddModal] = React.useState(false);
+  const [showSyncAccountModal, setShowSyncAccountModal] = React.useState(false);
   const [platformName, setPlatformName] = React.useState("Instagram");
   const [handle, setHandle] = React.useState("");
   const [followers, setFollowers] = React.useState("");
   const [url, setUrl] = React.useState("");
+
+  // TikTok Account Link Input State
+  const [tikTokAccountLink, setTikTokAccountLink] = React.useState("");
+  const [accountSyncLoading, setAccountSyncLoading] = React.useState(false);
+  const [accountSyncSuccess, setAccountSyncSuccess] = React.useState(null);
+  const [accountSyncError, setAccountSyncError] = React.useState("");
 
   if (!activeAccount) {
     return (
@@ -37,7 +45,7 @@ window.AccountCenterPage = function() {
   const totalSaves = accountContents.reduce((sum, c) => sum + (c.saves || 0), 0);
   const totalEngagement = totalLikes + totalComments + totalShares + totalSaves;
   const overallER = totalViews > 0 ? ((totalEngagement / totalViews) * 100).toFixed(2) : "0.00";
-  const totalFollowers = activeAccount.platforms.reduce((sum, p) => sum + (Number(p.followers) || 0), 0);
+  const totalFollowers = (activeAccount.platforms || []).reduce((sum, p) => sum + (Number(p.followers) || 0), 0);
 
   // Status breakdown
   const statusCounts = { Uploaded: 0, Scheduled: 0, Privated: 0, Deleted: 0 };
@@ -69,7 +77,6 @@ window.AccountCenterPage = function() {
     }
   }, [recentTikToks, avgTikTokViews]);
 
-  // Recent 5 content items across all platforms
   const recentPosts = accountContents
     .sort((a, b) => new Date(b.uploadDate || 0) - new Date(a.uploadDate || 0))
     .slice(0, 5);
@@ -89,8 +96,33 @@ window.AccountCenterPage = function() {
     setShowAddModal(false);
   };
 
+  // Handle Full TikTok Account Auto-Sync
+  const handleAutoSyncTikTokAccount = async (e) => {
+    if (e) e.preventDefault();
+    if (!tikTokAccountLink.trim()) {
+      setAccountSyncError("Please enter a TikTok account profile link or @handle");
+      return;
+    }
+
+    setAccountSyncLoading(true);
+    setAccountSyncError("");
+    setAccountSyncSuccess(null);
+
+    try {
+      const result = await syncTikTokAccount(activeAccount.id, tikTokAccountLink, {
+        importPosts: true,
+        updateFollowers: true
+      });
+      setAccountSyncSuccess(result);
+    } catch(err) {
+      setAccountSyncError(err.message || "Failed to auto-sync TikTok account");
+    } finally {
+      setAccountSyncLoading(false);
+    }
+  };
+
   const getPlatformIcon = (name) => {
-    switch (name.toLowerCase()) {
+    switch ((name || "").toLowerCase()) {
       case "instagram": return "📸";
       case "youtube": return "▶️";
       case "tiktok": return "🎵";
@@ -102,6 +134,8 @@ window.AccountCenterPage = function() {
       default: return "🌐";
     }
   };
+
+  const tikTokPlatform = (activeAccount.platforms || []).find(p => p.name === "TikTok");
 
   return (
     <div className="page-container">
@@ -129,11 +163,24 @@ window.AccountCenterPage = function() {
             </div>
           </div>
           <p className="page-subtitle" style={{ fontSize: "0.82rem", marginTop: "2px" }}>
-            {activeAccount.description || "Active social media workspace"} • {activeAccount.platforms.length} connected platforms
+            {activeAccount.description || "Active social media workspace"} • {(activeAccount.platforms || []).length} connected platforms
           </p>
         </div>
 
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          {canEdit && (
+            <button
+              onClick={() => {
+                setTikTokAccountLink(tikTokPlatform?.handle || `https://www.tiktok.com/@${activeAccount.name.toLowerCase().replace(/\s+/g, "_")}`);
+                setShowSyncAccountModal(true);
+              }}
+              className="btn btn-sm btn-secondary"
+              style={{ borderColor: "rgba(37,244,238,0.4)", color: "#25F4EE", background: "rgba(37,244,238,0.1)", fontWeight: 700 }}
+              title="Add TikTok account link to auto-read all data & posts in real-time"
+            >
+              <span>🎵 Auto-Sync TikTok Account</span>
+            </button>
+          )}
           {canEdit && (
             <button onClick={() => setShowAddModal(true)} className="btn btn-sm btn-secondary" style={{ fontWeight: 700 }}>
               <span>➕ Add Channel</span>
@@ -160,7 +207,7 @@ window.AccountCenterPage = function() {
             {totalFollowers >= 1000 ? (totalFollowers / 1000).toFixed(1) + "k" : totalFollowers.toLocaleString()}
           </div>
           <div style={{ fontSize: "0.74rem", color: "var(--accent-primary-light)", marginTop: "0.35rem", display: "flex", gap: "0.3rem" }}>
-            {activeAccount.platforms.map(p => (
+            {(activeAccount.platforms || []).map(p => (
               <span key={p.id} title={`${p.name}: ${(Number(p.followers) || 0).toLocaleString()}`}>{getPlatformIcon(p.name)}</span>
             ))}
           </div>
@@ -178,7 +225,7 @@ window.AccountCenterPage = function() {
             {totalViews >= 1000000 ? (totalViews / 1000000).toFixed(2) + "M" : (totalViews >= 1000 ? (totalViews / 1000).toFixed(1) + "k" : totalViews.toLocaleString())}
           </div>
           <div style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
-            Reach: <strong>{(totalReach / 1000).toFixed(1)}k</strong> (85% est.)
+            Reach: <strong>{(totalReach / 1000).toFixed(1)}k</strong>
           </div>
         </div>
 
@@ -219,7 +266,7 @@ window.AccountCenterPage = function() {
         </div>
       </div>
 
-      {/* ── TikTok Live Status & Quick Action Banner ── */}
+      {/* ── Real-Time TikTok Account Hub Banner ── */}
       <div className="glass-card" style={{
         padding: "1rem 1.25rem",
         borderRadius: "12px",
@@ -233,21 +280,46 @@ window.AccountCenterPage = function() {
         gap: "0.75rem"
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, #25F4EE, #FE2C55)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}>
+          <div style={{ width: "38px", height: "38px", borderRadius: "10px", background: "linear-gradient(135deg, #25F4EE, #FE2C55)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem" }}>
             🎵
           </div>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <span style={{ fontWeight: 800, fontSize: "0.95rem", color: "#fff" }}>TikTok Performance Pulse:</span>
-              <span style={{ fontWeight: 700, fontSize: "0.85rem", color: healthStatus.color }}>{healthStatus.label}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+              <span style={{ fontWeight: 800, fontSize: "0.95rem", color: "#fff" }}>
+                TikTok Real-Time Syncer:
+              </span>
+              <span style={{ fontWeight: 700, fontSize: "0.85rem", color: healthStatus.color }}>
+                {tikTokPlatform ? tikTokPlatform.handle : "No account linked"}
+              </span>
+              <span style={{ fontSize: "0.72rem", color: "var(--accent-cyan)", background: "rgba(6,182,212,0.12)", padding: "0.1rem 0.4rem", borderRadius: "4px" }}>
+                Live API
+              </span>
             </div>
             <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "1px" }}>
-              {healthStatus.desc} • {recentTikToks.length} posts tracked
+              {tikTokPlatform 
+                ? `${(Number(tikTokPlatform.followers) || 0).toLocaleString()} followers • ${recentTikToks.length} videos tracked in real-time`
+                : "Add your TikTok account link to auto-read all data & videos automatically"}
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={() => {
+              setTikTokAccountLink(tikTokPlatform?.handle || `https://www.tiktok.com/@${activeAccount.name.toLowerCase().replace(/\s+/g, "_")}`);
+              setShowSyncAccountModal(true);
+            }}
+            className="btn btn-sm btn-primary"
+            style={{
+              background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
+              color: "#000",
+              fontWeight: 800,
+              fontSize: "0.78rem"
+            }}
+          >
+            <span>⚡ {tikTokPlatform ? "Re-Sync Account Data" : "Link TikTok Account"}</span>
+          </button>
           {recentTikToks.length > 0 && (
             <button
               type="button"
@@ -264,16 +336,9 @@ window.AccountCenterPage = function() {
               title="Refresh views and engagement for all TikTok posts"
             >
               <span style={{ animation: isSyncingTikTok ? "spin 1s linear infinite" : "none", display: "inline-block" }}>🔄</span>
-              <span>{isSyncingTikTok ? "Syncing..." : "Sync Live TikTok"}</span>
+              <span>{isSyncingTikTok ? "Syncing..." : "Live Refresh"}</span>
             </button>
           )}
-          <button
-            onClick={() => setActivePage("timeframe-analytics")}
-            className="btn btn-sm btn-secondary"
-            style={{ fontSize: "0.78rem" }}
-          >
-            📊 View Analytics →
-          </button>
         </div>
       </div>
 
@@ -284,7 +349,7 @@ window.AccountCenterPage = function() {
         <div className="glass-card" style={{ padding: "1.25rem", borderRadius: "14px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
             <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>
-              Connected Channels ({activeAccount.platforms.length})
+              Connected Channels ({(activeAccount.platforms || []).length})
             </h3>
             {canEdit && (
               <button onClick={() => setShowAddModal(true)} className="btn btn-sm btn-ghost" style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}>
@@ -294,7 +359,7 @@ window.AccountCenterPage = function() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-            {activeAccount.platforms.map(p => (
+            {(activeAccount.platforms || []).map(p => (
               <div 
                 key={p.id} 
                 style={{
@@ -311,7 +376,14 @@ window.AccountCenterPage = function() {
                 <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
                   <span style={{ fontSize: "1.2rem" }}>{getPlatformIcon(p.name)}</span>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#fff" }}>{p.name}</div>
+                    <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#fff", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                      <span>{p.name}</span>
+                      {p.name === "TikTok" && (
+                        <span style={{ fontSize: "0.65rem", color: "#25F4EE", background: "rgba(37,244,238,0.15)", padding: "0.05rem 0.35rem", borderRadius: "4px" }}>
+                          Auto-Sync
+                        </span>
+                      )}
+                    </div>
                     <div style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>{p.handle}</div>
                   </div>
                 </div>
@@ -384,12 +456,96 @@ window.AccountCenterPage = function() {
             ))}
             {recentPosts.length === 0 && (
               <div style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)", fontSize: "0.82rem" }}>
-                No content logged yet. Click <strong>⚡ Log Content</strong> to add your first post!
+                No content logged yet. Link your TikTok account or click <strong>⚡ Log Content</strong>!
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* ── MODAL: AUTO-SYNC ENTIRE TIKTOK ACCOUNT LINK ── */}
+      {showSyncAccountModal && (
+        <div className="modal-overlay" onClick={() => setShowSyncAccountModal(false)}>
+          <div className="modal-content" style={{ maxWidth: "520px", width: "95%" }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, #25F4EE, #FE2C55)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  🎵
+                </div>
+                <div>
+                  <h2 style={{ fontSize: "1.15rem", fontWeight: 700, margin: 0 }}>Auto-Sync Entire TikTok Account</h2>
+                  <p style={{ fontSize: "0.76rem", color: "var(--text-muted)", margin: 0 }}>Reads profile, followers & all recent posts automatically in real-time</p>
+                </div>
+              </div>
+              <button onClick={() => setShowSyncAccountModal(false)} className="btn btn-secondary btn-icon" style={{ width: "28px", height: "28px" }}>✕</button>
+            </div>
+
+            <form onSubmit={handleAutoSyncTikTokAccount}>
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label className="form-label" style={{ fontSize: "0.78rem" }}>TikTok Account Link or Username</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="https://www.tiktok.com/@youraccount or @youraccount"
+                  required
+                  value={tikTokAccountLink}
+                  onChange={e => setTikTokAccountLink(e.target.value)}
+                  disabled={accountSyncLoading}
+                />
+                <div style={{ fontSize: "0.72rem", color: "var(--text-subtle)", marginTop: "4px" }}>
+                  Supports full profile URLs, mobile share links, or creator handles (e.g. <code>@mrbeast</code>, <code>tiktok.com/@nike</code>).
+                </div>
+              </div>
+
+              {/* Progress / Status feedback */}
+              {accountSyncLoading && (
+                <div style={{ padding: "1rem", borderRadius: "10px", background: "rgba(37,244,238,0.1)", border: "1px solid rgba(37,244,238,0.3)", marginBottom: "1rem", textAlign: "center" }}>
+                  <div style={{ animation: "spin 1s linear infinite", display: "inline-block", fontSize: "1.4rem", marginBottom: "0.4rem" }}>🔄</div>
+                  <div style={{ fontWeight: 700, color: "#25F4EE", fontSize: "0.88rem" }}>Connecting to TikTok API...</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Extracting profile details, live follower count & all video posts...</div>
+                </div>
+              )}
+
+              {accountSyncError && (
+                <div style={{ padding: "0.75rem 1rem", borderRadius: "8px", background: "rgba(244,63,94,0.15)", border: "1px solid rgba(244,63,94,0.3)", color: "#F43F5E", fontSize: "0.8rem", marginBottom: "1rem" }}>
+                  ⚠️ {accountSyncError}
+                </div>
+              )}
+
+              {accountSyncSuccess && (
+                <div style={{ padding: "0.85rem 1rem", borderRadius: "10px", background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)", marginBottom: "1rem" }}>
+                  <div style={{ fontWeight: 800, color: "#10B981", fontSize: "0.88rem", marginBottom: "0.3rem" }}>
+                    ✅ Successfully Linked & Synced!
+                  </div>
+                  <div style={{ fontSize: "0.78rem", color: "#fff" }}>
+                    • Account: <strong>@{accountSyncSuccess.profile.username}</strong> ({accountSyncSuccess.profile.nickname})<br />
+                    • Live Followers: <strong>{accountSyncSuccess.profile.followers.toLocaleString()}</strong><br />
+                    • Videos Synced: <strong>{accountSyncSuccess.videos.length} posts</strong> added to Content Table with real-time stats!
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
+                <button type="button" onClick={() => setShowSyncAccountModal(false)} className="btn btn-secondary btn-sm">
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={accountSyncLoading || !tikTokAccountLink.trim()}
+                  className="btn btn-primary btn-sm"
+                  style={{
+                    background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
+                    color: "#000",
+                    fontWeight: 800
+                  }}
+                >
+                  {accountSyncLoading ? "Syncing..." : "⚡ Auto-Read & Sync Real-Time"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── ADD PLATFORM CHANNEL MODAL ── */}
       {showAddModal && (

@@ -864,6 +864,8 @@ const undo = React.useCallback(async () => {
 
 // 3. COMPONENTS
 
+// 3. COMPONENTS
+
 // LoginPage Component — Premium Sign-In with Demo Switcher
 window.LoginPage = function() {
   const { loginWithGoogle } = React.useContext(window.AuthContext);
@@ -1664,7 +1666,7 @@ window.Navbar = function() {
   );
 };
 
-// AccountCenterPage Component - Modern, Compact, High-Impact Account Overview
+// AccountCenterPage Component - Modern, Compact Account Overview with Real-Time TikTok Account Auto-Sync
 window.AccountCenterPage = function() {
   const { 
     activeAccount, 
@@ -1673,15 +1675,23 @@ window.AccountCenterPage = function() {
     contents, 
     canEdit, 
     setActivePage,
+    syncTikTokAccount,
     syncAllTikTokPosts,
     isSyncingTikTok
   } = React.useContext(window.VaultContext);
 
   const [showAddModal, setShowAddModal] = React.useState(false);
+  const [showSyncAccountModal, setShowSyncAccountModal] = React.useState(false);
   const [platformName, setPlatformName] = React.useState("Instagram");
   const [handle, setHandle] = React.useState("");
   const [followers, setFollowers] = React.useState("");
   const [url, setUrl] = React.useState("");
+
+  // TikTok Account Link Input State
+  const [tikTokAccountLink, setTikTokAccountLink] = React.useState("");
+  const [accountSyncLoading, setAccountSyncLoading] = React.useState(false);
+  const [accountSyncSuccess, setAccountSyncSuccess] = React.useState(null);
+  const [accountSyncError, setAccountSyncError] = React.useState("");
 
   if (!activeAccount) {
     return (
@@ -1703,7 +1713,7 @@ window.AccountCenterPage = function() {
   const totalSaves = accountContents.reduce((sum, c) => sum + (c.saves || 0), 0);
   const totalEngagement = totalLikes + totalComments + totalShares + totalSaves;
   const overallER = totalViews > 0 ? ((totalEngagement / totalViews) * 100).toFixed(2) : "0.00";
-  const totalFollowers = activeAccount.platforms.reduce((sum, p) => sum + (Number(p.followers) || 0), 0);
+  const totalFollowers = (activeAccount.platforms || []).reduce((sum, p) => sum + (Number(p.followers) || 0), 0);
 
   // Status breakdown
   const statusCounts = { Uploaded: 0, Scheduled: 0, Privated: 0, Deleted: 0 };
@@ -1735,7 +1745,6 @@ window.AccountCenterPage = function() {
     }
   }, [recentTikToks, avgTikTokViews]);
 
-  // Recent 5 content items across all platforms
   const recentPosts = accountContents
     .sort((a, b) => new Date(b.uploadDate || 0) - new Date(a.uploadDate || 0))
     .slice(0, 5);
@@ -1755,8 +1764,33 @@ window.AccountCenterPage = function() {
     setShowAddModal(false);
   };
 
+  // Handle Full TikTok Account Auto-Sync
+  const handleAutoSyncTikTokAccount = async (e) => {
+    if (e) e.preventDefault();
+    if (!tikTokAccountLink.trim()) {
+      setAccountSyncError("Please enter a TikTok account profile link or @handle");
+      return;
+    }
+
+    setAccountSyncLoading(true);
+    setAccountSyncError("");
+    setAccountSyncSuccess(null);
+
+    try {
+      const result = await syncTikTokAccount(activeAccount.id, tikTokAccountLink, {
+        importPosts: true,
+        updateFollowers: true
+      });
+      setAccountSyncSuccess(result);
+    } catch(err) {
+      setAccountSyncError(err.message || "Failed to auto-sync TikTok account");
+    } finally {
+      setAccountSyncLoading(false);
+    }
+  };
+
   const getPlatformIcon = (name) => {
-    switch (name.toLowerCase()) {
+    switch ((name || "").toLowerCase()) {
       case "instagram": return "📸";
       case "youtube": return "▶️";
       case "tiktok": return "🎵";
@@ -1768,6 +1802,8 @@ window.AccountCenterPage = function() {
       default: return "🌐";
     }
   };
+
+  const tikTokPlatform = (activeAccount.platforms || []).find(p => p.name === "TikTok");
 
   return (
     <div className="page-container">
@@ -1795,11 +1831,24 @@ window.AccountCenterPage = function() {
             </div>
           </div>
           <p className="page-subtitle" style={{ fontSize: "0.82rem", marginTop: "2px" }}>
-            {activeAccount.description || "Active social media workspace"} • {activeAccount.platforms.length} connected platforms
+            {activeAccount.description || "Active social media workspace"} • {(activeAccount.platforms || []).length} connected platforms
           </p>
         </div>
 
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          {canEdit && (
+            <button
+              onClick={() => {
+                setTikTokAccountLink(tikTokPlatform?.handle || `https://www.tiktok.com/@${activeAccount.name.toLowerCase().replace(/\s+/g, "_")}`);
+                setShowSyncAccountModal(true);
+              }}
+              className="btn btn-sm btn-secondary"
+              style={{ borderColor: "rgba(37,244,238,0.4)", color: "#25F4EE", background: "rgba(37,244,238,0.1)", fontWeight: 700 }}
+              title="Add TikTok account link to auto-read all data & posts in real-time"
+            >
+              <span>🎵 Auto-Sync TikTok Account</span>
+            </button>
+          )}
           {canEdit && (
             <button onClick={() => setShowAddModal(true)} className="btn btn-sm btn-secondary" style={{ fontWeight: 700 }}>
               <span>➕ Add Channel</span>
@@ -1826,7 +1875,7 @@ window.AccountCenterPage = function() {
             {totalFollowers >= 1000 ? (totalFollowers / 1000).toFixed(1) + "k" : totalFollowers.toLocaleString()}
           </div>
           <div style={{ fontSize: "0.74rem", color: "var(--accent-primary-light)", marginTop: "0.35rem", display: "flex", gap: "0.3rem" }}>
-            {activeAccount.platforms.map(p => (
+            {(activeAccount.platforms || []).map(p => (
               <span key={p.id} title={`${p.name}: ${(Number(p.followers) || 0).toLocaleString()}`}>{getPlatformIcon(p.name)}</span>
             ))}
           </div>
@@ -1844,7 +1893,7 @@ window.AccountCenterPage = function() {
             {totalViews >= 1000000 ? (totalViews / 1000000).toFixed(2) + "M" : (totalViews >= 1000 ? (totalViews / 1000).toFixed(1) + "k" : totalViews.toLocaleString())}
           </div>
           <div style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
-            Reach: <strong>{(totalReach / 1000).toFixed(1)}k</strong> (85% est.)
+            Reach: <strong>{(totalReach / 1000).toFixed(1)}k</strong>
           </div>
         </div>
 
@@ -1885,7 +1934,7 @@ window.AccountCenterPage = function() {
         </div>
       </div>
 
-      {/* ── TikTok Live Status & Quick Action Banner ── */}
+      {/* ── Real-Time TikTok Account Hub Banner ── */}
       <div className="glass-card" style={{
         padding: "1rem 1.25rem",
         borderRadius: "12px",
@@ -1899,21 +1948,46 @@ window.AccountCenterPage = function() {
         gap: "0.75rem"
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, #25F4EE, #FE2C55)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}>
+          <div style={{ width: "38px", height: "38px", borderRadius: "10px", background: "linear-gradient(135deg, #25F4EE, #FE2C55)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem" }}>
             🎵
           </div>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <span style={{ fontWeight: 800, fontSize: "0.95rem", color: "#fff" }}>TikTok Performance Pulse:</span>
-              <span style={{ fontWeight: 700, fontSize: "0.85rem", color: healthStatus.color }}>{healthStatus.label}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+              <span style={{ fontWeight: 800, fontSize: "0.95rem", color: "#fff" }}>
+                TikTok Real-Time Syncer:
+              </span>
+              <span style={{ fontWeight: 700, fontSize: "0.85rem", color: healthStatus.color }}>
+                {tikTokPlatform ? tikTokPlatform.handle : "No account linked"}
+              </span>
+              <span style={{ fontSize: "0.72rem", color: "var(--accent-cyan)", background: "rgba(6,182,212,0.12)", padding: "0.1rem 0.4rem", borderRadius: "4px" }}>
+                Live API
+              </span>
             </div>
             <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "1px" }}>
-              {healthStatus.desc} • {recentTikToks.length} posts tracked
+              {tikTokPlatform 
+                ? `${(Number(tikTokPlatform.followers) || 0).toLocaleString()} followers • ${recentTikToks.length} videos tracked in real-time`
+                : "Add your TikTok account link to auto-read all data & videos automatically"}
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={() => {
+              setTikTokAccountLink(tikTokPlatform?.handle || `https://www.tiktok.com/@${activeAccount.name.toLowerCase().replace(/\s+/g, "_")}`);
+              setShowSyncAccountModal(true);
+            }}
+            className="btn btn-sm btn-primary"
+            style={{
+              background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
+              color: "#000",
+              fontWeight: 800,
+              fontSize: "0.78rem"
+            }}
+          >
+            <span>⚡ {tikTokPlatform ? "Re-Sync Account Data" : "Link TikTok Account"}</span>
+          </button>
           {recentTikToks.length > 0 && (
             <button
               type="button"
@@ -1930,16 +2004,9 @@ window.AccountCenterPage = function() {
               title="Refresh views and engagement for all TikTok posts"
             >
               <span style={{ animation: isSyncingTikTok ? "spin 1s linear infinite" : "none", display: "inline-block" }}>🔄</span>
-              <span>{isSyncingTikTok ? "Syncing..." : "Sync Live TikTok"}</span>
+              <span>{isSyncingTikTok ? "Syncing..." : "Live Refresh"}</span>
             </button>
           )}
-          <button
-            onClick={() => setActivePage("timeframe-analytics")}
-            className="btn btn-sm btn-secondary"
-            style={{ fontSize: "0.78rem" }}
-          >
-            📊 View Analytics →
-          </button>
         </div>
       </div>
 
@@ -1950,7 +2017,7 @@ window.AccountCenterPage = function() {
         <div className="glass-card" style={{ padding: "1.25rem", borderRadius: "14px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
             <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>
-              Connected Channels ({activeAccount.platforms.length})
+              Connected Channels ({(activeAccount.platforms || []).length})
             </h3>
             {canEdit && (
               <button onClick={() => setShowAddModal(true)} className="btn btn-sm btn-ghost" style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}>
@@ -1960,7 +2027,7 @@ window.AccountCenterPage = function() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-            {activeAccount.platforms.map(p => (
+            {(activeAccount.platforms || []).map(p => (
               <div 
                 key={p.id} 
                 style={{
@@ -1977,7 +2044,14 @@ window.AccountCenterPage = function() {
                 <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
                   <span style={{ fontSize: "1.2rem" }}>{getPlatformIcon(p.name)}</span>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#fff" }}>{p.name}</div>
+                    <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#fff", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                      <span>{p.name}</span>
+                      {p.name === "TikTok" && (
+                        <span style={{ fontSize: "0.65rem", color: "#25F4EE", background: "rgba(37,244,238,0.15)", padding: "0.05rem 0.35rem", borderRadius: "4px" }}>
+                          Auto-Sync
+                        </span>
+                      )}
+                    </div>
                     <div style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>{p.handle}</div>
                   </div>
                 </div>
@@ -2050,12 +2124,96 @@ window.AccountCenterPage = function() {
             ))}
             {recentPosts.length === 0 && (
               <div style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)", fontSize: "0.82rem" }}>
-                No content logged yet. Click <strong>⚡ Log Content</strong> to add your first post!
+                No content logged yet. Link your TikTok account or click <strong>⚡ Log Content</strong>!
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* ── MODAL: AUTO-SYNC ENTIRE TIKTOK ACCOUNT LINK ── */}
+      {showSyncAccountModal && (
+        <div className="modal-overlay" onClick={() => setShowSyncAccountModal(false)}>
+          <div className="modal-content" style={{ maxWidth: "520px", width: "95%" }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, #25F4EE, #FE2C55)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  🎵
+                </div>
+                <div>
+                  <h2 style={{ fontSize: "1.15rem", fontWeight: 700, margin: 0 }}>Auto-Sync Entire TikTok Account</h2>
+                  <p style={{ fontSize: "0.76rem", color: "var(--text-muted)", margin: 0 }}>Reads profile, followers & all recent posts automatically in real-time</p>
+                </div>
+              </div>
+              <button onClick={() => setShowSyncAccountModal(false)} className="btn btn-secondary btn-icon" style={{ width: "28px", height: "28px" }}>✕</button>
+            </div>
+
+            <form onSubmit={handleAutoSyncTikTokAccount}>
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label className="form-label" style={{ fontSize: "0.78rem" }}>TikTok Account Link or Username</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="https://www.tiktok.com/@youraccount or @youraccount"
+                  required
+                  value={tikTokAccountLink}
+                  onChange={e => setTikTokAccountLink(e.target.value)}
+                  disabled={accountSyncLoading}
+                />
+                <div style={{ fontSize: "0.72rem", color: "var(--text-subtle)", marginTop: "4px" }}>
+                  Supports full profile URLs, mobile share links, or creator handles (e.g. <code>@mrbeast</code>, <code>tiktok.com/@nike</code>).
+                </div>
+              </div>
+
+              {/* Progress / Status feedback */}
+              {accountSyncLoading && (
+                <div style={{ padding: "1rem", borderRadius: "10px", background: "rgba(37,244,238,0.1)", border: "1px solid rgba(37,244,238,0.3)", marginBottom: "1rem", textAlign: "center" }}>
+                  <div style={{ animation: "spin 1s linear infinite", display: "inline-block", fontSize: "1.4rem", marginBottom: "0.4rem" }}>🔄</div>
+                  <div style={{ fontWeight: 700, color: "#25F4EE", fontSize: "0.88rem" }}>Connecting to TikTok API...</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Extracting profile details, live follower count & all video posts...</div>
+                </div>
+              )}
+
+              {accountSyncError && (
+                <div style={{ padding: "0.75rem 1rem", borderRadius: "8px", background: "rgba(244,63,94,0.15)", border: "1px solid rgba(244,63,94,0.3)", color: "#F43F5E", fontSize: "0.8rem", marginBottom: "1rem" }}>
+                  ⚠️ {accountSyncError}
+                </div>
+              )}
+
+              {accountSyncSuccess && (
+                <div style={{ padding: "0.85rem 1rem", borderRadius: "10px", background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)", marginBottom: "1rem" }}>
+                  <div style={{ fontWeight: 800, color: "#10B981", fontSize: "0.88rem", marginBottom: "0.3rem" }}>
+                    ✅ Successfully Linked & Synced!
+                  </div>
+                  <div style={{ fontSize: "0.78rem", color: "#fff" }}>
+                    • Account: <strong>@{accountSyncSuccess.profile.username}</strong> ({accountSyncSuccess.profile.nickname})<br />
+                    • Live Followers: <strong>{accountSyncSuccess.profile.followers.toLocaleString()}</strong><br />
+                    • Videos Synced: <strong>{accountSyncSuccess.videos.length} posts</strong> added to Content Table with real-time stats!
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
+                <button type="button" onClick={() => setShowSyncAccountModal(false)} className="btn btn-secondary btn-sm">
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={accountSyncLoading || !tikTokAccountLink.trim()}
+                  className="btn btn-primary btn-sm"
+                  style={{
+                    background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
+                    color: "#000",
+                    fontWeight: 800
+                  }}
+                >
+                  {accountSyncLoading ? "Syncing..." : "⚡ Auto-Read & Sync Real-Time"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── ADD PLATFORM CHANNEL MODAL ── */}
       {showAddModal && (
@@ -2106,17 +2264,18 @@ window.AccountCenterPage = function() {
   );
 };
 
-// TikTokHelpModal Component — Comprehensive Interactive Guide & Tutorial for TikTok API & Real-Time Sync
+// TikTokHelpModal Component — Comprehensive Interactive Guide & Tutorial for TikTok Account & Video Auto-Sync
 window.TikTokHelpModal = function({ isOpen, onClose }) {
-  const [activeTab, setActiveTab] = React.useState("quickstart");
+  const [activeTab, setActiveTab] = React.useState("accountsync");
   const [copiedUrl, setCopiedUrl] = React.useState("");
 
   if (!isOpen) return null;
 
   const sampleUrls = [
+    { label: "Account Profile Link", url: "https://www.tiktok.com/@tiktok" },
+    { label: "Account Username Handle", url: "@charlidamelio" },
     { label: "Standard Video Link", url: "https://www.tiktok.com/@tiktok/video/7106594312292453678" },
-    { label: "Mobile App Share Link", url: "https://vt.tiktok.com/ZS8NV2mY8/" },
-    { label: "Direct Video ID", url: "7106594312292453678" }
+    { label: "Mobile App Share Link", url: "https://vt.tiktok.com/ZS8NV2mY8/" }
   ];
 
   const handleCopy = (text) => {
@@ -2153,7 +2312,7 @@ window.TikTokHelpModal = function({ isOpen, onClose }) {
                 TikTok API & Real-Time Sync Guide
               </h2>
               <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "2px" }}>
-                Master automated post imports, metrics extraction, and real-time live performance tracking
+                Auto-read entire account feeds, profile followers & single video metrics with zero manual entry
               </p>
             </div>
           </div>
@@ -2170,7 +2329,19 @@ window.TikTokHelpModal = function({ isOpen, onClose }) {
         </div>
 
         {/* Tab Navigation */}
-        <div style={{ display: "flex", gap: "0.5rem", borderBottom: "1px solid var(--border-color)", paddingBottom: "0.75rem", marginBottom: "1.25rem" }}>
+        <div style={{ display: "flex", gap: "0.5rem", borderBottom: "1px solid var(--border-color)", paddingBottom: "0.75rem", marginBottom: "1.25rem", overflowX: "auto" }}>
+          <button
+            onClick={() => setActiveTab("accountsync")}
+            className="btn btn-sm"
+            style={{
+              background: activeTab === "accountsync" ? "linear-gradient(135deg, rgba(37,244,238,0.2), rgba(254,44,85,0.2))" : "transparent",
+              borderColor: activeTab === "accountsync" ? "#25F4EE" : "var(--border-color)",
+              color: activeTab === "accountsync" ? "#fff" : "var(--text-muted)",
+              fontWeight: 700
+            }}
+          >
+            🌐 Entire Account Auto-Sync
+          </button>
           <button
             onClick={() => setActiveTab("quickstart")}
             className="btn btn-sm"
@@ -2181,246 +2352,143 @@ window.TikTokHelpModal = function({ isOpen, onClose }) {
               fontWeight: 700
             }}
           >
-            ⚡ Quick Start (3 Steps)
+            ⚡ Single Video Extraction
           </button>
           <button
             onClick={() => setActiveTab("realtimesync")}
             className="btn btn-sm"
             style={{
               background: activeTab === "realtimesync" ? "linear-gradient(135deg, rgba(16,185,129,0.2), rgba(6,182,212,0.2))" : "transparent",
-              borderColor: activeTab === "realtimesync" ? "var(--accent-emerald)" : "var(--border-color)",
+              borderColor: activeTab === "realtimesync" ? "#10B981" : "var(--border-color)",
               color: activeTab === "realtimesync" ? "#fff" : "var(--text-muted)",
               fontWeight: 700
             }}
           >
-            🔄 Real-Time Live Sync
-          </button>
-          <button
-            onClick={() => setActiveTab("fields")}
-            className="btn btn-sm"
-            style={{
-              background: activeTab === "fields" ? "linear-gradient(135deg, rgba(139,92,246,0.2), rgba(217,70,239,0.2))" : "transparent",
-              borderColor: activeTab === "fields" ? "var(--accent-primary)" : "var(--border-color)",
-              color: activeTab === "fields" ? "#fff" : "var(--text-muted)",
-              fontWeight: 700
-            }}
-          >
-            📊 Data Extracted
+            🔄 Live Real-Time Updating
           </button>
           <button
             onClick={() => setActiveTab("faq")}
             className="btn btn-sm"
             style={{
-              background: activeTab === "faq" ? "rgba(255,255,255,0.1)" : "transparent",
-              borderColor: activeTab === "faq" ? "var(--border-hover)" : "var(--border-color)",
+              background: activeTab === "faq" ? "rgba(139, 92, 246, 0.2)" : "transparent",
+              borderColor: activeTab === "faq" ? "var(--accent-primary)" : "var(--border-color)",
               color: activeTab === "faq" ? "#fff" : "var(--text-muted)",
               fontWeight: 700
             }}
           >
-            💡 Pro Tips & FAQ
+            💡 FAQ & Tips
           </button>
         </div>
 
-        {/* TAB 1: QUICK START */}
-        {activeTab === "quickstart" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
-              {/* Step 1 */}
-              <div className="glass-card" style={{ padding: "1.1rem", background: "rgba(255,255,255,0.03)", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.6rem" }}>
-                  <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#25F4EE", color: "#000", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.8rem" }}>1</span>
-                  <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700 }}>Copy TikTok Link</h4>
-                </div>
-                <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", lineHeight: 1.5, margin: 0 }}>
-                  Open TikTok on mobile or desktop, click <strong>Share</strong>, and select <strong>Copy Link</strong>.
-                </p>
-              </div>
-
-              {/* Step 2 */}
-              <div className="glass-card" style={{ padding: "1.1rem", background: "rgba(255,255,255,0.03)", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.6rem" }}>
-                  <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#FE2C55", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.8rem" }}>2</span>
-                  <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700 }}>Paste & Auto-Fill</h4>
-                </div>
-                <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", lineHeight: 1.5, margin: 0 }}>
-                  Paste the URL in the <strong>TikTok API Panel</strong> on <em>Add Content</em> or <em>Content Table</em> and click <strong>Auto-Fill</strong>.
-                </p>
-              </div>
-
-              {/* Step 3 */}
-              <div className="glass-card" style={{ padding: "1.1rem", background: "rgba(255,255,255,0.03)", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.6rem" }}>
-                  <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: "var(--accent-emerald)", color: "#000", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.8rem" }}>3</span>
-                  <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700 }}>Save & Live Track</h4>
-                </div>
-                <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", lineHeight: 1.5, margin: 0 }}>
-                  Review the auto-filled fields and click <strong>Save</strong>. You can now track and live-sync stats anytime!
-                </p>
-              </div>
-            </div>
-
-            {/* Test Copy Links */}
-            <div style={{ marginTop: "0.5rem", padding: "1rem", borderRadius: "10px", background: "rgba(37,244,238,0.06)", border: "1px solid rgba(37,244,238,0.2)" }}>
-              <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#25F4EE", marginBottom: "0.6rem" }}>
-                🧪 Try with Example TikTok Links (Click to copy & test):
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                {sampleUrls.map((item, idx) => (
-                  <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(0,0,0,0.3)", padding: "0.5rem 0.75rem", borderRadius: "6px", fontSize: "0.8rem" }}>
-                    <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: "1rem" }}>
-                      <span style={{ color: "var(--text-muted)", marginRight: "0.5rem" }}>[{item.label}]</span>
-                      <code style={{ color: "#fff" }}>{item.url}</code>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(item.url)}
-                      className="btn btn-sm"
-                      style={{ padding: "0.2rem 0.6rem", fontSize: "0.75rem", minWidth: "75px" }}
-                    >
-                      {copiedUrl === item.url ? "✅ Copied!" : "📋 Copy"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: REAL-TIME LIVE SYNC */}
-        {activeTab === "realtimesync" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div style={{ padding: "1.2rem", borderRadius: "12px", background: "linear-gradient(135deg, rgba(16,185,129,0.1), rgba(6,182,212,0.1))", border: "1px solid rgba(16,185,129,0.3)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.5rem" }}>
-                <span style={{ fontSize: "1.2rem" }}>⚡</span>
-                <h4 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 800, color: "#10B981" }}>
-                  How Real-Time Live Sync Works
-                </h4>
-              </div>
-              <p style={{ fontSize: "0.86rem", color: "var(--text-normal)", lineHeight: 1.6, margin: 0 }}>
-                When you add TikTok posts via the TikTok API, SociaVault stores the original video reference. This unlocks <strong>1-click live metrics refreshing</strong> directly from TikTok’s public data network without having to re-type impressions, views, likes, or comments!
+        {/* TAB 1: Entire Account Auto-Sync */}
+        {activeTab === "accountsync" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            <div style={{ padding: "1.1rem", borderRadius: "12px", background: "linear-gradient(135deg, rgba(37,244,238,0.08), rgba(254,44,85,0.08))", border: "1px solid rgba(37,244,238,0.25)" }}>
+              <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: "0 0 0.5rem", color: "#fff" }}>
+                🚀 1-Click Zero-Manual Entry: Auto-Sync Your Whole Account
+              </h3>
+              <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>
+                You don't need to manually type post metrics or copy individual links one by one. Simply provide your TikTok account link (e.g. <code>https://www.tiktok.com/@yourbrand</code> or <code>@yourbrand</code>) and SociaVault will:
               </p>
+              <ul style={{ fontSize: "0.82rem", color: "var(--text-secondary)", marginTop: "0.6rem", marginLeft: "1.25rem", lineHeight: 1.7 }}>
+                <li>Auto-read your live <strong>Follower count, Display name & HD Avatar</strong>.</li>
+                <li>Fetch and import <strong>all recent video posts</strong> directly into your Content Table.</li>
+                <li>Extract live <strong>Views, Likes, Comments, Shares, Saves, Captions & Hashtags</strong> for each video in real time.</li>
+              </ul>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <div className="glass-card" style={{ padding: "1rem", borderRadius: "10px" }}>
-                <div style={{ fontWeight: 700, fontSize: "0.92rem", marginBottom: "0.4rem", color: "#25F4EE" }}>
-                  🔄 Bulk Sync All TikTok Posts
+            <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#fff", margin: 0 }}>
+              📋 Copy & Test with Sample Profile Links:
+            </h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              {sampleUrls.slice(0, 2).map((item, idx) => (
+                <div 
+                  key={idx} 
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "0.65rem 0.85rem",
+                    borderRadius: "8px",
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid var(--border-color)",
+                    fontSize: "0.82rem"
+                  }}
+                >
+                  <div>
+                    <span style={{ fontWeight: 600, color: "#fff", marginRight: "0.5rem" }}>{item.label}:</span>
+                    <code style={{ color: "var(--accent-cyan-light)" }}>{item.url}</code>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(item.url)}
+                    className="btn btn-sm btn-ghost"
+                    style={{ padding: "0.2rem 0.6rem", fontSize: "0.75rem", color: copiedUrl === item.url ? "var(--accent-emerald)" : "var(--accent-primary-light)" }}
+                  >
+                    {copiedUrl === item.url ? "✅ Copied!" : "📋 Copy"}
+                  </button>
                 </div>
-                <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", lineHeight: 1.5, margin: 0 }}>
-                  On the <strong>Content Table</strong> page, click the <strong>"🔄 Sync Live TikTok"</strong> button in the top toolbar to automatically query and refresh all TikTok posts in your active account in one go.
-                </p>
-              </div>
-
-              <div className="glass-card" style={{ padding: "1rem", borderRadius: "10px" }}>
-                <div style={{ fontWeight: 700, fontSize: "0.92rem", marginBottom: "0.4rem", color: "#F43F5E" }}>
-                  🎯 Single-Post Instant Refresh
-                </div>
-                <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", lineHeight: 1.5, margin: 0 }}>
-                  In the Content Table, any row that came from TikTok has a quick <strong>🔄 Sync</strong> button next to Edit/Delete. Click it anytime to update just that video’s latest stats.
-                </p>
-              </div>
-            </div>
-
-            <div style={{ padding: "0.85rem 1rem", borderRadius: "8px", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", fontSize: "0.82rem", color: "#F59E0B" }}>
-              💡 <strong>Instant Reversibility:</strong> All live sync actions are recorded in the Global Undo history! If you ever want to revert back to your previous metrics, press <strong>Ctrl+Z</strong> or click <strong>Undo</strong> in the top navbar.
+              ))}
             </div>
           </div>
         )}
 
-        {/* TAB 3: DATA EXTRACTED */}
-        {activeTab === "fields" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>
-              The TikTok API extracts and maps the following data points automatically into SociaVault:
-            </p>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", padding: "0.75rem", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-                <span style={{ fontSize: "1.1rem" }}>🎬</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>Caption & Text</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Cleans hashtags and extracts full post text description</div>
-                </div>
+        {/* TAB 2: Single Video Quick Start */}
+        {activeTab === "quickstart" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.85rem" }}>
+              <div className="glass-card" style={{ padding: "1rem", borderRadius: "10px" }}>
+                <div style={{ fontSize: "1.4rem", marginBottom: "0.35rem" }}>1️⃣</div>
+                <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#fff", marginBottom: "0.2rem" }}>Copy Video Link</div>
+                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Copy any public TikTok link from the app or browser.</div>
               </div>
-
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", padding: "0.75rem", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-                <span style={{ fontSize: "1.1rem" }}>🏷️</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>Hashtags List</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Parses all #tags into individual interactive hashtag tags</div>
-                </div>
+              <div className="glass-card" style={{ padding: "1rem", borderRadius: "10px" }}>
+                <div style={{ fontSize: "1.4rem", marginBottom: "0.35rem" }}>2️⃣</div>
+                <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#fff", marginBottom: "0.2rem" }}>Paste & Auto-Fill</div>
+                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Paste into Add Content or Table and click ⚡ Auto-Fill.</div>
               </div>
-
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", padding: "0.75rem", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-                <span style={{ fontSize: "1.1rem" }}>👤</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>Creator / Subject</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Maps the video author handle into the Subjects module</div>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", padding: "0.75rem", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-                <span style={{ fontSize: "1.1rem" }}>📈</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>Live Views & Reach</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Extracts current view impressions and estimated audience reach</div>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", padding: "0.75rem", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-                <span style={{ fontSize: "1.1rem" }}>❤️</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>Engagement (Likes, Comments, Shares, Saves)</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Full 4-tier engagement metrics for precise ER calculation</div>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", padding: "0.75rem", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-                <span style={{ fontSize: "1.1rem" }}>🖼️</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>HD Video Thumbnail</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>High-res cover art thumbnail for visual logs & reports</div>
-                </div>
+              <div className="glass-card" style={{ padding: "1rem", borderRadius: "10px" }}>
+                <div style={{ fontSize: "1.4rem", marginBottom: "0.35rem" }}>3️⃣</div>
+                <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#fff", marginBottom: "0.2rem" }}>Save & Sync Live</div>
+                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>All numbers auto-populate. Keep updated anytime with Live Sync!</div>
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 4: FAQ & PRO TIPS */}
+        {/* TAB 3: Real-Time Live Sync */}
+        {activeTab === "realtimesync" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem", fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>
+            <div style={{ padding: "1rem", borderRadius: "10px", background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)" }}>
+              <h4 style={{ margin: "0 0 0.4rem", color: "#10B981", fontSize: "0.95rem" }}>🔄 How Real-Time Live Sync Keeps Data Fresh</h4>
+              <p style={{ margin: 0, fontSize: "0.82rem" }}>
+                Social media posts gain views and comments continuously after uploading. SociaVault provides two real-time sync mechanisms:
+              </p>
+              <ul style={{ marginTop: "0.5rem", marginLeft: "1.2rem", fontSize: "0.8rem", lineHeight: 1.6 }}>
+                <li><strong>Bulk Channel Live Sync (🔄 Sync Live TikTok):</strong> Located on the Overview and Table page. In 1 click, queries TikTok API and updates metrics for all posts simultaneously.</li>
+                <li><strong>Per-Row Instant Refresh (🔄):</strong> Located next to each TikTok post in the table actions column to refresh just that specific video.</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: FAQ */}
         {activeTab === "faq" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-            <div className="glass-card" style={{ padding: "0.9rem 1.1rem", borderRadius: "10px" }}>
-              <div style={{ fontWeight: 700, fontSize: "0.88rem", marginBottom: "0.3rem", color: "#fff" }}>
-                Q: Can I edit the numbers after auto-importing?
-              </div>
-              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
-                <strong>Yes!</strong> All imported values (caption, hashtags, impressions, status, dates) are fully editable before submitting and anytime via the Edit modal in the Content Table.
-              </p>
+            <div className="glass-card" style={{ padding: "0.85rem 1rem", borderRadius: "10px" }}>
+              <div style={{ fontWeight: 700, color: "#fff", fontSize: "0.85rem", marginBottom: "0.2rem" }}>Does this require logging in with my TikTok password?</div>
+              <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>No! SociaVault uses public creator API endpoints, so you only need to provide your public @username or profile URL without sharing passwords or login credentials.</div>
             </div>
-
-            <div className="glass-card" style={{ padding: "0.9rem 1.1rem", borderRadius: "10px" }}>
-              <div style={{ fontWeight: 700, fontSize: "0.88rem", marginBottom: "0.3rem", color: "#fff" }}>
-                Q: Does it work with Private TikTok accounts or videos?
-              </div>
-              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
-                No, TikTok’s public API requires videos to be public. Private videos or friends-only videos cannot be fetched automatically.
-              </p>
-            </div>
-
-            <div className="glass-card" style={{ padding: "0.9rem 1.1rem", borderRadius: "10px" }}>
-              <div style={{ fontWeight: 700, fontSize: "0.88rem", marginBottom: "0.3rem", color: "#fff" }}>
-                Q: How does the Global Undo button work?
-              </div>
-              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
-                The <strong>↩️ Undo</strong> button in the top navbar remembers up to 30 recent actions (adding, updating, deleting, bulk clearing, and live syncing). You can click it anytime or press <strong>Ctrl+Z</strong> on your keyboard to instantly roll back!
-              </p>
+            <div className="glass-card" style={{ padding: "0.85rem 1rem", borderRadius: "10px" }}>
+              <div style={{ fontWeight: 700, color: "#fff", fontSize: "0.85rem", marginBottom: "0.2rem" }}>Can I undo an auto-sync?</div>
+              <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Yes! Every sync is recorded in the Undo history. You can click <strong>↩️ Undo</strong> or press <kbd>Ctrl+Z</kbd> anytime to rollback changes.</div>
             </div>
           </div>
         )}
 
-        {/* Modal Footer */}
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid var(--border-color)" }}>
-          <button type="button" onClick={onClose} className="btn btn-primary" style={{ minWidth: "120px" }}>
+        {/* Footer */}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.5rem" }}>
+          <button type="button" onClick={onClose} className="btn btn-primary btn-sm">
             Got It! Close Guide
           </button>
         </div>
@@ -2429,10 +2497,11 @@ window.TikTokHelpModal = function({ isOpen, onClose }) {
   );
 };
 
-// AddContentPage Component - Modern 2-Column Compact Layout for Fast Manual & TikTok API Logging
+// AddContentPage Component - Modern 2-Column Layout with Single Video & Entire TikTok Account Auto-Import
 window.AddContentPage = function() {
-  const { activeAccount, addContent, canEdit, setActivePage, fetchTikTokData } = React.useContext(window.VaultContext);
+  const { activeAccount, addContent, canEdit, setActivePage, fetchTikTokData, syncTikTokAccount } = React.useContext(window.VaultContext);
 
+  const [mode, setMode] = React.useState("single"); // "single" | "account"
   const [uploadDate, setUploadDate] = React.useState(() => new Date().toISOString().split("T")[0]);
   const [uploadTime, setUploadTime] = React.useState(() => {
     const now = new Date();
@@ -2452,18 +2521,20 @@ window.AddContentPage = function() {
   const [status, setStatus] = React.useState("Uploaded");
   const [contentType, setContentType] = React.useState("Video");
 
-  // TikTok API Auto-Fetch State
+  // TikTok API State
   const [tiktokInput, setTiktokInput] = React.useState("");
+  const [tiktokAccountInput, setTiktokAccountInput] = React.useState("");
   const [tiktokLoading, setTiktokLoading] = React.useState(false);
   const [tiktokError, setTiktokError] = React.useState("");
   const [tiktokSuccess, setTiktokSuccess] = React.useState(null);
+  const [accountSuccess, setAccountSuccess] = React.useState(null);
   const [helpModalOpen, setHelpModalOpen] = React.useState(false);
 
   if (!activeAccount) {
     return <div className="page-container"><p>No active account selected.</p></div>;
   }
 
-  // Handle TikTok API Fetch
+  // Handle Single TikTok Video Fetch
   const handleFetchTikTok = async (e) => {
     if (e) e.preventDefault();
     if (!tiktokInput.trim()) {
@@ -2478,7 +2549,6 @@ window.AddContentPage = function() {
     try {
       const data = await fetchTikTokData(tiktokInput);
       
-      // Auto-populate all form fields
       setPlatform("TikTok");
       setContentType(data.contentType || "Video");
       setCaption(data.caption || "");
@@ -2497,6 +2567,34 @@ window.AddContentPage = function() {
       setTiktokSuccess(data);
     } catch (err) {
       setTiktokError(err.message || "Failed to fetch TikTok post data");
+    } finally {
+      setTiktokLoading(false);
+    }
+  };
+
+  // Handle Entire Account Auto-Sync
+  const handleSyncEntireAccount = async (e) => {
+    if (e) e.preventDefault();
+    if (!tiktokAccountInput.trim()) {
+      setTiktokError("Please enter a TikTok account profile link or @handle");
+      return;
+    }
+
+    setTiktokLoading(true);
+    setTiktokError("");
+    setAccountSuccess(null);
+
+    try {
+      const res = await syncTikTokAccount(activeAccount.id, tiktokAccountInput, {
+        importPosts: true,
+        updateFollowers: true
+      });
+      setAccountSuccess(res);
+      setTimeout(() => {
+        setActivePage("content-table");
+      }, 1500);
+    } catch(err) {
+      setTiktokError(err.message || "Failed to sync TikTok account data");
     } finally {
       setTiktokLoading(false);
     }
@@ -2561,7 +2659,7 @@ window.AddContentPage = function() {
             Add Content Entry
           </h1>
           <p className="page-subtitle" style={{ fontSize: "0.82rem" }}>
-            Log post metrics manually or import in seconds via TikTok API
+            Auto-read single videos or auto-sync your entire TikTok account in real time
           </p>
         </div>
 
@@ -2597,50 +2695,125 @@ window.AddContentPage = function() {
               </div>
               <div>
                 <h3 style={{ margin: 0, fontSize: "0.98rem", fontWeight: 700, color: "#fff" }}>
-                  TikTok API Auto-Input
+                  TikTok API Auto-Reader
                 </h3>
                 <div style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>
-                  Paste any TikTok link to auto-fill views, likes & caption
+                  Extract single posts or auto-sync all account posts in real time
                 </div>
               </div>
             </div>
 
-            <form onSubmit={handleFetchTikTok} style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-              <input
-                type="text"
-                className="form-input"
-                style={{ background: "rgba(15, 23, 42, 0.7)", fontSize: "0.84rem", minHeight: "38px" }}
-                placeholder="https://www.tiktok.com/@user/video/... or https://vt.tiktok.com/..."
-                value={tiktokInput}
-                onChange={e => setTiktokInput(e.target.value)}
-                disabled={tiktokLoading}
-              />
+            {/* Mode Switcher Tabs */}
+            <div style={{ display: "flex", gap: "0.35rem", marginBottom: "0.85rem", background: "rgba(0,0,0,0.3)", padding: "0.25rem", borderRadius: "8px" }}>
               <button
-                type="submit"
-                className="btn btn-primary btn-sm"
-                disabled={tiktokLoading || !tiktokInput.trim()}
+                type="button"
+                onClick={() => setMode("single")}
                 style={{
-                  background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
-                  color: "#000",
-                  fontWeight: 800,
+                  flex: 1,
+                  padding: "0.35rem",
+                  borderRadius: "6px",
                   border: "none",
-                  width: "100%",
-                  minHeight: "36px"
+                  background: mode === "single" ? "rgba(37,244,238,0.2)" : "transparent",
+                  color: mode === "single" ? "#25F4EE" : "var(--text-muted)",
+                  fontWeight: mode === "single" ? 700 : 500,
+                  fontSize: "0.76rem",
+                  cursor: "pointer"
                 }}
               >
-                {tiktokLoading ? "⏳ Extracting Post Data..." : "⚡ Auto-Fill Post Details"}
+                🔗 Single Video
               </button>
-            </form>
+              <button
+                type="button"
+                onClick={() => setMode("account")}
+                style={{
+                  flex: 1,
+                  padding: "0.35rem",
+                  borderRadius: "6px",
+                  border: "none",
+                  background: mode === "account" ? "linear-gradient(135deg, rgba(37,244,238,0.25), rgba(254,44,85,0.25))" : "transparent",
+                  color: mode === "account" ? "#fff" : "var(--text-muted)",
+                  fontWeight: mode === "account" ? 700 : 500,
+                  fontSize: "0.76rem",
+                  cursor: "pointer"
+                }}
+              >
+                🌐 Entire TikTok Account
+              </button>
+            </div>
+
+            {/* Form for Single Video */}
+            {mode === "single" ? (
+              <form onSubmit={handleFetchTikTok} style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ background: "rgba(15, 23, 42, 0.7)", fontSize: "0.84rem", minHeight: "38px" }}
+                  placeholder="https://www.tiktok.com/@user/video/... or https://vt.tiktok.com/..."
+                  value={tiktokInput}
+                  onChange={e => setTiktokInput(e.target.value)}
+                  disabled={tiktokLoading}
+                />
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  disabled={tiktokLoading || !tiktokInput.trim()}
+                  style={{
+                    background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
+                    color: "#000",
+                    fontWeight: 800,
+                    border: "none",
+                    width: "100%",
+                    minHeight: "36px"
+                  }}
+                >
+                  {tiktokLoading ? "⏳ Extracting Post Data..." : "⚡ Auto-Fill Post Details"}
+                </button>
+              </form>
+            ) : (
+              /* Form for Entire Account Auto-Sync */
+              <form onSubmit={handleSyncEntireAccount} style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ background: "rgba(15, 23, 42, 0.7)", fontSize: "0.84rem", minHeight: "38px" }}
+                  placeholder="https://www.tiktok.com/@yourbrand or @yourbrand"
+                  value={tiktokAccountInput}
+                  onChange={e => setTiktokAccountInput(e.target.value)}
+                  disabled={tiktokLoading}
+                />
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  disabled={tiktokLoading || !tiktokAccountInput.trim()}
+                  style={{
+                    background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
+                    color: "#000",
+                    fontWeight: 800,
+                    border: "none",
+                    width: "100%",
+                    minHeight: "36px"
+                  }}
+                >
+                  {tiktokLoading ? "🔄 Reading Profile & All Videos..." : "⚡ Auto-Import All Account Videos in Real-Time"}
+                </button>
+              </form>
+            )}
 
             {tiktokError && (
               <div style={{ marginTop: "0.65rem", padding: "0.5rem 0.75rem", borderRadius: "6px", background: "rgba(244,63,94,0.15)", border: "1px solid rgba(244,63,94,0.3)", color: "#F43F5E", fontSize: "0.78rem" }}>
                 ⚠️ {tiktokError}
               </div>
             )}
+
+            {accountSuccess && (
+              <div style={{ marginTop: "0.65rem", padding: "0.65rem 0.85rem", borderRadius: "8px", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: "#10B981", fontSize: "0.8rem" }}>
+                ✅ Successfully imported <strong>{accountSuccess.videos.length} videos</strong> from @{accountSuccess.profile.username}! Redirecting to table...
+              </div>
+            )}
           </div>
 
-          {/* Live Extracted Card Preview */}
-          {tiktokSuccess && (
+          {/* Live Extracted Card Preview for Single Post */}
+          {tiktokSuccess && mode === "single" && (
             <div className="glass-card" style={{
               padding: "1.1rem",
               borderRadius: "12px",
@@ -2671,7 +2844,7 @@ window.AddContentPage = function() {
 
           {/* Quick Pro-Tip Box */}
           <div style={{ padding: "0.85rem 1rem", borderRadius: "10px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
-            💡 <strong>Instant Sync Tip:</strong> All auto-filled numbers remain 100% editable on the right before saving. After adding, you can real-time sync metrics anytime on the Content Table!
+            💡 <strong>Zero Manual Input:</strong> Paste your TikTok account profile link once under <em>"Entire TikTok Account"</em> to import all your videos with live views, likes, comments, and captions automatically!
           </div>
         </div>
 
@@ -2816,21 +2989,22 @@ window.AddContentPage = function() {
   );
 };
 
-// ContentTablePage Component - Formatted Interactive Content Table with TikTok API Real-Time Sync & Undo Support
+// ContentTablePage Component - Modern, Compact Interactive Content Logs with TikTok Account & Single Video Auto-Sync
 window.ContentTablePage = function() {
-  const {
-    activeAccount,
-    contents,
-    addContent,
-    updateContent,
-    deleteContent,
-    removeAllContents,
-    canEdit,
-    setActivePage,
+  const { 
+    activeAccount, 
+    contents, 
+    addContent, 
+    updateContent, 
+    deleteContent, 
+    canEdit, 
+    setActivePage, 
     fetchTikTokData,
-    syncTikTokPost,
-    syncAllTikTokPosts,
-    isSyncingTikTok
+    syncTikTokAccount,
+    syncTikTokPost, 
+    syncAllTikTokPosts, 
+    isSyncingTikTok,
+    removeAllContents 
   } = React.useContext(window.VaultContext);
 
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -2839,60 +3013,58 @@ window.ContentTablePage = function() {
   const [sortBy, setSortBy] = React.useState("uploadDate");
   const [sortOrder, setSortOrder] = React.useState("desc");
 
-  // Edit Modal State
-  const [editingContent, setEditingContent] = React.useState(null);
-
-  // TikTok Quick Import Modal State
+  // Quick TikTok Modal State (supports single video & entire account sync)
   const [tiktokModalOpen, setTiktokModalOpen] = React.useState(false);
+  const [tiktokModalMode, setTiktokModalMode] = React.useState("account"); // "account" | "single"
   const [tiktokUrlInput, setTiktokUrlInput] = React.useState("");
   const [tiktokFetching, setTiktokFetching] = React.useState(false);
   const [tiktokFetchError, setTiktokFetchError] = React.useState("");
   const [tiktokPreview, setTiktokPreview] = React.useState(null);
+  const [tiktokAccountResult, setTiktokAccountResult] = React.useState(null);
 
-  // TikTok Tutorial / Guide Modal State
-  const [helpModalOpen, setHelpModalOpen] = React.useState(false);
+  // Edit Modal State
+  const [editingContent, setEditingContent] = React.useState(null);
 
-  // Remove All Confirmation Modal State
+  // Remove All Modal State
   const [removeAllModalOpen, setRemoveAllModalOpen] = React.useState(false);
 
-  // Single post syncing loading tracker
+  // Guide Tutorial Modal State
+  const [helpModalOpen, setHelpModalOpen] = React.useState(false);
+
+  // Single Item Syncing State Indicator
   const [syncingItemId, setSyncingItemId] = React.useState(null);
 
   if (!activeAccount) {
     return <div className="page-container"><p>No active account selected.</p></div>;
   }
 
-  // Filter content items for active account
-  const accountContents = React.useMemo(() => {
-    return contents.filter(c => c.accountId === activeAccount.id);
-  }, [contents, activeAccount.id]);
+  const accountContents = contents.filter(c => c.accountId === activeAccount.id);
+  const tikTokItems = accountContents.filter(c => c.platform === "TikTok" || c.originalUrl);
+  const tikTokCount = tikTokItems.length;
 
-  // Count TikTok posts
-  const tikTokCount = React.useMemo(() => {
-    return accountContents.filter(c => c.platform === "TikTok" || c.originalUrl).length;
-  }, [accountContents]);
+  const tikTokPlatform = (activeAccount.platforms || []).find(p => p.name === "TikTok");
 
-  // Search & Filter
-  const filteredContents = React.useMemo(() => {
+  // Filtering & Sorting
+  const filteredAndSortedContents = React.useMemo(() => {
     return accountContents.filter(item => {
-      const matchSearch = 
-        (item.caption || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.hashtags || []).some(h => h.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (item.subjects || []).some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
+      const q = searchTerm.toLowerCase();
+      const matchesSearch = !searchTerm ||
+        (item.caption || "").toLowerCase().includes(q) ||
+        (item.contentType || "").toLowerCase().includes(q) ||
+        (item.hashtags || []).some(h => h.toLowerCase().includes(q)) ||
+        (item.subjects || []).some(s => s.toLowerCase().includes(q));
 
-      const matchPlatform = platformFilter === "ALL" || item.platform === platformFilter;
-      const matchStatus = statusFilter === "ALL" || (item.status || "Uploaded") === statusFilter;
+      const matchesPlatform = platformFilter === "ALL" || item.platform === platformFilter;
+      const matchesStatus = statusFilter === "ALL" || (item.status || "Uploaded") === statusFilter;
 
-      return matchSearch && matchPlatform && matchStatus;
+      return matchesSearch && matchesPlatform && matchesStatus;
     }).sort((a, b) => {
       let valA = a[sortBy];
       let valB = b[sortBy];
 
       if (sortBy === "er") {
-        const engA = (a.likes || 0) + (a.comments || 0) + (a.shares || 0) + (a.saves || 0);
-        const engB = (b.likes || 0) + (b.comments || 0) + (b.shares || 0) + (b.saves || 0);
-        valA = a.impressions ? (engA / a.impressions) : 0;
-        valB = b.impressions ? (engB / b.impressions) : 0;
+        valA = a.reach > 0 ? ((a.likes + a.comments + a.shares + a.saves) / a.reach) * 100 : 0;
+        valB = b.reach > 0 ? ((b.likes + b.comments + b.shares + b.saves) / b.reach) * 100 : 0;
       }
 
       if (typeof valA === "string") {
@@ -2973,17 +3145,26 @@ window.ContentTablePage = function() {
   // ── TikTok Quick Fetch Handler ──
   const handleFetchTikTokModal = async () => {
     if (!tiktokUrlInput.trim()) {
-      setTiktokFetchError("Please enter a TikTok URL or Video ID");
+      setTiktokFetchError("Please enter a TikTok URL, Video ID, or @account");
       return;
     }
 
     setTiktokFetching(true);
     setTiktokFetchError("");
     setTiktokPreview(null);
+    setTiktokAccountResult(null);
 
     try {
-      const data = await fetchTikTokData(tiktokUrlInput);
-      setTiktokPreview(data);
+      if (tiktokModalMode === "account") {
+        const res = await syncTikTokAccount(activeAccount.id, tiktokUrlInput, {
+          importPosts: true,
+          updateFollowers: true
+        });
+        setTiktokAccountResult(res);
+      } else {
+        const data = await fetchTikTokData(tiktokUrlInput);
+        setTiktokPreview(data);
+      }
     } catch (err) {
       setTiktokFetchError(err.message || "Failed to fetch from TikTok API");
     } finally {
@@ -3025,12 +3206,12 @@ window.ContentTablePage = function() {
           <p className="page-subtitle">Interactive database of published, scheduled, privated, and deleted posts</p>
         </div>
 
-        <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
           {/* Tutorial / Help Button */}
           <button
             type="button"
             onClick={() => setHelpModalOpen(true)}
-            className="btn btn-secondary"
+            className="btn btn-sm btn-secondary"
             style={{
               borderColor: "rgba(37,244,238,0.4)",
               color: "#25F4EE",
@@ -3044,13 +3225,31 @@ window.ContentTablePage = function() {
 
           {canEdit && (
             <>
-              {/* Real-Time Bulk Sync TikTok Button */}
+              {/* Auto-Sync TikTok Account Button */}
+              <button
+                onClick={() => {
+                  setTiktokModalMode("account");
+                  setTiktokUrlInput(tikTokPlatform?.handle || "");
+                  setTiktokModalOpen(true);
+                }}
+                className="btn btn-sm btn-primary"
+                style={{
+                  background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
+                  color: "#000",
+                  fontWeight: 800
+                }}
+                title="Add TikTok account link to auto-read all posts in real-time"
+              >
+                <span>🎵 Auto-Sync Account</span>
+              </button>
+
+              {/* Real-Time Bulk Refresh Button */}
               {tikTokCount > 0 && (
                 <button
                   type="button"
                   onClick={() => syncAllTikTokPosts(activeAccount.id)}
                   disabled={isSyncingTikTok}
-                  className="btn btn-secondary"
+                  className="btn btn-sm btn-secondary"
                   style={{
                     background: "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(6,182,212,0.18))",
                     border: "1px solid rgba(16,185,129,0.4)",
@@ -3060,42 +3259,22 @@ window.ContentTablePage = function() {
                   title="Update impressions, views, likes & metrics for all TikTok posts in real-time"
                 >
                   <span style={{ animation: isSyncingTikTok ? "spin 1s linear infinite" : "none", display: "inline-block" }}>🔄</span>
-                  <span>{isSyncingTikTok ? "Syncing..." : `Sync Live TikTok (${tikTokCount})`}</span>
+                  <span>{isSyncingTikTok ? "Syncing..." : `Live Sync (${tikTokCount})`}</span>
                 </button>
               )}
 
-              {/* TikTok Quick Import Button */}
-              <button
-                onClick={() => setTiktokModalOpen(true)}
-                className="btn btn-secondary"
-                style={{
-                  background: "linear-gradient(135deg, rgba(37,244,238,0.15), rgba(254,44,85,0.15))",
-                  border: "1px solid rgba(37,244,238,0.35)",
-                  color: "#25F4EE",
-                  fontWeight: 700
-                }}
-                title="Import TikTok video automatically using TikTok API"
-              >
-                <span>🎵 Import TikTok</span>
-              </button>
-
-              {/* Add Content Button */}
-              <button onClick={() => setActivePage("add-content")} className="btn btn-primary">
-                <span>➕ Add Content</span>
+              {/* Manual Add Content Button */}
+              <button onClick={() => setActivePage("add-content")} className="btn btn-sm btn-secondary" style={{ fontWeight: 700 }}>
+                <span>➕ Add Post</span>
               </button>
 
               {/* Remove All Content Button */}
               {accountContents.length > 0 && (
                 <button
                   onClick={() => setRemoveAllModalOpen(true)}
-                  className="btn btn-secondary"
-                  style={{
-                    background: "rgba(244, 63, 94, 0.12)",
-                    border: "1px solid rgba(244, 63, 94, 0.35)",
-                    color: "#F43F5E",
-                    fontWeight: 700
-                  }}
-                  title="Remove all content records for this account (Undoable)"
+                  className="btn btn-sm btn-danger"
+                  style={{ fontWeight: 700 }}
+                  title="Delete all content logs for this account (undoable with Ctrl+Z)"
                 >
                   <span>🗑️ Remove All</span>
                 </button>
@@ -3105,44 +3284,54 @@ window.ContentTablePage = function() {
         </div>
       </div>
 
-      {/* Filter Controls Bar */}
-      <div className="glass-card" style={{ marginBottom: "1.5rem", padding: "1rem" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", alignItems: "center", justifyContent: "space-between" }}>
-          
-          <div style={{ display: "flex", gap: "0.75rem", flex: 1, minWidth: "260px" }}>
-            <input 
-              type="text" 
-              className="form-input" 
-              placeholder="Search caption, hashtag (#tech), or subject (Alex)..." 
-              value={searchTerm} 
-              onChange={e => setSearchTerm(e.target.value)} 
-            />
-          </div>
+      {/* Filter and Search Bar */}
+      <div className="glass-card" style={{ padding: "0.85rem 1.15rem", borderRadius: "12px", display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", flex: 1, alignItems: "center" }}>
+          <input
+            type="text"
+            className="form-input"
+            style={{ maxWidth: "260px", minHeight: "34px", fontSize: "0.82rem", padding: "0.35rem 0.75rem" }}
+            placeholder="Search caption, tags, subject..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
 
-          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <select className="form-select" style={{ width: "auto" }} value={platformFilter} onChange={e => setPlatformFilter(e.target.value)}>
-              <option value="ALL">All Platforms</option>
-              <option value="TikTok">TikTok</option>
-              <option value="Instagram">Instagram</option>
-              <option value="YouTube">YouTube</option>
-              <option value="X (Twitter)">X (Twitter)</option>
-              <option value="Facebook">Facebook</option>
-              <option value="Threads">Threads</option>
-            </select>
+          <select
+            className="form-select"
+            style={{ width: "auto", minHeight: "34px", fontSize: "0.82rem", padding: "0.35rem 1.8rem 0.35rem 0.75rem" }}
+            value={platformFilter}
+            onChange={e => setPlatformFilter(e.target.value)}
+          >
+            <option value="ALL">All Platforms</option>
+            <option value="TikTok">TikTok</option>
+            <option value="Instagram">Instagram</option>
+            <option value="YouTube">YouTube</option>
+            <option value="X (Twitter)">X (Twitter)</option>
+            <option value="Facebook">Facebook</option>
+            <option value="Threads">Threads</option>
+          </select>
 
-            <select className="form-select" style={{ width: "auto" }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="ALL">All Statuses</option>
-              <option value="Uploaded">Uploaded</option>
-              <option value="Scheduled">Scheduled</option>
-              <option value="Privated">Privated</option>
-              <option value="Deleted">Deleted</option>
-            </select>
-          </div>
+          <select
+            className="form-select"
+            style={{ width: "auto", minHeight: "34px", fontSize: "0.82rem", padding: "0.35rem 1.8rem 0.35rem 0.75rem" }}
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="Uploaded">Uploaded (Live)</option>
+            <option value="Scheduled">Scheduled</option>
+            <option value="Privated">Privated</option>
+            <option value="Deleted">Deleted</option>
+          </select>
+        </div>
+
+        <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 600 }}>
+          Showing <strong style={{ color: "#fff" }}>{filteredAndSortedContents.length}</strong> of {accountContents.length} posts
         </div>
       </div>
 
-      {/* Table Card Container */}
-      <div className="glass-card table-container">
+      {/* Main Data Table */}
+      <div className="table-container">
         <table className="content-table">
           <thead>
             <tr>
@@ -3150,136 +3339,123 @@ window.ContentTablePage = function() {
                 Date {sortBy === "uploadDate" && (sortOrder === "asc" ? "▲" : "▼")}
               </th>
               <th>Platform</th>
-              <th>Status</th>
               <th>Caption & Hashtags</th>
               <th>Subjects</th>
-              <th onClick={() => handleSort("impressions")} style={{ cursor: "pointer" }}>
-                Views / Imp {sortBy === "impressions" && (sortOrder === "asc" ? "▲" : "▼")}
+              <th onClick={() => handleSort("impressions")} style={{ cursor: "pointer", textAlign: "right" }}>
+                Views {sortBy === "impressions" && (sortOrder === "asc" ? "▲" : "▼")}
               </th>
-              <th onClick={() => handleSort("reach")} style={{ cursor: "pointer" }}>
-                Reach {sortBy === "reach" && (sortOrder === "asc" ? "▲" : "▼")}
-              </th>
-              <th onClick={() => handleSort("likes")} style={{ cursor: "pointer" }}>
+              <th onClick={() => handleSort("likes")} style={{ cursor: "pointer", textAlign: "right" }}>
                 Likes {sortBy === "likes" && (sortOrder === "asc" ? "▲" : "▼")}
               </th>
-              <th onClick={() => handleSort("comments")} style={{ cursor: "pointer" }}>
+              <th onClick={() => handleSort("comments")} style={{ cursor: "pointer", textAlign: "right" }}>
                 Comments {sortBy === "comments" && (sortOrder === "asc" ? "▲" : "▼")}
               </th>
-              <th onClick={() => handleSort("shares")} style={{ cursor: "pointer" }}>
-                Shares {sortBy === "shares" && (sortOrder === "asc" ? "▲" : "▼")}
-              </th>
-              <th onClick={() => handleSort("saves")} style={{ cursor: "pointer" }}>
-                Saves {sortBy === "saves" && (sortOrder === "asc" ? "▲" : "▼")}
-              </th>
-              <th onClick={() => handleSort("er")} style={{ cursor: "pointer" }}>
+              <th onClick={() => handleSort("er")} style={{ cursor: "pointer", textAlign: "right" }}>
                 ER% {sortBy === "er" && (sortOrder === "asc" ? "▲" : "▼")}
               </th>
-              {canEdit && <th style={{ textAlign: "right" }}>Actions</th>}
+              <th>Status</th>
+              {canEdit && <th style={{ textAlign: "center" }}>Actions</th>}
             </tr>
           </thead>
           <tbody>
-            {filteredContents.map(item => {
+            {filteredAndSortedContents.map(item => {
               const eng = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
-              const er = item.impressions ? ((eng / item.impressions) * 100).toFixed(2) : "0.00";
-              const isTikTok = item.platform === "TikTok" || !!item.originalUrl;
+              const er = item.reach > 0 ? ((eng / item.reach) * 100).toFixed(2) : (item.impressions > 0 ? ((eng / item.impressions) * 100).toFixed(2) : "0.00");
+              const isTikTok = item.platform === "TikTok" || item.originalUrl;
               const isItemSyncing = syncingItemId === item.id;
-
-              const statusBadge = 
-                item.status === 'Uploaded' ? 'badge-uploaded' :
-                item.status === 'Scheduled' ? 'badge-scheduled' :
-                item.status === 'Privated' ? 'badge-privated' : 'badge-deleted';
 
               return (
                 <tr key={item.id}>
-                  <td style={{ whiteSpace: "nowrap", fontSize: "0.85rem" }}>
-                    <div>{item.uploadDate || "-"}</div>
-                    {item.uploadTime && <div style={{ fontSize: "0.72rem", color: "var(--text-subtle)" }}>{item.uploadTime}</div>}
+                  <td style={{ whiteSpace: "nowrap", fontSize: "0.78rem" }}>
+                    <div style={{ fontWeight: 600, color: "#fff" }}>{item.uploadDate}</div>
+                    <div style={{ fontSize: "0.7rem", color: "var(--text-subtle)" }}>{item.uploadTime || "12:00"}</div>
                   </td>
+
                   <td>
                     <span className="badge" style={{
-                      background: item.platform === "TikTok" ? "rgba(37,244,238,0.15)" : (item.platform === "Instagram" ? "rgba(225,48,108,0.15)" : "rgba(255,255,255,0.08)"),
-                      color: item.platform === "TikTok" ? "#25F4EE" : (item.platform === "Instagram" ? "#E1306C" : "#fff"),
-                      border: `1px solid ${item.platform === "TikTok" ? "rgba(37,244,238,0.3)" : "var(--border-color)"}`
+                      background: item.platform === "TikTok" ? "rgba(37,244,238,0.15)" : (item.platform === "Instagram" ? "rgba(225,48,108,0.15)" : "rgba(255,255,255,0.06)"),
+                      color: item.platform === "TikTok" ? "#25F4EE" : (item.platform === "Instagram" ? "#E1306C" : "var(--text-secondary)"),
+                      border: `1px solid ${item.platform === 'TikTok' ? 'rgba(37,244,238,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                      fontSize: "0.68rem"
                     }}>
                       {item.platform}
                     </span>
                   </td>
-                  <td>
-                    <span className={`badge ${statusBadge}`}>
-                      {item.status || "Uploaded"}
-                    </span>
-                  </td>
-                  <td style={{ maxWidth: "260px" }}>
-                    <div style={{ fontWeight: 600, fontSize: "0.88rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={item.caption}>
+
+                  <td style={{ maxWidth: "280px" }}>
+                    <div style={{ fontWeight: 600, color: "#fff", marginBottom: "0.2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={item.caption}>
                       {item.caption || "(No caption)"}
                     </div>
-                    {item.hashtags && item.hashtags.length > 0 && (
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem", marginTop: "0.3rem" }}>
-                        {item.hashtags.slice(0, 3).map((h, i) => (
-                          <span key={i} className="chip chip-hashtag" style={{ fontSize: "0.7rem", padding: "0.1rem 0.35rem" }}>
-                            {h}
-                          </span>
-                        ))}
-                        {item.hashtags.length > 3 && (
-                          <span style={{ fontSize: "0.7rem", color: "var(--text-subtle)" }}>+{item.hashtags.length - 3}</span>
-                        )}
-                      </div>
-                    )}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.2rem" }}>
+                      {(item.hashtags || []).slice(0, 3).map((h, i) => (
+                        <span key={i} className="chip" style={{ fontSize: "0.66rem", padding: "0.05rem 0.35rem" }}>{h}</span>
+                      ))}
+                      {(item.hashtags || []).length > 3 && (
+                        <span style={{ fontSize: "0.65rem", color: "var(--text-subtle)" }}>+{(item.hashtags.length - 3)}</span>
+                      )}
+                    </div>
                   </td>
+
                   <td>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.2rem" }}>
                       {(item.subjects || []).map((s, i) => (
-                        <span key={i} className="chip chip-subject" style={{ fontSize: "0.72rem", padding: "0.1rem 0.4rem" }}>
+                        <span key={i} className="chip chip-subject" style={{ fontSize: "0.66rem", padding: "0.05rem 0.35rem" }}>
                           👤 {s}
                         </span>
                       ))}
                     </div>
                   </td>
-                  <td style={{ fontWeight: 700 }}>{(item.impressions || 0).toLocaleString()}</td>
-                  <td>{(item.reach || 0).toLocaleString()}</td>
-                  <td>{(item.likes || 0).toLocaleString()}</td>
-                  <td>{(item.comments || 0).toLocaleString()}</td>
-                  <td>{(item.shares || 0).toLocaleString()}</td>
-                  <td>{(item.saves || 0).toLocaleString()}</td>
-                  <td style={{ fontWeight: 700, color: Number(er) > 5 ? "var(--accent-emerald)" : "var(--text-normal)" }}>
+
+                  <td style={{ textAlign: "right", fontWeight: 700, color: "var(--accent-cyan-light)", fontSize: "0.84rem" }}>
+                    {(item.impressions || 0).toLocaleString()}
+                  </td>
+
+                  <td style={{ textAlign: "right", fontSize: "0.82rem" }}>
+                    {(item.likes || 0).toLocaleString()}
+                  </td>
+
+                  <td style={{ textAlign: "right", fontSize: "0.82rem" }}>
+                    {(item.comments || 0).toLocaleString()}
+                  </td>
+
+                  <td style={{ textAlign: "right", fontWeight: 700, color: parseFloat(er) >= 5 ? "var(--accent-emerald)" : (parseFloat(er) >= 2 ? "var(--accent-cyan)" : "var(--text-muted)"), fontSize: "0.82rem" }}>
                     {er}%
                   </td>
+
+                  <td>
+                    <span className={`badge ${item.status === 'Uploaded' ? 'badge-uploaded' : (item.status === 'Scheduled' ? 'badge-scheduled' : (item.status === 'Privated' ? 'badge-privated' : 'badge-deleted'))}`} style={{ fontSize: "0.64rem" }}>
+                      {item.status || "Uploaded"}
+                    </span>
+                  </td>
+
                   {canEdit && (
-                    <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                      <div style={{ display: "inline-flex", gap: "0.4rem" }}>
-                        {/* Real-time single post live sync for TikTok */}
+                    <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
+                      <div style={{ display: "flex", gap: "0.25rem", justifyContent: "center" }}>
                         {isTikTok && (
                           <button
                             type="button"
                             onClick={() => handleSyncSinglePost(item.id)}
                             disabled={isItemSyncing}
-                            className="btn btn-sm btn-secondary"
-                            style={{
-                              padding: "0.25rem 0.45rem",
-                              fontSize: "0.75rem",
-                              borderColor: "rgba(37,244,238,0.4)",
-                              color: "#25F4EE"
-                            }}
-                            title="Live sync latest metrics from TikTok API"
+                            className="btn btn-ghost"
+                            style={{ padding: "0.2rem 0.4rem", minHeight: "26px", fontSize: "0.75rem", color: "#25F4EE" }}
+                            title="Refresh live TikTok views & engagement"
                           >
-                            <span style={{ animation: isItemSyncing ? "spin 0.8s linear infinite" : "none", display: "inline-block" }}>🔄</span>
+                            <span style={{ animation: isItemSyncing ? "spin 1s linear infinite" : "none", display: "inline-block" }}>🔄</span>
                           </button>
                         )}
                         <button
-                          type="button"
                           onClick={() => handleOpenEdit(item)}
-                          className="btn btn-sm btn-secondary"
-                          style={{ padding: "0.25rem 0.55rem", fontSize: "0.75rem" }}
-                          title="Edit post"
+                          className="btn btn-ghost"
+                          style={{ padding: "0.2rem 0.4rem", minHeight: "26px", fontSize: "0.75rem", color: "var(--text-secondary)" }}
+                          title="Edit post details"
                         >
-                          ✏️ Edit
+                          ✏️
                         </button>
                         <button
-                          type="button"
                           onClick={() => deleteContent(item.id)}
-                          className="btn btn-sm btn-secondary"
-                          style={{ padding: "0.25rem 0.45rem", fontSize: "0.75rem", color: "#F43F5E" }}
-                          title="Delete post (Undoable)"
+                          className="btn btn-ghost"
+                          style={{ padding: "0.2rem 0.4rem", minHeight: "26px", fontSize: "0.75rem", color: "var(--accent-rose)" }}
+                          title="Delete post"
                         >
                           🗑️
                         </button>
@@ -3289,10 +3465,10 @@ window.ContentTablePage = function() {
                 </tr>
               );
             })}
-            {filteredContents.length === 0 && (
+            {filteredAndSortedContents.length === 0 && (
               <tr>
-                <td colSpan={canEdit ? 13 : 12} style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
-                  No content records found matching your filters.
+                <td colSpan={canEdit ? 10 : 9} style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--text-muted)" }}>
+                  No content matching your search/filters. Use <strong>🎵 Auto-Sync Account</strong> or <strong>➕ Add Post</strong>!
                 </td>
               </tr>
             )}
@@ -3300,188 +3476,182 @@ window.ContentTablePage = function() {
         </table>
       </div>
 
-      {/* ══ TIKTOK QUICK IMPORT MODAL ══ */}
+      {/* ── TIKTOK IMPORT / AUTO-SYNC MODAL ── */}
       {tiktokModalOpen && (
         <div className="modal-overlay" onClick={() => setTiktokModalOpen(false)}>
-          <div className="modal-content" style={{ maxWidth: "580px", width: "90%" }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+          <div className="modal-content" style={{ maxWidth: "520px", width: "95%" }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                <span style={{ fontSize: "1.3rem" }}>🎵</span>
-                <h2 className="modal-title" style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700 }}>
-                  Import from TikTok API
-                </h2>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <button
-                  type="button"
-                  onClick={() => setHelpModalOpen(true)}
-                  className="btn btn-sm btn-secondary"
-                  style={{ fontSize: "0.75rem", borderColor: "rgba(37,244,238,0.4)", color: "#25F4EE" }}
-                >
-                  ❓ Guide
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => setTiktokModalOpen(false)} 
-                  className="btn btn-secondary btn-icon"
-                  style={{ width: "30px", height: "30px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                  title="Close"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: "1.25rem" }}>
-              <label className="form-label">TikTok Video URL or Video ID</label>
-              <div style={{ display: "flex", gap: "0.6rem" }}>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="https://www.tiktok.com/@creator/video/123456... or https://vt.tiktok.com/..."
-                  value={tiktokUrlInput}
-                  onChange={e => setTiktokUrlInput(e.target.value)}
-                  disabled={tiktokFetching}
-                />
-                <button
-                  type="button"
-                  onClick={handleFetchTikTokModal}
-                  disabled={tiktokFetching || !tiktokUrlInput.trim()}
-                  className="btn btn-primary"
-                  style={{
-                    background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
-                    color: "#000",
-                    fontWeight: 800,
-                    border: "none",
-                    minWidth: "110px"
-                  }}
-                >
-                  {tiktokFetching ? "⏳ Fetching" : "⚡ Fetch"}
-                </button>
-              </div>
-              {tiktokFetchError && (
-                <div style={{ marginTop: "0.5rem", color: "#F43F5E", fontSize: "0.8rem" }}>
-                  ⚠️ {tiktokFetchError}
+                <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, #25F4EE, #FE2C55)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  🎵
                 </div>
-              )}
+                <div>
+                  <h2 style={{ fontSize: "1.15rem", fontWeight: 700, margin: 0 }}>TikTok API Auto-Sync</h2>
+                  <p style={{ fontSize: "0.76rem", color: "var(--text-muted)", margin: 0 }}>Auto-read post metrics or entire account video logs in real-time</p>
+                </div>
+              </div>
+              <button onClick={() => setTiktokModalOpen(false)} className="btn btn-secondary btn-icon" style={{ width: "28px", height: "28px" }}>✕</button>
             </div>
 
-            {/* Preview of Extracted Data */}
+            {/* Mode Switcher */}
+            <div style={{ display: "flex", gap: "0.35rem", marginBottom: "1rem", background: "rgba(0,0,0,0.3)", padding: "0.25rem", borderRadius: "8px" }}>
+              <button
+                type="button"
+                onClick={() => { setTiktokModalMode("account"); setTiktokPreview(null); setTiktokAccountResult(null); }}
+                style={{
+                  flex: 1,
+                  padding: "0.4rem",
+                  borderRadius: "6px",
+                  border: "none",
+                  background: tiktokModalMode === "account" ? "linear-gradient(135deg, rgba(37,244,238,0.25), rgba(254,44,85,0.25))" : "transparent",
+                  color: tiktokModalMode === "account" ? "#fff" : "var(--text-muted)",
+                  fontWeight: tiktokModalMode === "account" ? 700 : 500,
+                  fontSize: "0.78rem",
+                  cursor: "pointer"
+                }}
+              >
+                🌐 Entire TikTok Account
+              </button>
+              <button
+                type="button"
+                onClick={() => { setTiktokModalMode("single"); setTiktokPreview(null); setTiktokAccountResult(null); }}
+                style={{
+                  flex: 1,
+                  padding: "0.4rem",
+                  borderRadius: "6px",
+                  border: "none",
+                  background: tiktokModalMode === "single" ? "rgba(37,244,238,0.2)" : "transparent",
+                  color: tiktokModalMode === "single" ? "#25F4EE" : "var(--text-muted)",
+                  fontWeight: tiktokModalMode === "single" ? 700 : 500,
+                  fontSize: "0.78rem",
+                  cursor: "pointer"
+                }}
+              >
+                🔗 Single Video
+              </button>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+              <label className="form-label" style={{ fontSize: "0.76rem" }}>
+                {tiktokModalMode === "account" ? "TikTok Account Profile Link or Handle" : "TikTok Video URL or Video ID"}
+              </label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder={tiktokModalMode === "account" ? "https://www.tiktok.com/@youraccount or @youraccount" : "https://www.tiktok.com/@creator/video/1234567890"}
+                value={tiktokUrlInput}
+                onChange={e => setTiktokUrlInput(e.target.value)}
+                disabled={tiktokFetching}
+              />
+            </div>
+
+            {tiktokFetching && (
+              <div style={{ padding: "0.85rem", borderRadius: "8px", background: "rgba(37,244,238,0.1)", border: "1px solid rgba(37,244,238,0.3)", textAlign: "center", marginBottom: "0.85rem" }}>
+                <span style={{ animation: "spin 1s linear infinite", display: "inline-block", marginRight: "0.5rem" }}>🔄</span>
+                <span style={{ fontWeight: 700, color: "#25F4EE", fontSize: "0.82rem" }}>
+                  {tiktokModalMode === "account" ? "Connecting to TikTok API & pulling video feed..." : "Extracting video metrics..."}
+                </span>
+              </div>
+            )}
+
+            {tiktokFetchError && (
+              <div style={{ padding: "0.6rem 0.85rem", borderRadius: "6px", background: "rgba(244,63,94,0.15)", border: "1px solid rgba(244,63,94,0.3)", color: "#F43F5E", fontSize: "0.78rem", marginBottom: "0.85rem" }}>
+                ⚠️ {tiktokFetchError}
+              </div>
+            )}
+
+            {/* Single Video Preview Card */}
             {tiktokPreview && (
-              <div style={{
-                padding: "1rem",
-                borderRadius: "10px",
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid var(--border-color)",
-                marginBottom: "1.25rem"
-              }}>
-                <div style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 700, marginBottom: "0.5rem" }}>
-                  Preview of Extracted Post:
-                </div>
-                <div style={{ fontWeight: 600, fontSize: "0.92rem", marginBottom: "0.4rem" }}>
+              <div className="glass-card" style={{ padding: "0.85rem", borderRadius: "10px", border: "1px solid rgba(16,185,129,0.3)", background: "rgba(16,185,129,0.06)", marginBottom: "0.85rem" }}>
+                <div style={{ fontWeight: 700, fontSize: "0.86rem", color: "#fff", marginBottom: "0.35rem" }}>
                   {tiktokPreview.caption}
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem", marginBottom: "0.75rem" }}>
-                  {tiktokPreview.hashtags.map((h, i) => (
-                    <span key={i} className="chip chip-hashtag" style={{ fontSize: "0.75rem" }}>{h}</span>
-                  ))}
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem", fontSize: "0.8rem", background: "rgba(0,0,0,0.2)", padding: "0.6rem", borderRadius: "8px" }}>
-                  <div>👀 Views: <strong>{tiktokPreview.impressions.toLocaleString()}</strong></div>
-                  <div>❤️ Likes: <strong>{tiktokPreview.likes.toLocaleString()}</strong></div>
-                  <div>💬 Comments: <strong>{tiktokPreview.comments.toLocaleString()}</strong></div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.4rem", fontSize: "0.75rem", background: "rgba(0,0,0,0.3)", padding: "0.45rem", borderRadius: "6px" }}>
+                  <div>👀 <strong>{tiktokPreview.impressions?.toLocaleString()}</strong> views</div>
+                  <div>❤️ <strong>{tiktokPreview.likes?.toLocaleString()}</strong> likes</div>
+                  <div>💬 <strong>{tiktokPreview.comments?.toLocaleString()}</strong> comments</div>
                 </div>
               </div>
             )}
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
-              <button type="button" onClick={() => setTiktokModalOpen(false)} className="btn btn-secondary">
-                Cancel
+            {/* Entire Account Success Feedback */}
+            {tiktokAccountResult && (
+              <div style={{ padding: "0.75rem 1rem", borderRadius: "8px", background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)", color: "#10B981", fontSize: "0.82rem", marginBottom: "0.85rem" }}>
+                ✅ <strong>@{tiktokAccountResult.profile.username}</strong> synced! {tiktokAccountResult.videos.length} videos live tracked.
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
+              <button type="button" onClick={() => setTiktokModalOpen(false)} className="btn btn-secondary btn-sm">
+                Close
               </button>
-              <button
-                type="button"
-                onClick={handleSaveTikTokPreview}
-                disabled={!tiktokPreview}
-                className="btn btn-primary"
-              >
-                💾 Save to Content Table
-              </button>
+              {tiktokPreview ? (
+                <button type="button" onClick={handleSaveTikTokPreview} className="btn btn-primary btn-sm" style={{ fontWeight: 800 }}>
+                  💾 Save to Table
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleFetchTikTokModal}
+                  disabled={tiktokFetching || !tiktokUrlInput.trim()}
+                  className="btn btn-primary btn-sm"
+                  style={{ background: "linear-gradient(135deg, #25F4EE, #FE2C55)", color: "#000", fontWeight: 800 }}
+                >
+                  {tiktokFetching ? "Connecting..." : (tiktokModalMode === "account" ? "⚡ Auto-Sync Account Videos" : "⚡ Extract Video")}
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* ══ REMOVE ALL CONTENT CONFIRMATION MODAL ══ */}
+      {/* ── REMOVE ALL CONFIRMATION MODAL ── */}
       {removeAllModalOpen && (
         <div className="modal-overlay" onClick={() => setRemoveAllModalOpen(false)}>
-          <div className="modal-content" style={{ maxWidth: "480px", width: "90%", textAlign: "center", padding: "2rem" }} onClick={e => e.stopPropagation()}>
-            <div style={{ width: "56px", height: "56px", borderRadius: "50%", background: "rgba(244, 63, 94, 0.15)", color: "#F43F5E", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.8rem", margin: "0 auto 1.25rem" }}>
-              🗑️
+          <div className="modal-content" style={{ maxWidth: "420px", width: "90%" }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h2 style={{ fontSize: "1.15rem", fontWeight: 700, margin: 0, color: "var(--accent-rose)" }}>
+                🗑️ Remove All Content?
+              </h2>
+              <button onClick={() => setRemoveAllModalOpen(false)} className="btn btn-secondary btn-icon" style={{ width: "28px", height: "28px" }}>✕</button>
             </div>
-            <h2 style={{ fontSize: "1.35rem", fontWeight: 800, marginBottom: "0.6rem" }}>
-              Remove All Content?
-            </h2>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", lineHeight: 1.5, marginBottom: "1.25rem" }}>
-              This will remove all <strong>{accountContents.length}</strong> content records for <strong>{activeAccount.name}</strong>.
+
+            <p style={{ fontSize: "0.84rem", color: "var(--text-muted)", marginBottom: "1rem", lineHeight: 1.5 }}>
+              Are you sure you want to remove all <strong>{accountContents.length}</strong> content records for <strong>{activeAccount.name}</strong>?
             </p>
 
-            <div style={{ padding: "0.75rem 1rem", borderRadius: "8px", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.25)", fontSize: "0.82rem", color: "var(--accent-primary-light)", marginBottom: "1.5rem" }}>
-              💡 <strong>Don't worry:</strong> You can immediately restore everything anytime by clicking the <strong>Undo</strong> button or pressing <strong>Ctrl+Z</strong>.
+            <div style={{ padding: "0.65rem 0.85rem", borderRadius: "8px", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.25)", fontSize: "0.78rem", color: "var(--accent-primary-light)", marginBottom: "1.25rem" }}>
+              💡 <strong>Instant Undo Protection:</strong> You can always undo this action by clicking the <strong>↩️ Undo</strong> button in the top navbar or pressing <kbd>Ctrl+Z</kbd>.
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
-              <button type="button" onClick={() => setRemoveAllModalOpen(false)} className="btn btn-secondary">
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmRemoveAll}
-                className="btn btn-danger"
-                style={{ fontWeight: 700 }}
-              >
-                Yes, Remove All Records
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
+              <button type="button" onClick={() => setRemoveAllModalOpen(false)} className="btn btn-secondary btn-sm">Cancel</button>
+              <button type="button" onClick={handleConfirmRemoveAll} className="btn btn-danger btn-sm" style={{ fontWeight: 800 }}>
+                Yes, Remove All Content
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ══ EDIT CONTENT MODAL ══ */}
+      {/* ── EDIT CONTENT MODAL ── */}
       {editingContent && (
         <div className="modal-overlay" onClick={() => setEditingContent(null)}>
-          <div className="modal-content" style={{ maxWidth: "800px", width: "90%", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-              <h2 className="modal-title" style={{ margin: 0, fontSize: "1.35rem", fontWeight: 700 }}>Edit Content Entry</h2>
-              <button 
-                type="button" 
-                onClick={() => setEditingContent(null)} 
-                className="btn btn-secondary btn-icon"
-                style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}
-                title="Close"
-              >
-                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>✕</span>
-              </button>
+          <div className="modal-content" style={{ maxWidth: "560px", width: "95%" }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0 }}>Edit Content Entry</h2>
+              <button onClick={() => setEditingContent(null)} className="btn btn-secondary btn-icon" style={{ width: "28px", height: "28px" }}>✕</button>
             </div>
 
             <form onSubmit={handleEditSave}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", marginBottom: "1rem" }}>
-                <div className="form-group">
-                  <label className="form-label">Upload / Scheduled Date</label>
-                  <input 
-                    type="date" 
-                    className="form-input" 
-                    required 
-                    value={editingContent.uploadDate} 
-                    onChange={e => setEditingContent({ ...editingContent, uploadDate: e.target.value })} 
-                  />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem", marginBottom: "0.85rem" }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: "0.74rem" }}>Date</label>
+                  <input type="date" className="form-input" required value={editingContent.uploadDate} onChange={e => setEditingContent({ ...editingContent, uploadDate: e.target.value })} />
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Platform</label>
-                  <select 
-                    className="form-select" 
-                    value={editingContent.platform} 
-                    onChange={e => setEditingContent({ ...editingContent, platform: e.target.value })}
-                  >
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: "0.74rem" }}>Platform</label>
+                  <select className="form-select" value={editingContent.platform} onChange={e => setEditingContent({ ...editingContent, platform: e.target.value })}>
                     <option value="TikTok">TikTok</option>
                     <option value="Instagram">Instagram</option>
                     <option value="YouTube">YouTube</option>
@@ -3492,97 +3662,51 @@ window.ContentTablePage = function() {
                 </div>
               </div>
 
-              <div className="form-group" style={{ marginBottom: "1rem" }}>
-                <label className="form-label">Content Type</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  placeholder="e.g. Video, Reels, Carousel..." 
-                  value={editingContent.contentType} 
-                  onChange={e => setEditingContent({ ...editingContent, contentType: e.target.value })} 
-                />
+              <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+                <label className="form-label" style={{ fontSize: "0.74rem" }}>Caption</label>
+                <textarea className="form-textarea" rows="2" required value={editingContent.caption} onChange={e => setEditingContent({ ...editingContent, caption: e.target.value })}></textarea>
               </div>
 
-              <div className="form-group" style={{ marginBottom: "1rem" }}>
-                <label className="form-label">Caption / Post Text</label>
-                <textarea 
-                  className="form-textarea" 
-                  rows="3" 
-                  required 
-                  value={editingContent.caption} 
-                  onChange={e => setEditingContent({ ...editingContent, caption: e.target.value })}
-                ></textarea>
+              <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+                <label className="form-label" style={{ fontSize: "0.74rem" }}>Hashtags</label>
+                <input type="text" className="form-input" value={editingContent.hashtagsInput} onChange={e => setEditingContent({ ...editingContent, hashtagsInput: e.target.value })} />
               </div>
 
-              <div className="form-group" style={{ marginBottom: "1rem" }}>
-                <label className="form-label">Hashtags (space or comma separated)</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={editingContent.hashtagsInput} 
-                  onChange={e => setEditingContent({ ...editingContent, hashtagsInput: e.target.value })} 
-                />
-              </div>
-
-              {/* Multi-Subject Editor */}
-              <div className="form-group" style={{ marginBottom: "1.25rem" }}>
-                <label className="form-label">Subject / People Featured</label>
-                <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="Type person's name (e.g. Sarah, Jordan)..." 
-                    value={editingContent.subjectInput} 
+              <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+                <label className="form-label" style={{ fontSize: "0.74rem" }}>Featured Subjects</label>
+                <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.35rem" }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Subject name..."
+                    value={editingContent.subjectInput}
                     onChange={e => setEditingContent({ ...editingContent, subjectInput: e.target.value })}
-                    onKeyDown={e => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddEditSubject();
-                      }
-                    }} 
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddEditSubject(); } }}
                   />
-                  <button type="button" onClick={handleAddEditSubject} className="btn btn-secondary">
-                    Add
-                  </button>
+                  <button type="button" onClick={handleAddEditSubject} className="btn btn-sm btn-secondary">+ Add</button>
                 </div>
-
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem" }}>
                   {editingContent.subjectsList.map(name => (
-                    <span key={name} className="chip chip-subject" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                    <span key={name} className="chip chip-subject" style={{ fontSize: "0.7rem", padding: "0.1rem 0.35rem" }}>
                       👤 {name}
-                      <button 
-                        type="button" 
-                        onClick={() => handleRemoveEditSubject(name)} 
-                        style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold", fontSize: "0.85rem", lineHeight: 1 }} 
-                        title="Remove subject"
-                      >
-                        ✕
-                      </button>
+                      <button type="button" onClick={() => handleRemoveEditSubject(name)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px" }}>✕</button>
                     </span>
                   ))}
                 </div>
               </div>
 
-              <hr style={{ borderColor: "var(--border-color)", margin: "1.25rem 0" }} />
-
-              <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "1rem" }}>Content Performance Metrics</h3>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "0.85rem", marginBottom: "1rem" }}>
-                <div className="form-group"><label className="form-label">Impressions</label><input type="number" className="form-input" min="0" value={editingContent.impressions} onChange={e => setEditingContent({ ...editingContent, impressions: e.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Reach</label><input type="number" className="form-input" min="0" value={editingContent.reach} onChange={e => setEditingContent({ ...editingContent, reach: e.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Likes</label><input type="number" className="form-input" min="0" value={editingContent.likes} onChange={e => setEditingContent({ ...editingContent, likes: e.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Comments</label><input type="number" className="form-input" min="0" value={editingContent.comments} onChange={e => setEditingContent({ ...editingContent, comments: e.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Shares</label><input type="number" className="form-input" min="0" value={editingContent.shares} onChange={e => setEditingContent({ ...editingContent, shares: e.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Saves</label><input type="number" className="form-input" min="0" value={editingContent.saves} onChange={e => setEditingContent({ ...editingContent, saves: e.target.value })} /></div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.6rem", marginBottom: "0.85rem" }}>
+                <div><label className="form-label" style={{ fontSize: "0.68rem" }}>Impressions</label><input type="number" className="form-input" min="0" value={editingContent.impressions} onChange={e => setEditingContent({ ...editingContent, impressions: e.target.value })} /></div>
+                <div><label className="form-label" style={{ fontSize: "0.68rem" }}>Reach</label><input type="number" className="form-input" min="0" value={editingContent.reach} onChange={e => setEditingContent({ ...editingContent, reach: e.target.value })} /></div>
+                <div><label className="form-label" style={{ fontSize: "0.68rem" }}>Likes</label><input type="number" className="form-input" min="0" value={editingContent.likes} onChange={e => setEditingContent({ ...editingContent, likes: e.target.value })} /></div>
+                <div><label className="form-label" style={{ fontSize: "0.68rem" }}>Comments</label><input type="number" className="form-input" min="0" value={editingContent.comments} onChange={e => setEditingContent({ ...editingContent, comments: e.target.value })} /></div>
+                <div><label className="form-label" style={{ fontSize: "0.68rem" }}>Shares</label><input type="number" className="form-input" min="0" value={editingContent.shares} onChange={e => setEditingContent({ ...editingContent, shares: e.target.value })} /></div>
+                <div><label className="form-label" style={{ fontSize: "0.68rem" }}>Saves</label><input type="number" className="form-input" min="0" value={editingContent.saves} onChange={e => setEditingContent({ ...editingContent, saves: e.target.value })} /></div>
               </div>
 
-              <div className="form-group" style={{ marginBottom: "1rem" }}>
-                <label className="form-label">Post Status</label>
-                <select 
-                  className="form-select" 
-                  value={editingContent.status} 
-                  onChange={e => setEditingContent({ ...editingContent, status: e.target.value })}
-                >
+              <div className="form-group" style={{ marginBottom: "1.25rem" }}>
+                <label className="form-label" style={{ fontSize: "0.74rem" }}>Post Status</label>
+                <select className="form-select" value={editingContent.status} onChange={e => setEditingContent({ ...editingContent, status: e.target.value })}>
                   <option value="Uploaded">Uploaded</option>
                   <option value="Scheduled">Scheduled</option>
                   <option value="Privated">Privated</option>
@@ -3590,9 +3714,9 @@ window.ContentTablePage = function() {
                 </select>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
-                <button type="button" onClick={() => setEditingContent(null)} className="btn btn-secondary">Cancel</button>
-                <button type="submit" className="btn btn-primary">Save Changes</button>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
+                <button type="button" onClick={() => setEditingContent(null)} className="btn btn-secondary btn-sm">Cancel</button>
+                <button type="submit" className="btn btn-primary btn-sm">Save Changes</button>
               </div>
             </form>
           </div>

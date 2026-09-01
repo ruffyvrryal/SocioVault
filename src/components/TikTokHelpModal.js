@@ -1,14 +1,15 @@
-// TikTokHelpModal Component — Comprehensive Interactive Guide & Tutorial for TikTok API & Real-Time Sync
+// TikTokHelpModal Component — Comprehensive Interactive Guide & Tutorial for TikTok Account & Video Auto-Sync
 window.TikTokHelpModal = function({ isOpen, onClose }) {
-  const [activeTab, setActiveTab] = React.useState("quickstart");
+  const [activeTab, setActiveTab] = React.useState("accountsync");
   const [copiedUrl, setCopiedUrl] = React.useState("");
 
   if (!isOpen) return null;
 
   const sampleUrls = [
+    { label: "Account Profile Link", url: "https://www.tiktok.com/@tiktok" },
+    { label: "Account Username Handle", url: "@charlidamelio" },
     { label: "Standard Video Link", url: "https://www.tiktok.com/@tiktok/video/7106594312292453678" },
-    { label: "Mobile App Share Link", url: "https://vt.tiktok.com/ZS8NV2mY8/" },
-    { label: "Direct Video ID", url: "7106594312292453678" }
+    { label: "Mobile App Share Link", url: "https://vt.tiktok.com/ZS8NV2mY8/" }
   ];
 
   const handleCopy = (text) => {
@@ -45,7 +46,7 @@ window.TikTokHelpModal = function({ isOpen, onClose }) {
                 TikTok API & Real-Time Sync Guide
               </h2>
               <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "2px" }}>
-                Master automated post imports, metrics extraction, and real-time live performance tracking
+                Auto-read entire account feeds, profile followers & single video metrics with zero manual entry
               </p>
             </div>
           </div>
@@ -62,7 +63,19 @@ window.TikTokHelpModal = function({ isOpen, onClose }) {
         </div>
 
         {/* Tab Navigation */}
-        <div style={{ display: "flex", gap: "0.5rem", borderBottom: "1px solid var(--border-color)", paddingBottom: "0.75rem", marginBottom: "1.25rem" }}>
+        <div style={{ display: "flex", gap: "0.5rem", borderBottom: "1px solid var(--border-color)", paddingBottom: "0.75rem", marginBottom: "1.25rem", overflowX: "auto" }}>
+          <button
+            onClick={() => setActiveTab("accountsync")}
+            className="btn btn-sm"
+            style={{
+              background: activeTab === "accountsync" ? "linear-gradient(135deg, rgba(37,244,238,0.2), rgba(254,44,85,0.2))" : "transparent",
+              borderColor: activeTab === "accountsync" ? "#25F4EE" : "var(--border-color)",
+              color: activeTab === "accountsync" ? "#fff" : "var(--text-muted)",
+              fontWeight: 700
+            }}
+          >
+            🌐 Entire Account Auto-Sync
+          </button>
           <button
             onClick={() => setActiveTab("quickstart")}
             className="btn btn-sm"
@@ -73,246 +86,143 @@ window.TikTokHelpModal = function({ isOpen, onClose }) {
               fontWeight: 700
             }}
           >
-            ⚡ Quick Start (3 Steps)
+            ⚡ Single Video Extraction
           </button>
           <button
             onClick={() => setActiveTab("realtimesync")}
             className="btn btn-sm"
             style={{
               background: activeTab === "realtimesync" ? "linear-gradient(135deg, rgba(16,185,129,0.2), rgba(6,182,212,0.2))" : "transparent",
-              borderColor: activeTab === "realtimesync" ? "var(--accent-emerald)" : "var(--border-color)",
+              borderColor: activeTab === "realtimesync" ? "#10B981" : "var(--border-color)",
               color: activeTab === "realtimesync" ? "#fff" : "var(--text-muted)",
               fontWeight: 700
             }}
           >
-            🔄 Real-Time Live Sync
-          </button>
-          <button
-            onClick={() => setActiveTab("fields")}
-            className="btn btn-sm"
-            style={{
-              background: activeTab === "fields" ? "linear-gradient(135deg, rgba(139,92,246,0.2), rgba(217,70,239,0.2))" : "transparent",
-              borderColor: activeTab === "fields" ? "var(--accent-primary)" : "var(--border-color)",
-              color: activeTab === "fields" ? "#fff" : "var(--text-muted)",
-              fontWeight: 700
-            }}
-          >
-            📊 Data Extracted
+            🔄 Live Real-Time Updating
           </button>
           <button
             onClick={() => setActiveTab("faq")}
             className="btn btn-sm"
             style={{
-              background: activeTab === "faq" ? "rgba(255,255,255,0.1)" : "transparent",
-              borderColor: activeTab === "faq" ? "var(--border-hover)" : "var(--border-color)",
+              background: activeTab === "faq" ? "rgba(139, 92, 246, 0.2)" : "transparent",
+              borderColor: activeTab === "faq" ? "var(--accent-primary)" : "var(--border-color)",
               color: activeTab === "faq" ? "#fff" : "var(--text-muted)",
               fontWeight: 700
             }}
           >
-            💡 Pro Tips & FAQ
+            💡 FAQ & Tips
           </button>
         </div>
 
-        {/* TAB 1: QUICK START */}
-        {activeTab === "quickstart" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
-              {/* Step 1 */}
-              <div className="glass-card" style={{ padding: "1.1rem", background: "rgba(255,255,255,0.03)", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.6rem" }}>
-                  <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#25F4EE", color: "#000", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.8rem" }}>1</span>
-                  <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700 }}>Copy TikTok Link</h4>
-                </div>
-                <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", lineHeight: 1.5, margin: 0 }}>
-                  Open TikTok on mobile or desktop, click <strong>Share</strong>, and select <strong>Copy Link</strong>.
-                </p>
-              </div>
-
-              {/* Step 2 */}
-              <div className="glass-card" style={{ padding: "1.1rem", background: "rgba(255,255,255,0.03)", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.6rem" }}>
-                  <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#FE2C55", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.8rem" }}>2</span>
-                  <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700 }}>Paste & Auto-Fill</h4>
-                </div>
-                <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", lineHeight: 1.5, margin: 0 }}>
-                  Paste the URL in the <strong>TikTok API Panel</strong> on <em>Add Content</em> or <em>Content Table</em> and click <strong>Auto-Fill</strong>.
-                </p>
-              </div>
-
-              {/* Step 3 */}
-              <div className="glass-card" style={{ padding: "1.1rem", background: "rgba(255,255,255,0.03)", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.6rem" }}>
-                  <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: "var(--accent-emerald)", color: "#000", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.8rem" }}>3</span>
-                  <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700 }}>Save & Live Track</h4>
-                </div>
-                <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", lineHeight: 1.5, margin: 0 }}>
-                  Review the auto-filled fields and click <strong>Save</strong>. You can now track and live-sync stats anytime!
-                </p>
-              </div>
-            </div>
-
-            {/* Test Copy Links */}
-            <div style={{ marginTop: "0.5rem", padding: "1rem", borderRadius: "10px", background: "rgba(37,244,238,0.06)", border: "1px solid rgba(37,244,238,0.2)" }}>
-              <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#25F4EE", marginBottom: "0.6rem" }}>
-                🧪 Try with Example TikTok Links (Click to copy & test):
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                {sampleUrls.map((item, idx) => (
-                  <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(0,0,0,0.3)", padding: "0.5rem 0.75rem", borderRadius: "6px", fontSize: "0.8rem" }}>
-                    <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: "1rem" }}>
-                      <span style={{ color: "var(--text-muted)", marginRight: "0.5rem" }}>[{item.label}]</span>
-                      <code style={{ color: "#fff" }}>{item.url}</code>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(item.url)}
-                      className="btn btn-sm"
-                      style={{ padding: "0.2rem 0.6rem", fontSize: "0.75rem", minWidth: "75px" }}
-                    >
-                      {copiedUrl === item.url ? "✅ Copied!" : "📋 Copy"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: REAL-TIME LIVE SYNC */}
-        {activeTab === "realtimesync" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div style={{ padding: "1.2rem", borderRadius: "12px", background: "linear-gradient(135deg, rgba(16,185,129,0.1), rgba(6,182,212,0.1))", border: "1px solid rgba(16,185,129,0.3)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.5rem" }}>
-                <span style={{ fontSize: "1.2rem" }}>⚡</span>
-                <h4 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 800, color: "#10B981" }}>
-                  How Real-Time Live Sync Works
-                </h4>
-              </div>
-              <p style={{ fontSize: "0.86rem", color: "var(--text-normal)", lineHeight: 1.6, margin: 0 }}>
-                When you add TikTok posts via the TikTok API, SociaVault stores the original video reference. This unlocks <strong>1-click live metrics refreshing</strong> directly from TikTok’s public data network without having to re-type impressions, views, likes, or comments!
+        {/* TAB 1: Entire Account Auto-Sync */}
+        {activeTab === "accountsync" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            <div style={{ padding: "1.1rem", borderRadius: "12px", background: "linear-gradient(135deg, rgba(37,244,238,0.08), rgba(254,44,85,0.08))", border: "1px solid rgba(37,244,238,0.25)" }}>
+              <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: "0 0 0.5rem", color: "#fff" }}>
+                🚀 1-Click Zero-Manual Entry: Auto-Sync Your Whole Account
+              </h3>
+              <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>
+                You don't need to manually type post metrics or copy individual links one by one. Simply provide your TikTok account link (e.g. <code>https://www.tiktok.com/@yourbrand</code> or <code>@yourbrand</code>) and SociaVault will:
               </p>
+              <ul style={{ fontSize: "0.82rem", color: "var(--text-secondary)", marginTop: "0.6rem", marginLeft: "1.25rem", lineHeight: 1.7 }}>
+                <li>Auto-read your live <strong>Follower count, Display name & HD Avatar</strong>.</li>
+                <li>Fetch and import <strong>all recent video posts</strong> directly into your Content Table.</li>
+                <li>Extract live <strong>Views, Likes, Comments, Shares, Saves, Captions & Hashtags</strong> for each video in real time.</li>
+              </ul>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <div className="glass-card" style={{ padding: "1rem", borderRadius: "10px" }}>
-                <div style={{ fontWeight: 700, fontSize: "0.92rem", marginBottom: "0.4rem", color: "#25F4EE" }}>
-                  🔄 Bulk Sync All TikTok Posts
+            <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#fff", margin: 0 }}>
+              📋 Copy & Test with Sample Profile Links:
+            </h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              {sampleUrls.slice(0, 2).map((item, idx) => (
+                <div 
+                  key={idx} 
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "0.65rem 0.85rem",
+                    borderRadius: "8px",
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid var(--border-color)",
+                    fontSize: "0.82rem"
+                  }}
+                >
+                  <div>
+                    <span style={{ fontWeight: 600, color: "#fff", marginRight: "0.5rem" }}>{item.label}:</span>
+                    <code style={{ color: "var(--accent-cyan-light)" }}>{item.url}</code>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(item.url)}
+                    className="btn btn-sm btn-ghost"
+                    style={{ padding: "0.2rem 0.6rem", fontSize: "0.75rem", color: copiedUrl === item.url ? "var(--accent-emerald)" : "var(--accent-primary-light)" }}
+                  >
+                    {copiedUrl === item.url ? "✅ Copied!" : "📋 Copy"}
+                  </button>
                 </div>
-                <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", lineHeight: 1.5, margin: 0 }}>
-                  On the <strong>Content Table</strong> page, click the <strong>"🔄 Sync Live TikTok"</strong> button in the top toolbar to automatically query and refresh all TikTok posts in your active account in one go.
-                </p>
-              </div>
-
-              <div className="glass-card" style={{ padding: "1rem", borderRadius: "10px" }}>
-                <div style={{ fontWeight: 700, fontSize: "0.92rem", marginBottom: "0.4rem", color: "#F43F5E" }}>
-                  🎯 Single-Post Instant Refresh
-                </div>
-                <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", lineHeight: 1.5, margin: 0 }}>
-                  In the Content Table, any row that came from TikTok has a quick <strong>🔄 Sync</strong> button next to Edit/Delete. Click it anytime to update just that video’s latest stats.
-                </p>
-              </div>
-            </div>
-
-            <div style={{ padding: "0.85rem 1rem", borderRadius: "8px", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", fontSize: "0.82rem", color: "#F59E0B" }}>
-              💡 <strong>Instant Reversibility:</strong> All live sync actions are recorded in the Global Undo history! If you ever want to revert back to your previous metrics, press <strong>Ctrl+Z</strong> or click <strong>Undo</strong> in the top navbar.
+              ))}
             </div>
           </div>
         )}
 
-        {/* TAB 3: DATA EXTRACTED */}
-        {activeTab === "fields" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>
-              The TikTok API extracts and maps the following data points automatically into SociaVault:
-            </p>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", padding: "0.75rem", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-                <span style={{ fontSize: "1.1rem" }}>🎬</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>Caption & Text</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Cleans hashtags and extracts full post text description</div>
-                </div>
+        {/* TAB 2: Single Video Quick Start */}
+        {activeTab === "quickstart" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.85rem" }}>
+              <div className="glass-card" style={{ padding: "1rem", borderRadius: "10px" }}>
+                <div style={{ fontSize: "1.4rem", marginBottom: "0.35rem" }}>1️⃣</div>
+                <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#fff", marginBottom: "0.2rem" }}>Copy Video Link</div>
+                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Copy any public TikTok link from the app or browser.</div>
               </div>
-
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", padding: "0.75rem", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-                <span style={{ fontSize: "1.1rem" }}>🏷️</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>Hashtags List</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Parses all #tags into individual interactive hashtag tags</div>
-                </div>
+              <div className="glass-card" style={{ padding: "1rem", borderRadius: "10px" }}>
+                <div style={{ fontSize: "1.4rem", marginBottom: "0.35rem" }}>2️⃣</div>
+                <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#fff", marginBottom: "0.2rem" }}>Paste & Auto-Fill</div>
+                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Paste into Add Content or Table and click ⚡ Auto-Fill.</div>
               </div>
-
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", padding: "0.75rem", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-                <span style={{ fontSize: "1.1rem" }}>👤</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>Creator / Subject</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Maps the video author handle into the Subjects module</div>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", padding: "0.75rem", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-                <span style={{ fontSize: "1.1rem" }}>📈</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>Live Views & Reach</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Extracts current view impressions and estimated audience reach</div>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", padding: "0.75rem", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-                <span style={{ fontSize: "1.1rem" }}>❤️</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>Engagement (Likes, Comments, Shares, Saves)</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Full 4-tier engagement metrics for precise ER calculation</div>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", padding: "0.75rem", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-                <span style={{ fontSize: "1.1rem" }}>🖼️</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>HD Video Thumbnail</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>High-res cover art thumbnail for visual logs & reports</div>
-                </div>
+              <div className="glass-card" style={{ padding: "1rem", borderRadius: "10px" }}>
+                <div style={{ fontSize: "1.4rem", marginBottom: "0.35rem" }}>3️⃣</div>
+                <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#fff", marginBottom: "0.2rem" }}>Save & Sync Live</div>
+                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>All numbers auto-populate. Keep updated anytime with Live Sync!</div>
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 4: FAQ & PRO TIPS */}
+        {/* TAB 3: Real-Time Live Sync */}
+        {activeTab === "realtimesync" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem", fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>
+            <div style={{ padding: "1rem", borderRadius: "10px", background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)" }}>
+              <h4 style={{ margin: "0 0 0.4rem", color: "#10B981", fontSize: "0.95rem" }}>🔄 How Real-Time Live Sync Keeps Data Fresh</h4>
+              <p style={{ margin: 0, fontSize: "0.82rem" }}>
+                Social media posts gain views and comments continuously after uploading. SociaVault provides two real-time sync mechanisms:
+              </p>
+              <ul style={{ marginTop: "0.5rem", marginLeft: "1.2rem", fontSize: "0.8rem", lineHeight: 1.6 }}>
+                <li><strong>Bulk Channel Live Sync (🔄 Sync Live TikTok):</strong> Located on the Overview and Table page. In 1 click, queries TikTok API and updates metrics for all posts simultaneously.</li>
+                <li><strong>Per-Row Instant Refresh (🔄):</strong> Located next to each TikTok post in the table actions column to refresh just that specific video.</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: FAQ */}
         {activeTab === "faq" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-            <div className="glass-card" style={{ padding: "0.9rem 1.1rem", borderRadius: "10px" }}>
-              <div style={{ fontWeight: 700, fontSize: "0.88rem", marginBottom: "0.3rem", color: "#fff" }}>
-                Q: Can I edit the numbers after auto-importing?
-              </div>
-              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
-                <strong>Yes!</strong> All imported values (caption, hashtags, impressions, status, dates) are fully editable before submitting and anytime via the Edit modal in the Content Table.
-              </p>
+            <div className="glass-card" style={{ padding: "0.85rem 1rem", borderRadius: "10px" }}>
+              <div style={{ fontWeight: 700, color: "#fff", fontSize: "0.85rem", marginBottom: "0.2rem" }}>Does this require logging in with my TikTok password?</div>
+              <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>No! SociaVault uses public creator API endpoints, so you only need to provide your public @username or profile URL without sharing passwords or login credentials.</div>
             </div>
-
-            <div className="glass-card" style={{ padding: "0.9rem 1.1rem", borderRadius: "10px" }}>
-              <div style={{ fontWeight: 700, fontSize: "0.88rem", marginBottom: "0.3rem", color: "#fff" }}>
-                Q: Does it work with Private TikTok accounts or videos?
-              </div>
-              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
-                No, TikTok’s public API requires videos to be public. Private videos or friends-only videos cannot be fetched automatically.
-              </p>
-            </div>
-
-            <div className="glass-card" style={{ padding: "0.9rem 1.1rem", borderRadius: "10px" }}>
-              <div style={{ fontWeight: 700, fontSize: "0.88rem", marginBottom: "0.3rem", color: "#fff" }}>
-                Q: How does the Global Undo button work?
-              </div>
-              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
-                The <strong>↩️ Undo</strong> button in the top navbar remembers up to 30 recent actions (adding, updating, deleting, bulk clearing, and live syncing). You can click it anytime or press <strong>Ctrl+Z</strong> on your keyboard to instantly roll back!
-              </p>
+            <div className="glass-card" style={{ padding: "0.85rem 1rem", borderRadius: "10px" }}>
+              <div style={{ fontWeight: 700, color: "#fff", fontSize: "0.85rem", marginBottom: "0.2rem" }}>Can I undo an auto-sync?</div>
+              <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Yes! Every sync is recorded in the Undo history. You can click <strong>↩️ Undo</strong> or press <kbd>Ctrl+Z</kbd> anytime to rollback changes.</div>
             </div>
           </div>
         )}
 
-        {/* Modal Footer */}
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid var(--border-color)" }}>
-          <button type="button" onClick={onClose} className="btn btn-primary" style={{ minWidth: "120px" }}>
+        {/* Footer */}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.5rem" }}>
+          <button type="button" onClick={onClose} className="btn btn-primary btn-sm">
             Got It! Close Guide
           </button>
         </div>
