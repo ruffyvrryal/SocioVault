@@ -1,8 +1,9 @@
-// TimeframeAnalyticsPage Component - All-Time, Monthly, and Weekly Reporting
+// TimeframeAnalyticsPage Component - All-Time, Monthly, and Weekly Reporting with Status Separation
 window.TimeframeAnalyticsPage = function() {
   const { activeAccount, contents } = React.useContext(window.VaultContext);
   const [timeframe, setTimeframe] = React.useState("all"); // 'all', 'monthly', 'weekly'
   const [selectedPlatform, setSelectedPlatform] = React.useState("All");
+  const [selectedStatus, setSelectedStatus] = React.useState("ALL"); // 'ALL', 'Uploaded', 'Scheduled', 'Privated', 'Deleted'
   const [selectedMonth, setSelectedMonth] = React.useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -28,6 +29,25 @@ window.TimeframeAnalyticsPage = function() {
     return contents.filter(c => c.accountId === activeAccount.id);
   }, [contents, activeAccount.id]);
 
+  // Overall status distribution across all account contents
+  const statusStats = React.useMemo(() => {
+    const total = accountContents.length;
+    const counts = { Uploaded: 0, Scheduled: 0, Privated: 0, Deleted: 0 };
+    accountContents.forEach(c => {
+      const s = c.status || "Uploaded";
+      if (counts[s] !== undefined) counts[s]++;
+      else counts["Uploaded"]++;
+    });
+    return {
+      total,
+      counts,
+      uploadedPct: total > 0 ? ((counts.Uploaded / total) * 100).toFixed(1) : "0.0",
+      scheduledPct: total > 0 ? ((counts.Scheduled / total) * 100).toFixed(1) : "0.0",
+      privatedPct: total > 0 ? ((counts.Privated / total) * 100).toFixed(1) : "0.0",
+      deletedPct: total > 0 ? ((counts.Deleted / total) * 100).toFixed(1) : "0.0"
+    };
+  }, [accountContents]);
+
   // Get all unique platforms
   const allPlatforms = React.useMemo(() => {
     const platforms = [...new Set(accountContents.map(c => c.platform))];
@@ -47,14 +67,16 @@ window.TimeframeAnalyticsPage = function() {
     return Array.from(months).sort().reverse();
   }, [accountContents]);
 
-  // Function to get analytics for a specific month
+  // Function to get analytics for a specific month (respecting status filter)
   const getMonthAnalytics = React.useMemo(() => {
     return (monthStr) => {
       const [year, month] = monthStr.split('-');
       const monthContents = accountContents.filter(item => {
         if (!item.uploadDate) return false;
         const itemDate = new Date(item.uploadDate);
-        return itemDate.getMonth() === parseInt(month) - 1 && itemDate.getFullYear() === parseInt(year);
+        const matchesMonth = itemDate.getMonth() === parseInt(month) - 1 && itemDate.getFullYear() === parseInt(year);
+        const matchesStatus = selectedStatus === "ALL" || (item.status || "Uploaded") === selectedStatus;
+        return matchesMonth && matchesStatus;
       });
 
       const totalImp = monthContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
@@ -74,17 +96,21 @@ window.TimeframeAnalyticsPage = function() {
         contentCount: monthContents.length
       };
     };
-  }, [accountContents]);
+  }, [accountContents, selectedStatus]);
 
-  // Filter contents by timeframe and platform
+  // Filter contents by timeframe, platform, and post status
   const filteredContents = React.useMemo(() => {
     const now = new Date();
     return accountContents.filter(item => {
-      if (!item.uploadDate) return true;
-      const itemDate = new Date(item.uploadDate);
+      // Status filter
+      if (selectedStatus !== "ALL" && (item.status || "Uploaded") !== selectedStatus) return false;
 
       // Platform filter
       if (selectedPlatform !== "All" && item.platform !== selectedPlatform) return false;
+
+      // Timeframe filter
+      if (!item.uploadDate) return true;
+      const itemDate = new Date(item.uploadDate);
 
       if (timeframe === "weekly") {
         const diffDays = (now - itemDate) / (1000 * 3600 * 24);
@@ -98,9 +124,9 @@ window.TimeframeAnalyticsPage = function() {
 
       return true; // all-time
     });
-  }, [accountContents, timeframe, selectedPlatform, selectedMonth]);
+  }, [accountContents, timeframe, selectedPlatform, selectedStatus, selectedMonth]);
 
-  // Compute Aggregates
+  // Compute Aggregates for filtered contents
   const totalImpressions = filteredContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
   const totalReach = filteredContents.reduce((sum, c) => sum + (c.reach || 0), 0);
   const totalLikes = filteredContents.reduce((sum, c) => sum + (c.likes || 0), 0);
@@ -110,6 +136,14 @@ window.TimeframeAnalyticsPage = function() {
   
   const totalEngagement = totalLikes + totalComments + totalShares + totalSaves;
   const erRate = totalReach > 0 ? ((totalEngagement / totalReach) * 100).toFixed(2) : "0.00";
+
+  // Status-specific configuration for badges and styling
+  const STATUS_CONFIG = {
+    "Uploaded": { label: "Uploaded (Published)", color: "#10B981", bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.35)", icon: "🟢" },
+    "Scheduled": { label: "Scheduled (Queued)", color: "#06B6D4", bg: "rgba(6, 182, 212, 0.15)", border: "rgba(6, 182, 212, 0.35)", icon: "⏱️" },
+    "Privated": { label: "Privated (Hidden)", color: "#F59E0B", bg: "rgba(245, 158, 11, 0.15)", border: "rgba(245, 158, 11, 0.35)", icon: "🔒" },
+    "Deleted": { label: "Deleted (Archived)", color: "#F43F5E", bg: "rgba(244, 63, 94, 0.15)", border: "rgba(244, 63, 94, 0.35)", icon: "🗑️" }
+  };
 
   // Render Chart.js - Different data based on timeframe
   React.useEffect(() => {
@@ -128,7 +162,6 @@ window.TimeframeAnalyticsPage = function() {
       const [year, month] = selectedMonth.split('-');
       const monthData = {};
       
-      // Group contents by date
       filteredContents.forEach(c => {
         if (c.uploadDate) {
           const dateObj = new Date(c.uploadDate);
@@ -139,7 +172,6 @@ window.TimeframeAnalyticsPage = function() {
         }
       });
 
-      // Sort dates and create arrays
       const sortedDates = Object.keys(monthData).sort();
       labels = sortedDates.length > 0 ? sortedDates.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : ['No Data'];
       impressionsData = sortedDates.length > 0 ? sortedDates.map(d => monthData[d]) : [0];
@@ -155,19 +187,21 @@ window.TimeframeAnalyticsPage = function() {
       chartTitle = `Impressions by Platform${selectedPlatform !== "All" ? ` (${selectedPlatform})` : ""}`;
     }
 
+    const chartColor = selectedStatus === "Uploaded" ? "#10B981" : selectedStatus === "Scheduled" ? "#06B6D4" : selectedStatus === "Privated" ? "#F59E0B" : selectedStatus === "Deleted" ? "#F43F5E" : "#8B5CF6";
+
     chartInstanceRef.current = new window.Chart(ctx, {
       type: 'line',
       data: {
         labels: labels,
         datasets: [{
-          label: 'Total Impressions (Views)',
+          label: selectedStatus === "ALL" ? 'Total Impressions (Views)' : `${selectedStatus} Impressions (Views)`,
           data: impressionsData,
-          borderColor: '#06B6D4',
-          backgroundColor: 'rgba(6, 182, 212, 0.1)',
+          borderColor: chartColor,
+          backgroundColor: `${chartColor}22`,
           borderWidth: 2,
           fill: true,
           tension: 0.4,
-          pointBackgroundColor: '#06B6D4',
+          pointBackgroundColor: chartColor,
           pointBorderColor: '#fff',
           pointBorderWidth: 2,
           pointRadius: 5,
@@ -197,14 +231,15 @@ window.TimeframeAnalyticsPage = function() {
     return () => {
       if (chartInstanceRef.current) chartInstanceRef.current.destroy();
     };
-  }, [filteredContents, timeframe, selectedMonth]);
+  }, [filteredContents, timeframe, selectedMonth, selectedStatus, selectedPlatform]);
 
   return (
     <div className="page-container">
+      {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">{activeAccount.name} - Timeframe Analytics</h1>
-          <p className="page-subtitle">Aggregated impressions, reach, total engagement, and engagement rate %</p>
+          <h1 className="page-title">{activeAccount.name} — Timeframe Analytics</h1>
+          <p className="page-subtitle">Granular performance separated by post status (Uploaded, Scheduled, Privated, Deleted)</p>
         </div>
 
         {/* Timeframe Selector Tabs */}
@@ -231,59 +266,189 @@ window.TimeframeAnalyticsPage = function() {
             Past 7 Days
           </button>
         </div>
+      </div>
 
-        {/* Platform Filter */}
-        <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginTop: "1rem", flexWrap: "wrap" }}>
+      {/* ══ POST STATUS SEGREGATION TABS & QUICK BAR ══ */}
+      <div className="glass-card" style={{ padding: "1.25rem 1.5rem", marginBottom: "1.5rem", background: "rgba(15, 23, 42, 0.75)", border: "1px solid var(--border-color)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem", marginBottom: "1rem" }}>
+          <div>
+            <span style={{ fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--accent-cyan)" }}>
+              🎯 Post Status Separation
+            </span>
+            <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: "0.2rem 0 0 0", color: "var(--text-main)" }}>
+              Filter & Isolate Analytics By Post Lifecycle
+            </h3>
+          </div>
+          
+          {/* Status Tab Buttons */}
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <button
+              onClick={() => setSelectedStatus("ALL")}
+              className={`btn btn-sm ${selectedStatus === "ALL" ? "btn-primary" : "btn-secondary"}`}
+              style={{ borderRadius: "8px", fontWeight: 700 }}
+            >
+              🌐 All Statuses ({statusStats.total})
+            </button>
+            <button
+              onClick={() => setSelectedStatus("Uploaded")}
+              className="btn btn-sm"
+              style={{
+                borderRadius: "8px",
+                fontWeight: 700,
+                background: selectedStatus === "Uploaded" ? "#10B981" : "rgba(16, 185, 129, 0.12)",
+                color: selectedStatus === "Uploaded" ? "#fff" : "#10B981",
+                border: "1px solid rgba(16, 185, 129, 0.3)"
+              }}
+            >
+              🟢 Uploaded ({statusStats.counts.Uploaded})
+            </button>
+            <button
+              onClick={() => setSelectedStatus("Scheduled")}
+              className="btn btn-sm"
+              style={{
+                borderRadius: "8px",
+                fontWeight: 700,
+                background: selectedStatus === "Scheduled" ? "#06B6D4" : "rgba(6, 182, 212, 0.12)",
+                color: selectedStatus === "Scheduled" ? "#fff" : "#06B6D4",
+                border: "1px solid rgba(6, 182, 212, 0.3)"
+              }}
+            >
+              ⏱️ Scheduled ({statusStats.counts.Scheduled})
+            </button>
+            <button
+              onClick={() => setSelectedStatus("Privated")}
+              className="btn btn-sm"
+              style={{
+                borderRadius: "8px",
+                fontWeight: 700,
+                background: selectedStatus === "Privated" ? "#F59E0B" : "rgba(245, 158, 11, 0.12)",
+                color: selectedStatus === "Privated" ? "#fff" : "#F59E0B",
+                border: "1px solid rgba(245, 158, 11, 0.3)"
+              }}
+            >
+              🔒 Privated ({statusStats.counts.Privated})
+            </button>
+            <button
+              onClick={() => setSelectedStatus("Deleted")}
+              className="btn btn-sm"
+              style={{
+                borderRadius: "8px",
+                fontWeight: 700,
+                background: selectedStatus === "Deleted" ? "#F43F5E" : "rgba(244, 63, 94, 0.12)",
+                color: selectedStatus === "Deleted" ? "#fff" : "#F43F5E",
+                border: "1px solid rgba(244, 63, 94, 0.3)"
+              }}
+            >
+              🗑️ Deleted ({statusStats.counts.Deleted})
+            </button>
+          </div>
+        </div>
+
+        {/* Status Distribution Visual Bar */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          {[
+            { key: "Uploaded", label: "Uploaded (Live)", count: statusStats.counts.Uploaded, pct: statusStats.uploadedPct, color: "#10B981" },
+            { key: "Scheduled", label: "Scheduled (Queue)", count: statusStats.counts.Scheduled, pct: statusStats.scheduledPct, color: "#06B6D4" },
+            { key: "Privated", label: "Privated (Hidden)", count: statusStats.counts.Privated, pct: statusStats.privatedPct, color: "#F59E0B" },
+            { key: "Deleted", label: "Deleted (Archive)", count: statusStats.counts.Deleted, pct: statusStats.deletedPct, color: "#F43F5E" }
+          ].map(s => (
+            <div 
+              key={s.key} 
+              onClick={() => setSelectedStatus(s.key)}
+              style={{
+                padding: "0.6rem 0.85rem",
+                borderRadius: "8px",
+                background: selectedStatus === s.key ? `${s.color}18` : "rgba(255, 255, 255, 0.03)",
+                border: `1px solid ${selectedStatus === s.key ? s.color : "rgba(255, 255, 255, 0.07)"}`,
+                cursor: "pointer",
+                transition: "all 0.2s ease"
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
+                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: s.color }}>{s.label}</span>
+                <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 700 }}>{s.pct}%</span>
+              </div>
+              <div style={{ fontSize: "1.15rem", fontWeight: 800, color: "var(--text-main)" }}>
+                {s.count} <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "var(--text-muted)" }}>posts</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Platform & Month Filters */}
+      <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)" }}>Platform Filter:</label>
+          <select 
+            className="form-select"
+            value={selectedPlatform}
+            onChange={e => setSelectedPlatform(e.target.value)}
+            style={{ width: "auto" }}
+          >
+            <option value="All">All Platforms</option>
+            {allPlatforms.map(platform => (
+              <option key={platform} value={platform}>{platform}</option>
+            ))}
+          </select>
+        </div>
+
+        {timeframe === "monthly" && (
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <label style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-muted)" }}>Platform:</label>
+            <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)" }}>Select Month:</label>
             <select 
               className="form-select"
-              value={selectedPlatform}
-              onChange={e => setSelectedPlatform(e.target.value)}
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(e.target.value)}
               style={{ width: "auto" }}
             >
-              <option value="All">All Platforms</option>
-              {allPlatforms.map(platform => (
-                <option key={platform} value={platform}>{platform}</option>
-              ))}
+              {getAvailableMonths.map(month => {
+                const [year, monthNum] = month.split('-');
+                const monthName = new Date(year, parseInt(monthNum) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                return (
+                  <option key={month} value={month}>{monthName}</option>
+                );
+              })}
+              {getAvailableMonths.length === 0 && <option>No data available</option>}
             </select>
           </div>
+        )}
 
-          {timeframe === "monthly" && (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <label style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-muted)" }}>Select Month & Year:</label>
-              <select 
-                className="form-select"
-                value={selectedMonth}
-                onChange={e => setSelectedMonth(e.target.value)}
-                style={{ width: "auto" }}
-              >
-                {getAvailableMonths.map(month => {
-                  const [year, monthNum] = month.split('-');
-                  const monthName = new Date(year, parseInt(monthNum) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-                  return (
-                    <option key={month} value={month}>{monthName}</option>
-                  );
-                })}
-                {getAvailableMonths.length === 0 && <option>No data available</option>}
-              </select>
-            </div>
-          )}
+        {/* Active Filter Indicator */}
+        <div style={{ marginLeft: "auto", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Active View:</span>
+          <span style={{
+            padding: "0.2rem 0.6rem",
+            borderRadius: "6px",
+            fontSize: "0.78rem",
+            fontWeight: 700,
+            background: selectedStatus === "ALL" ? "rgba(139,92,246,0.2)" : STATUS_CONFIG[selectedStatus]?.bg || "rgba(255,255,255,0.1)",
+            color: selectedStatus === "ALL" ? "var(--accent-primary-light)" : STATUS_CONFIG[selectedStatus]?.color || "#fff",
+            border: `1px solid ${selectedStatus === "ALL" ? "rgba(139,92,246,0.35)" : STATUS_CONFIG[selectedStatus]?.border || "transparent"}`
+          }}>
+            {selectedStatus === "ALL" ? "All Statuses (Consolidated)" : STATUS_CONFIG[selectedStatus]?.label || selectedStatus}
+          </span>
         </div>
       </div>
 
       {/* KPI Cards Grid */}
       <div className="stats-grid">
         <div className="glass-card stat-card">
-          <span className="stat-label">Total Impressions (Views)</span>
+          <span className="stat-label">
+            {selectedStatus === "ALL" ? "Total Impressions (Views)" : `${selectedStatus} Impressions`}
+          </span>
           <span className="stat-value" style={{ color: "var(--accent-cyan)" }}>
             {totalImpressions.toLocaleString()}
           </span>
-          <span className="stat-change positive">From {filteredContents.length} contents</span>
+          <span className="stat-change positive">
+            From {filteredContents.length} {selectedStatus !== "ALL" ? selectedStatus.toLowerCase() : ""} contents
+          </span>
         </div>
 
         <div className="glass-card stat-card">
-          <span className="stat-label">Total Reach (Unique Viewers)</span>
+          <span className="stat-label">
+            {selectedStatus === "ALL" ? "Total Reach (Unique Viewers)" : `${selectedStatus} Reach`}
+          </span>
           <span className="stat-value">
             {totalReach.toLocaleString()}
           </span>
@@ -291,7 +456,9 @@ window.TimeframeAnalyticsPage = function() {
         </div>
 
         <div className="glass-card stat-card">
-          <span className="stat-label">Total Engagement</span>
+          <span className="stat-label">
+            {selectedStatus === "ALL" ? "Total Engagement" : `${selectedStatus} Engagement`}
+          </span>
           <span className="stat-value" style={{ color: "var(--accent-emerald)" }}>
             {totalEngagement.toLocaleString()}
           </span>
@@ -310,9 +477,16 @@ window.TimeframeAnalyticsPage = function() {
       {/* Analytics Breakdown & Chart */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem", marginTop: "1.5rem" }}>
         <div className="glass-card" style={{ height: "350px", display: "flex", flexDirection: "column" }}>
-          <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1rem" }}>
-            {timeframe === "monthly" ? `Daily Impressions - ${new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}` : `Impressions by Platform ${selectedPlatform !== "All" ? `(${selectedPlatform})` : ""}`}
-          </h3>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0 }}>
+              {timeframe === "monthly" 
+                ? `Daily Impressions - ${new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}` 
+                : `Impressions by Platform ${selectedPlatform !== "All" ? `(${selectedPlatform})` : ""}`}
+            </h3>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", background: "rgba(255,255,255,0.05)", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>
+              Status: {selectedStatus}
+            </span>
+          </div>
           <div style={{ flex: 1, position: "relative" }}>
             <canvas ref={chartRef}></canvas>
           </div>
@@ -320,7 +494,9 @@ window.TimeframeAnalyticsPage = function() {
 
         {/* Engagement Details Breakdown */}
         <div className="glass-card">
-          <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1.25rem" }}>Engagement Metrics</h3>
+          <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1.25rem" }}>
+            {selectedStatus === "ALL" ? "Engagement Breakdown" : `${selectedStatus} Metrics`}
+          </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
@@ -343,15 +519,137 @@ window.TimeframeAnalyticsPage = function() {
               <strong style={{ fontSize: "0.95rem" }}>{totalSaves.toLocaleString()}</strong>
             </div>
 
+            <div style={{ marginTop: "0.5rem", padding: "0.75rem", borderRadius: "8px", background: "rgba(255,255,255,0.03)", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+              <strong>Posts in scope: </strong> {filteredContents.length} ({selectedStatus})
+            </div>
+
           </div>
         </div>
       </div>
+
+      {/* ══ DEDICATED SEPARATED STATUS SUMMARY (When viewing ALL) ══ */}
+      {selectedStatus === "ALL" && (
+        <div style={{ marginTop: "2.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
+            <div>
+              <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", margin: 0 }}>
+                📑 Separated Post Status Breakdown
+              </h2>
+              <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: "0.25rem 0 0 0" }}>
+                Individual performance & inventory metrics segregated by post status
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "1.25rem" }}>
+            {[
+              {
+                status: "Uploaded",
+                title: "🟢 Uploaded (Live)",
+                desc: "Active published content with live audience metrics",
+                items: accountContents.filter(c => (c.status || "Uploaded") === "Uploaded"),
+                color: "#10B981",
+                btnText: "Analyze Uploaded"
+              },
+              {
+                status: "Scheduled",
+                title: "⏱️ Scheduled (Queue)",
+                desc: "Upcoming content waiting for automated or planned release",
+                items: accountContents.filter(c => c.status === "Scheduled"),
+                color: "#06B6D4",
+                btnText: "Analyze Scheduled"
+              },
+              {
+                status: "Privated",
+                title: "🔒 Privated (Hidden)",
+                desc: "Content hidden from public view / unlisted posts",
+                items: accountContents.filter(c => c.status === "Privated"),
+                color: "#F59E0B",
+                btnText: "Analyze Privated"
+              },
+              {
+                status: "Deleted",
+                title: "🗑️ Deleted (Archived)",
+                desc: "Removed or archived posts with historical record retention",
+                items: accountContents.filter(c => c.status === "Deleted"),
+                color: "#F43F5E",
+                btnText: "Analyze Deleted"
+              }
+            ].map(sec => {
+              const secImp = sec.items.reduce((s, c) => s + (c.impressions || 0), 0);
+              const secReach = sec.items.reduce((s, c) => s + (c.reach || 0), 0);
+              const secEng = sec.items.reduce((s, c) => s + (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0), 0);
+              const secEr = secReach > 0 ? ((secEng / secReach) * 100).toFixed(2) : "0.00";
+
+              return (
+                <div 
+                  key={sec.status}
+                  className="glass-card"
+                  style={{
+                    padding: "1.35rem",
+                    borderTop: `3px solid ${sec.color}`,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between"
+                  }}
+                >
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                      <h4 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0, color: sec.color }}>{sec.title}</h4>
+                      <span style={{
+                        padding: "0.2rem 0.5rem",
+                        borderRadius: "12px",
+                        fontSize: "0.75rem",
+                        fontWeight: 800,
+                        background: `${sec.color}20`,
+                        color: sec.color
+                      }}>
+                        {sec.items.length} posts
+                      </span>
+                    </div>
+                    <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1rem", lineHeight: 1.4 }}>
+                      {sec.desc}
+                    </p>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem", marginBottom: "1rem", padding: "0.75rem", background: "rgba(255,255,255,0.02)", borderRadius: "8px" }}>
+                      <div>
+                        <div style={{ fontSize: "0.7rem", color: "var(--text-subtle)", textTransform: "uppercase" }}>Impressions</div>
+                        <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--accent-cyan)" }}>{secImp.toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "0.7rem", color: "var(--text-subtle)", textTransform: "uppercase" }}>Reach</div>
+                        <div style={{ fontSize: "0.95rem", fontWeight: 700 }}>{secReach.toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "0.7rem", color: "var(--text-subtle)", textTransform: "uppercase" }}>Engagement</div>
+                        <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--accent-emerald)" }}>{secEng.toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "0.7rem", color: "var(--text-subtle)", textTransform: "uppercase" }}>ER %</div>
+                        <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--accent-primary)" }}>{secEr}%</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setSelectedStatus(sec.status)}
+                    className="btn btn-secondary btn-sm"
+                    style={{ width: "100%", fontSize: "0.8rem", color: sec.color, borderColor: `${sec.color}40` }}
+                  >
+                    {sec.btnText} →
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Month Comparison Section */}
       {timeframe === "monthly" && (
         <div style={{ marginTop: "2.5rem" }}>
           <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "1rem" }}>
-            📊 Compare Two Months
+            📊 Compare Two Months ({selectedStatus === "ALL" ? "All Statuses" : selectedStatus})
           </h2>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "2rem", marginBottom: "1.5rem" }}>
@@ -502,14 +800,13 @@ window.TimeframeAnalyticsPage = function() {
         </div>
       )}
 
-      {/* Content Type Analytics Section - Bottom of Page */}
+      {/* Content Type Analytics Section */}
       <div style={{ marginTop: "2.5rem" }}>
         <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "1.5rem" }}>
-          🎬 Content Type Performance
+          🎬 Content Type Performance ({selectedStatus === "ALL" ? "All Statuses" : selectedStatus})
         </h2>
 
         {(() => {
-          // Group contents by content type and calculate analytics
           const contentTypeStats = React.useMemo(() => {
             const stats = {};
             filteredContents.forEach(content => {
@@ -532,7 +829,6 @@ window.TimeframeAnalyticsPage = function() {
               stats[type].engagement += (content.likes || 0) + (content.comments || 0) + (content.shares || 0) + (content.saves || 0);
             });
 
-            // Calculate averages
             Object.keys(stats).forEach(type => {
               const stat = stats[type];
               stat.avgImpressions = stat.count > 0 ? Math.round(stat.impressions / stat.count) : 0;
@@ -543,18 +839,9 @@ window.TimeframeAnalyticsPage = function() {
             return Object.values(stats).sort((a, b) => b.impressions - a.impressions);
           }, [filteredContents]);
 
-          // Content type icon mapping
           const contentTypeIcons = {
-            "Reels": "📹",
-            "Carousel": "🎠",
-            "Vlog": "🎥",
-            "Video": "🎬",
-            "Image": "📷",
-            "Story": "📖",
-            "Live": "🔴",
-            "Post": "📝",
-            "Short": "⏱️",
-            "Thread": "🧵"
+            "Reels": "📹", "Carousel": "🎠", "Vlog": "🎥", "Video": "🎬", "Image": "📷",
+            "Story": "📖", "Live": "🔴", "Post": "📝", "Short": "⏱️", "Thread": "🧵"
           };
 
           return (
@@ -590,7 +877,7 @@ window.TimeframeAnalyticsPage = function() {
                           <strong style={{ color: "var(--accent-cyan)", fontSize: "0.9rem" }}>{stat.impressions.toLocaleString()}</strong>
                         </div>
                         <div style={{ width: "100%", height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
-                          <div style={{ width: `${Math.min((stat.impressions / Math.max(...contentTypeStats.map(s => s.impressions))) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, var(--accent-cyan), var(--accent-primary))", borderRadius: "3px" }} />
+                          <div style={{ width: `${Math.min((stat.impressions / (Math.max(...contentTypeStats.map(s => s.impressions)) || 1)) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, var(--accent-cyan), var(--accent-primary))", borderRadius: "3px" }} />
                         </div>
                       </div>
 
@@ -600,7 +887,7 @@ window.TimeframeAnalyticsPage = function() {
                           <strong style={{ fontSize: "0.9rem" }}>{stat.reach.toLocaleString()}</strong>
                         </div>
                         <div style={{ width: "100%", height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
-                          <div style={{ width: `${Math.min((stat.reach / Math.max(...contentTypeStats.map(s => s.reach))) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, #A78BFA, #7C3AED)", borderRadius: "3px" }} />
+                          <div style={{ width: `${Math.min((stat.reach / (Math.max(...contentTypeStats.map(s => s.reach)) || 1)) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, #A78BFA, #7C3AED)", borderRadius: "3px" }} />
                         </div>
                       </div>
 
@@ -610,7 +897,7 @@ window.TimeframeAnalyticsPage = function() {
                           <strong style={{ color: "var(--accent-emerald)", fontSize: "0.9rem" }}>{stat.engagement.toLocaleString()}</strong>
                         </div>
                         <div style={{ width: "100%", height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
-                          <div style={{ width: `${Math.min((stat.engagement / Math.max(...contentTypeStats.map(s => s.engagement))) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, #34D399, #10B981)", borderRadius: "3px" }} />
+                          <div style={{ width: `${Math.min((stat.engagement / (Math.max(...contentTypeStats.map(s => s.engagement)) || 1)) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, #34D399, #10B981)", borderRadius: "3px" }} />
                         </div>
                       </div>
 
@@ -631,7 +918,7 @@ window.TimeframeAnalyticsPage = function() {
                 ))
               ) : (
                 <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
-                  No content data available for the selected timeframe
+                  No content data available for status: {selectedStatus}
                 </div>
               )}
             </div>
@@ -641,11 +928,10 @@ window.TimeframeAnalyticsPage = function() {
         {/* Top Performing Post by Platform Section */}
         <div style={{ marginTop: "2.5rem" }}>
           <h2 style={{ fontSize: "1.25rem", fontWeight: 800, marginBottom: "1.25rem", color: "var(--text-main)" }}>
-            🏆 Top Performing Post by Platform
+            🏆 Top Performing Posts by Platform ({selectedStatus === "ALL" ? "All Statuses" : selectedStatus})
           </h2>
 
           {(() => {
-            // Get top post per platform for the selected timeframe
             const topPostsByPlatform = React.useMemo(() => {
               const platformMap = {};
               
@@ -654,14 +940,12 @@ window.TimeframeAnalyticsPage = function() {
                 if (!platformMap[platform]) {
                   platformMap[platform] = item;
                 } else {
-                  // Compare by impressions
                   if ((item.impressions || 0) > (platformMap[platform].impressions || 0)) {
                     platformMap[platform] = item;
                   }
                 }
               });
 
-              // Convert to array and sort by impressions
               return Object.values(platformMap).sort((a, b) => (b.impressions || 0) - (a.impressions || 0));
             }, [filteredContents]);
 
@@ -673,6 +957,8 @@ window.TimeframeAnalyticsPage = function() {
                     const er = post.reach > 0 ? ((engagement / post.reach) * 100).toFixed(2) : "0.00";
                     const caption = String(post.caption || "").substring(0, 100);
                     const captionTrunc = caption.length > 100 ? caption.substring(0, 97) + "..." : caption;
+                    const postStatus = post.status || "Uploaded";
+                    const stConfig = STATUS_CONFIG[postStatus] || { label: postStatus, color: "#10B981", bg: "rgba(16,185,129,0.15)" };
 
                     return (
                       <div
@@ -688,7 +974,7 @@ window.TimeframeAnalyticsPage = function() {
                           gap: "1rem"
                         }}
                       >
-                        {/* Platform Badge */}
+                        {/* Platform & Status Badge Header */}
                         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: "space-between" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                             <div style={{
@@ -705,14 +991,28 @@ window.TimeframeAnalyticsPage = function() {
                               <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Posted {post.uploadDate || "N/A"}</div>
                             </div>
                           </div>
-                          {idx === 0 && (
-                            <div style={{
-                              padding: "0.4rem 0.8rem", background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-primary))",
-                              borderRadius: "6px", fontSize: "0.7rem", fontWeight: 700, color: "#fff"
+                          
+                          <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                            <span style={{
+                              padding: "0.2rem 0.55rem",
+                              borderRadius: "6px",
+                              fontSize: "0.7rem",
+                              fontWeight: 700,
+                              background: stConfig.bg,
+                              color: stConfig.color,
+                              border: `1px solid ${stConfig.border || "transparent"}`
                             }}>
-                              TOP
-                            </div>
-                          )}
+                              {postStatus}
+                            </span>
+                            {idx === 0 && (
+                              <div style={{
+                                padding: "0.2rem 0.6rem", background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-primary))",
+                                borderRadius: "6px", fontSize: "0.7rem", fontWeight: 700, color: "#fff"
+                              }}>
+                                TOP
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         {/* Caption */}
@@ -772,7 +1072,7 @@ window.TimeframeAnalyticsPage = function() {
                   })
                 ) : (
                   <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
-                    No posts available for the selected timeframe and filters
+                    No posts available for {selectedStatus} in the selected timeframe and filters
                   </div>
                 )}
               </div>

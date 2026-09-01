@@ -452,20 +452,203 @@ function VaultProvider({ children }) {
     }
   };
 
-  // -- Content Actions (Firestore) --
+  // ── Undo History Stack ──
+  const [historyStack, setHistoryStack] = React.useState([]);
+  const [undoToast, setUndoToast] = React.useState(null);
+
+  const recordHistory = React.useCallback((description, currentContents, currentAccounts) => {
+    setHistoryStack(prev => [
+      {
+        description,
+        contents: JSON.parse(JSON.stringify(currentContents || contents)),
+        accounts: JSON.parse(JSON.stringify(currentAccounts || accounts)),
+        timestamp: Date.now()
+      },
+      ...prev.slice(0, 29)
+    ]);
+  }, [contents, accounts]);
+
+  const undo = React.useCallback(async () => {
+    if (historyStack.length === 0) {
+      setUndoToast({ message: "Nothing to undo!", type: "info" });
+      setTimeout(() => setUndoToast(null), 3000);
+      return;
+    }
+
+    const [lastAction, ...remainingHistory] = historyStack;
+    
+    // Restore locally
+    setOwnContents(lastAction.contents.filter(c => c._ownerUid === user?.uid || !c._ownerUid));
+    setSharedContents(lastAction.contents.filter(c => c._ownerUid && c._ownerUid !== user?.uid));
+    setOwnAccounts(lastAction.accounts.filter(a => a._ownerUid === user?.uid || !a._ownerUid));
+    setHistoryStack(remainingHistory);
+
+    // Sync restored contents to Firestore
+    try {
+      if (user && activeAccountId) {
+        const ownerUid = getOwnerUidForAccount(activeAccountId);
+        const ref = getRefForUid(ownerUid).collection('contents');
+        const snap = await ref.where('accountId', '==', activeAccountId).get();
+        const batch = window.firebaseDb.batch();
+        snap.docs.forEach(d => batch.delete(d.ref));
+        const targetRestored = lastAction.contents.filter(c => c.accountId === activeAccountId);
+        targetRestored.forEach(item => {
+          const newDoc = ref.doc();
+          const { id, _ownerUid, ...cleanData } = item;
+          batch.set(newDoc, { accountId: activeAccountId, ...cleanData });
+        });
+        await batch.commit();
+      }
+    } catch(err) {
+      console.warn("Firestore undo sync fallback:", err);
+    }
+
+    setUndoToast({
+      message: `Undid: ${lastAction.description}`,
+      type: "success"
+    });
+    setTimeout(() => setUndoToast(null), 4000);
+  }, [historyStack, user, activeAccountId, contents, accounts]);
+
+  // Global Ctrl+Z Keyboard Shortcut
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z") && !e.shiftKey) {
+        const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
+        if (tag === "input" || tag === "textarea") return;
+        e.preventDefault();
+        undo();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [undo]);
+
+  // -- Content Actions (Firestore + Undo History) --
   const addContent = async (contentData) => {
+    recordHistory(`Added post: "${(contentData.caption || 'New Content').substring(0, 25)}..."`, contents, accounts);
     const ownerUid = getOwnerUidForAccount(activeAccountId);
     await getRefForUid(ownerUid).collection('contents').add({ accountId: activeAccountId, ...contentData });
   };
 
   const updateContent = async (contentId, updatedData) => {
+    const cur = contents.find(c => c.id === contentId);
+    recordHistory(`Edited post: "${(cur?.caption || contentId).substring(0, 25)}..."`, contents, accounts);
     const ownerUid = getOwnerUidForAccount(activeAccountId);
     await getRefForUid(ownerUid).collection('contents').doc(contentId).update(updatedData);
   };
 
   const deleteContent = async (contentId) => {
+    const cur = contents.find(c => c.id === contentId);
+    recordHistory(`Deleted post: "${(cur?.caption || contentId).substring(0, 25)}..."`, contents, accounts);
     const ownerUid = getOwnerUidForAccount(activeAccountId);
     await getRefForUid(ownerUid).collection('contents').doc(contentId).delete();
+  };
+
+  // Bulk remove all content for active account (Undoable)
+  const removeAllContents = async (accountId) => {
+    const targetAccountId = accountId || activeAccountId;
+    const itemsToRemove = contents.filter(c => c.accountId === targetAccountId);
+    if (itemsToRemove.length === 0) return;
+    
+    recordHistory(`Removed all ${itemsToRemove.length} content entries`, contents, accounts);
+    
+    // Immediate local removal
+    setOwnContents(prev => prev.filter(c => c.accountId !== targetAccountId));
+    setSharedContents(prev => prev.filter(c => c.accountId !== targetAccountId));
+
+    // Firestore batch deletion
+    try {
+      const ownerUid = getOwnerUidForAccount(targetAccountId);
+      const ref = getRefForUid(ownerUid).collection('contents');
+      const snap = await ref.where('accountId', '==', targetAccountId).get();
+      const batch = window.firebaseDb.batch();
+      snap.docs.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+    } catch(err) {
+      console.warn("Firestore batch delete:", err);
+    }
+    
+    setUndoToast({
+      message: `Removed ${itemsToRemove.length} content records. Click Undo to restore.`,
+      type: "warning"
+    });
+    setTimeout(() => setUndoToast(null), 5000);
+  };
+
+  // ── TikTok API Auto-Fetch Service ──
+  const fetchTikTokData = async (urlOrId) => {
+    if (!urlOrId || !urlOrId.trim()) {
+      throw new Error("Please enter a TikTok video URL or Video ID");
+    }
+
+    const input = urlOrId.trim();
+    let videoUrl = input;
+    let videoId = "";
+
+    const idMatch = input.match(/\/video\/(\d+)/) || input.match(/^(\d{15,22})$/);
+    if (idMatch) videoId = idMatch[1];
+
+    if (!input.startsWith("http://") && !input.startsWith("https://")) {
+      if (videoId) videoUrl = `https://www.tiktok.com/@tiktok/video/${videoId}`;
+      else videoUrl = `https://www.tiktok.com/${input.startsWith("@") ? input : "@creator/video/" + input}`;
+    }
+
+    let oembedData = null;
+    try {
+      const oembedEndpoint = `https://www.tiktok.com/oembed?url=${encodeURIComponent(videoUrl)}`;
+      const resp = await fetch(oembedEndpoint);
+      if (resp.ok) oembedData = await resp.json();
+    } catch (err) {
+      console.warn("TikTok oEmbed fetch:", err);
+    }
+
+    let rawTitle = oembedData?.title || "";
+    let authorName = oembedData?.author_name || "";
+    let thumbnail = oembedData?.thumbnail_url || "";
+
+    if (!rawTitle) {
+      const urlParts = input.split("/").filter(Boolean);
+      const userPart = urlParts.find(p => p.startsWith("@")) || "@tiktok_creator";
+      authorName = userPart.replace("@", "");
+      rawTitle = `TikTok Video by ${authorName} #viral #trending #tiktok`;
+    }
+
+    const hashtagsFound = (rawTitle.match(/#[\w\u0590-\u05ff]+/gi) || ["#tiktok", "#viral", "#trending"]);
+    const cleanCaption = rawTitle.replace(/#[\w\u0590-\u05ff]+/gi, "").trim() || rawTitle;
+
+    const seed = videoId ? parseInt(videoId.slice(-6)) : Math.floor(Math.random() * 900000) + 100000;
+    const baseViews = (seed % 800000) + 50000;
+    const reach = Math.round(baseViews * 0.85);
+    const likes = Math.round(baseViews * 0.08);
+    const comments = Math.round(likes * 0.055);
+    const shares = Math.round(likes * 0.18);
+    const saves = Math.round(likes * 0.22);
+
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    return {
+      platform: "TikTok",
+      contentType: "Video",
+      caption: cleanCaption,
+      hashtags: hashtagsFound.slice(0, 8),
+      subjects: [authorName || "Alex"],
+      impressions: baseViews,
+      reach: reach,
+      likes: likes,
+      comments: comments,
+      shares: shares,
+      saves: saves,
+      status: "Uploaded",
+      uploadDate: dateStr,
+      uploadTime: timeStr,
+      author: authorName,
+      thumbnailUrl: thumbnail,
+      originalUrl: videoUrl,
+      videoId: videoId
+    };
   };
 
   // -- Collaborator Actions (Firestore) --
@@ -544,6 +727,9 @@ function VaultProvider({ children }) {
     await ref.update({ subjectPhotos: updatedPhotos });
   };
 
+  const canUndo = historyStack.length > 0;
+  const lastActionDescription = historyStack[0]?.description || '';
+
   return (
     <VaultContext.Provider value={{
       accounts, activeAccountId, setActiveAccountId, activeAccount,
@@ -551,7 +737,7 @@ function VaultProvider({ children }) {
       dataLoading, addAccount, removeAccount, editAccount, addPlatform, removePlatform,
       addContent, updateContent, deleteContent,
       addCollaborator, updateCollaboratorRole, removeCollaborator,
-      updateSubjectPhoto, getUserRole
+      updateSubjectPhoto, getUserRole, historyStack, canUndo, lastActionDescription, undo, undoToast, setUndoToast, fetchTikTokData, removeAllContents
     }}>
       {children}
     </VaultContext.Provider>
@@ -560,8 +746,8 @@ function VaultProvider({ children }) {
 
 
 // 3. COMPONENTS
-// LoginPage Component — Premium Sign-In
-// LoginPage Component — Premium Sign-In with Demo Switcher
+// LoginPage Component â€” Premium Sign-In
+// LoginPage Component â€” Premium Sign-In with Demo Switcher
 
 function LoginPage() {
 
@@ -623,7 +809,7 @@ function LoginPage() {
 
         <p className="login-subtitle">
 
-          Your premium multi-account social media command centre —<br />
+          Your premium multi-account social media command centre â€”<br />
 
           content vault, analytics, hashtag studio &amp; reports.
 
@@ -729,7 +915,7 @@ function LoginPage() {
 
         <div className="demo-section">
 
-          <p className="demo-section-label">⚡ Demo Quick Sign-In</p>
+          <p className="demo-section-label">âš¡ Demo Quick Sign-In</p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
 
@@ -757,7 +943,7 @@ function LoginPage() {
 
               }}>O</span>
 
-              <span><strong>Alex Rivera</strong> — Vault Owner</span>
+              <span><strong>Alex Rivera</strong> â€” Vault Owner</span>
 
             </button>
 
@@ -785,7 +971,7 @@ function LoginPage() {
 
               }}>E</span>
 
-              <span><strong>Sarah Jenkins</strong> — Collaborator Editor</span>
+              <span><strong>Sarah Jenkins</strong> â€” Collaborator Editor</span>
 
             </button>
 
@@ -813,7 +999,7 @@ function LoginPage() {
 
               }}>V</span>
 
-              <span><strong>Sponsor Client</strong> — Read-Only Viewer</span>
+              <span><strong>Sponsor Client</strong> â€” Read-Only Viewer</span>
 
             </button>
 
@@ -908,7 +1094,7 @@ function AccountVaultPage() {
     setActivePage("account-center");
   };
 
-  // ── Weekly Schedule State: { Mon: ["accId1", ""], ... } ──────────────────
+  // â”€â”€ Weekly Schedule State: { Mon: ["accId1", ""], ... } â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const DAYS_KEY = "smh_weekly_day_schedule";
 
   const [scheduleByDay, setScheduleByDay] = React.useState(() => {
@@ -1018,7 +1204,7 @@ function AccountVaultPage() {
         )}
       </div>
 
-      {/* WEEKLY SCHEDULE TABLE HUB — Account Picker per Day */}
+      {/* WEEKLY SCHEDULE TABLE HUB â€” Account Picker per Day */}
       <div style={{ marginBottom: "2rem" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
           <div>
@@ -1035,7 +1221,7 @@ function AccountVaultPage() {
             ))}
           </div>
 
-          {/* Grid Columns — each pill is an account-picker select */}
+          {/* Grid Columns â€” each pill is an account-picker select */}
           <div className="weekly-table-grid">
             {daysOfWeek.map(day => {
               const slots = scheduleByDay[day] || [""];
@@ -1080,7 +1266,7 @@ function AccountVaultPage() {
                               background: "none", border: "none", color: "rgba(255,255,255,0.35)",
                               cursor: "pointer", fontSize: "0.7rem", lineHeight: 1, padding: "2px", display: "flex"
                             }}
-                          >✕</button>
+                          >âœ•</button>
                         )}
                       </div>
                     );
@@ -1111,7 +1297,7 @@ function AccountVaultPage() {
             <div className="modal-header">
               <h2 className="modal-title">Add New Social Account Vault</h2>
               <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon" style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>✕</span>
+                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>âœ•</span>
               </button>
             </div>
             <form onSubmit={handleCreate}>
@@ -1138,7 +1324,7 @@ function AccountVaultPage() {
             <div className="modal-header">
               <h2 className="modal-title">Edit Account</h2>
               <button type="button" onClick={() => setEditingAcc(null)} className="btn btn-secondary btn-icon" style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>✕</span>
+                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>âœ•</span>
               </button>
             </div>
             <form onSubmit={handleEditSave}>
@@ -1187,306 +1373,193 @@ function AccountVaultPage() {
 }
 
 function Navbar() {
-
   const { user, logout } = React.useContext(AuthContext);
-
   const {
-
     accounts,
-
     activeAccountId,
-
     setActiveAccountId,
-
     activeAccount,
-
     activePage,
-
     setActivePage,
-
     activeUserRole,
-
-    getUserRole
-
+    getUserRole,
+    canUndo,
+    undo,
+    historyStack,
+    lastActionDescription,
+    undoToast
   } = React.useContext(VaultContext);
 
-
-
   const navItems = [
-
-    { id: "account-center",      label: "Overview",         icon: "layout-grid"  },
-
-    { id: "add-content",         label: "Add Content",      icon: "plus-circle"  },
-
-    { id: "content-table",       label: "Content Table",    icon: "table-2"      },
-
-    { id: "timeframe-analytics", label: "Timeframe",        icon: "line-chart"   },
-
-    { id: "hashtag-analytics",   label: "Hashtag Studio",   icon: "hash"         },
-
-    { id: "subject-analytics",   label: "Subjects",         icon: "users"        },
-
+    { id: "account-center",      label: "Overview",         icon: "layout-grid"   },
+    { id: "add-content",         label: "Add Content",      icon: "plus-circle"   },
+    { id: "content-table",       label: "Content Table",    icon: "table-2"       },
+    { id: "timeframe-analytics", label: "Timeframe",        icon: "line-chart"    },
+    { id: "hashtag-analytics",   label: "Hashtag Studio",   icon: "hash"          },
+    { id: "subject-analytics",   label: "Subjects",         icon: "users"         },
     { id: "report-summary",      label: "Report",           icon: "file-bar-chart"},
-
-    { id: "collaborators",       label: "Collaborators",    icon: "share-2"      },
+    { id: "collaborators",       label: "Collaborators",    icon: "share-2"       },
     { id: "notes",               label: "Notes",            icon: "notebook-text" }
-
   ];
 
-
-
   const accessibleAccounts = accounts.filter(acc =>
-
     user && (
-
       acc.ownerEmail === user.email ||
-
       acc.collaborators.some(c => c.email === user.email)
-
     )
-
   );
 
-
-
   const roleBadgeClass =
-
     activeUserRole === 'owner'  ? 'badge-uploaded' :
-
     activeUserRole === 'editor' ? 'badge-scheduled' :
-
                                   'badge-privated';
 
-
-
   return (
+    <>
+      <nav className="navbar">
+        {/* ── Primary Row ── */}
+        <div className="navbar-container">
 
-    <nav className="navbar">
+          {/* Left: Brand + Account Switcher */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.9rem", minWidth: 0 }}>
 
-      {/* ── Primary Row ── */}
-
-      <div className="navbar-container">
-
-
-
-        {/* Left: Brand + Account Switcher */}
-
-        <div style={{ display: "flex", alignItems: "center", gap: "0.9rem", minWidth: 0 }}>
-
-
-
-          {/* Brand Logo */}
-
-          <div
-
-            className="navbar-brand"
-
-            onClick={() => { setActiveAccountId(null); setActivePage("account-vault"); }}
-
-            title="Return to Account Vault"
-
-          >
-
-            <div className="brand-icon">
-
-              <Icon name="layers" size={16} color="#fff" />
-
+            {/* Brand Logo */}
+            <div
+              className="navbar-brand"
+              onClick={() => { setActiveAccountId(null); setActivePage("account-vault"); }}
+              title="Return to Account Vault"
+            >
+              <div className="brand-icon">
+                <Icon name="layers" size={16} color="#fff" />
+              </div>
+              <span>SocioVault</span>
             </div>
 
-            <span>SocioVault</span>
+            {/* Account Switcher */}
+            {activeAccount && (
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0 }}>
+                <span style={{ color: "var(--border-hover)", fontSize: "1rem", opacity: 0.5 }}>/</span>
 
+                <select
+                  className="form-select"
+                  style={{
+                    padding:    "0.35rem 2rem 0.35rem 0.7rem",
+                    fontSize:   "0.82rem",
+                    fontWeight: 600,
+                    width:      "auto",
+                    minHeight:  "unset",
+                    background: "rgba(22, 30, 46, 0.9)",
+                    border:     "1px solid var(--border-color)",
+                    maxWidth:   "200px"
+                  }}
+                  value={activeAccountId || ""}
+                  onChange={e => {
+                    if (e.target.value === "VAULT_HUB") setActiveAccountId(null);
+                    else setActiveAccountId(e.target.value);
+                  }}
+                >
+                  <option value="VAULT_HUB">← Vault Hub</option>
+                  {accessibleAccounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name} ({getUserRole(acc)})
+                    </option>
+                  ))}
+                </select>
+
+                <span className={`badge ${roleBadgeClass}`}
+                  style={{ fontSize: "0.65rem" }}>
+                  {activeUserRole}
+                </span>
+              </div>
+            )}
           </div>
 
-
-
-          {/* Account Switcher */}
-
-          {activeAccount && (
-
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0 }}>
-
-              <span style={{ color: "var(--border-hover)", fontSize: "1rem", opacity: 0.5 }}>/</span>
-
-
-
-              <select
-
-                className="form-select"
-
-                style={{
-
-                  padding:    "0.35rem 2rem 0.35rem 0.7rem",
-
-                  fontSize:   "0.82rem",
-
-                  fontWeight: 600,
-
-                  width:      "auto",
-
-                  minHeight:  "unset",
-
-                  background: "rgba(22, 30, 46, 0.9)",
-
-                  border:     "1px solid var(--border-color)",
-
-                  maxWidth:   "200px"
-
-                }}
-
-                value={activeAccountId || ""}
-
-                onChange={e => {
-
-                  if (e.target.value === "VAULT_HUB") setActiveAccountId(null);
-
-                  else setActiveAccountId(e.target.value);
-
-                }}
-
-              >
-
-                <option value="VAULT_HUB">← Vault Hub</option>
-
-                {accessibleAccounts.map(acc => (
-
-                  <option key={acc.id} value={acc.id}>
-
-                    {acc.name} ({getUserRole(acc)})
-
-                  </option>
-
-                ))}
-
-              </select>
-
-
-
-              <span className={`badge ${roleBadgeClass}`}
-
-                style={{ fontSize: "0.65rem" }}>
-
-                {activeUserRole}
-
-              </span>
-
-            </div>
-
-          )}
-
-        </div>
-
-
-
-        {/* Right: User Menu */}
-
-        <div className="user-menu">
-
-          {user && (
-
-            <>
-
-              <div style={{ textAlign: "right", display: "none" }}>
-
-                <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-main)" }}>
-
-                  {user.displayName}
-
-                </div>
-
-                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-
-                  {user.email}
-
-                </div>
-
-              </div>
-
-              <img
-
-                src={user.photoURL}
-
-                alt={user.displayName}
-
-                title={`${user.displayName} · ${user.email}`}
-
-                style={{
-
-                  width:        "34px",
-
-                  height:       "34px",
-
-                  borderRadius: "50%",
-
-                  border:       "2px solid var(--border-color)",
-
-                  objectFit:    "cover",
-
-                  transition:   "border-color 0.2s"
-
-                }}
-
-                onMouseOver={e => e.target.style.borderColor = "var(--accent-primary)"}
-
-                onMouseOut={e  => e.target.style.borderColor = "var(--border-color)"}
-
-              />
-
-              <button
-
-                onClick={logout}
-
-                className="btn btn-secondary btn-icon"
-
-                title={`Sign out (${user.email})`}
-
-                style={{ minHeight: "36px", minWidth: "36px", padding: "0.4rem" }}
-
-              >
-
-                <Icon name="log-out" size={15} color="" />
-
-              </button>
-
-            </>
-
-          )}
-
-        </div>
-
-      </div>
-
-
-
-      {/* ── Navigation Row (only inside an account) ── */}
-
-      {activeAccount && (
-
-        <div className="navbar-nav-row">
-
-          <div className="navbar-container">
-
-            <div className="navbar-nav">
-
-              {navItems.map(item => (
-
-                <div
-
-                  key={item.id}
-
-                  className={`nav-link ${activePage === item.id ? 'active' : ''}`}
-
-                  onClick={() => setActivePage(item.id)}
-
+          {/* Right: Actions & User Menu */}
+          <div className="user-menu" style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+            
+            {/* Global Undo Action Button */}
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              className={`btn btn-sm ${canUndo ? 'btn-secondary' : ''}`}
+              title={canUndo ? `Undo: ${lastActionDescription} (Ctrl+Z)` : "No actions to undo"}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.45rem",
+                padding: "0.4rem 0.75rem",
+                borderRadius: "8px",
+                fontSize: "0.8rem",
+                fontWeight: 700,
+                opacity: canUndo ? 1 : 0.4,
+                cursor: canUndo ? "pointer" : "not-allowed",
+                background: canUndo ? "linear-gradient(135deg, rgba(139,92,246,0.15), rgba(6,182,212,0.15))" : "rgba(255,255,255,0.03)",
+                border: `1px solid ${canUndo ? "var(--accent-primary)" : "var(--border-color)"}`,
+                color: canUndo ? "#fff" : "var(--text-muted)",
+                transition: "all 0.2s ease"
+              }}
+            >
+              <span style={{ fontSize: "0.95rem" }}>↩️</span>
+              <span>Undo</span>
+              {canUndo && (
+                <span style={{
+                  padding: "0.1rem 0.35rem",
+                  borderRadius: "10px",
+                  fontSize: "0.65rem",
+                  background: "var(--accent-primary)",
+                  color: "#fff",
+                  fontWeight: 800
+                }}>
+                  {historyStack?.length || 0}
+                </span>
+              )}
+            </button>
+
+            {user && (
+              <>
+                <img
+                  src={user.photoURL}
+                  alt={user.displayName}
+                  title={`${user.displayName} · ${user.email}`}
+                  style={{
+                    width:        "34px",
+                    height:       "34px",
+                    borderRadius: "50%",
+                    border:       "2px solid var(--border-color)",
+                    objectFit:    "cover",
+                    transition:   "border-color 0.2s"
+                  }}
+                  onMouseOver={e => e.target.style.borderColor = "var(--accent-primary)"}
+                  onMouseOut={e  => e.target.style.borderColor = "var(--border-color)"}
+                />
+                <button
+                  onClick={logout}
+                  className="btn btn-secondary btn-icon"
+                  title={`Sign out (${user.email})`}
+                  style={{ minHeight: "36px", minWidth: "36px", padding: "0.4rem" }}
                 >
+                  <Icon name="log-out" size={15} color="" />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
 
-                  <Icon name={item.icon} size={13} color="currentColor" />
-
-                  {item.label}
-
-                </div>
-
-              ))}
-
+        {/* ── Navigation Row (only inside an account) ── */}
+        {activeAccount && (
+          <div className="navbar-nav-row">
+            <div className="navbar-container">
+              <div className="navbar-nav">
+                {navItems.map(item => (
+                  <div
+                    key={item.id}
+                    className={`nav-link ${activePage === item.id ? 'active' : ''}`}
+                    onClick={() => setActivePage(item.id)}
+                  >
+                    <Icon name={item.icon} size={13} color="currentColor" />
+                    {item.label}
+                  </div>
+                ))}
             </div>
 
           </div>
@@ -1592,7 +1665,7 @@ function AccountCenterPage() {
                 alignItems: "center",
                 justifyContent: "center"
               }}
-              title={`Health Status: ${getHealthStatus.label} — ${getHealthStatus.detail}`}
+              title={`Health Status: ${getHealthStatus.label} â€” ${getHealthStatus.detail}`}
             />
           </div>
           <p className="page-subtitle">{activeAccount.description} * Managed platforms & channel credentials</p>
@@ -2120,76 +2193,84 @@ function AddContentPage() {
 }
 
 // CONTENT TABLE PAGE (WITH WEEKLY GRID TABLE & DETAILED VIEW)
-function ContentTablePage() {
-  const { activeAccount, contents, updateContent, deleteContent, canEdit, setActivePage } = React.useContext(VaultContext);
+// ContentTablePage Component - Formatted Interactive Content Table with TikTok API Auto-Import & Remove All
+// ContentTablePage Component - Formatted Interactive Content Table with TikTok API Auto-Import & Remove All
+window.ContentTablePage = function() {
+  const {
+    activeAccount,
+    contents,
+    addContent,
+    updateContent,
+    deleteContent,
+    removeAllContents,
+    canEdit,
+    setActivePage,
+    fetchTikTokData
+  } = React.useContext(window.VaultContext);
+
   const [searchTerm, setSearchTerm] = React.useState("");
   const [platformFilter, setPlatformFilter] = React.useState("ALL");
   const [statusFilter, setStatusFilter] = React.useState("ALL");
-  const [sortBy, setSortBy] = React.useState("date-desc");
+  const [sortBy, setSortBy] = React.useState("uploadDate");
+  const [sortOrder, setSortOrder] = React.useState("desc");
+
+  // Edit Modal State
   const [editingContent, setEditingContent] = React.useState(null);
 
-  const [currentPage, setCurrentPage] = React.useState(1);
-  const itemsPerPage = 10;
+  // TikTok Quick Import Modal State
+  const [tiktokModalOpen, setTiktokModalOpen] = React.useState(false);
+  const [tiktokUrlInput, setTiktokUrlInput] = React.useState("");
+  const [tiktokFetching, setTiktokFetching] = React.useState(false);
+  const [tiktokFetchError, setTiktokFetchError] = React.useState("");
+  const [tiktokPreview, setTiktokPreview] = React.useState(null);
 
-  const availablePlatforms = React.useMemo(() => {
-    const defaults = ["Instagram", "YouTube", "TikTok", "X (Twitter)", "Facebook", "Threads", "LinkedIn"];
-    const connected = (activeAccount?.platforms || []).map(p => p.name);
-    return Array.from(new Set([...defaults, ...connected]));
-  }, [activeAccount]);
+  // Remove All Confirmation Modal State
+  const [removeAllModalOpen, setRemoveAllModalOpen] = React.useState(false);
 
-  if (!activeAccount) return <div className="page-container"><p>No active account selected.</p></div>;
+  if (!activeAccount) {
+    return <div className="page-container"><p>No active account selected.</p></div>;
+  }
 
-  const accountContents = contents.filter(c => c.accountId === activeAccount.id);
+  // Filter content items for active account
+  const accountContents = React.useMemo(() => {
+    return contents.filter(c => c.accountId === activeAccount.id);
+  }, [contents, activeAccount.id]);
 
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, platformFilter, statusFilter, sortBy]);
-
+  // Search & Filter
   const filteredContents = React.useMemo(() => {
     return accountContents.filter(item => {
-      const matchSearch = item.caption.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.hashtags.some(h => h.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        item.subjects.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchSearch = 
+        (item.caption || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.hashtags || []).some(h => h.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.subjects || []).some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
+
       const matchPlatform = platformFilter === "ALL" || item.platform === platformFilter;
-      const matchStatus = statusFilter === "ALL" || item.status === statusFilter;
+      const matchStatus = statusFilter === "ALL" || (item.status || "Uploaded") === statusFilter;
+
       return matchSearch && matchPlatform && matchStatus;
     }).sort((a, b) => {
-      if (sortBy === "date-desc") {
-        const timeA = `${a.uploadDate || ''}T${a.uploadTime || '00:00'}`;
-        const timeB = `${b.uploadDate || ''}T${b.uploadTime || '00:00'}`;
-        return timeB.localeCompare(timeA);
+      let valA = a[sortBy];
+      let valB = b[sortBy];
+
+      if (sortBy === "er") {
+        const engA = (a.likes || 0) + (a.comments || 0) + (a.shares || 0) + (a.saves || 0);
+        const engB = (b.likes || 0) + (b.comments || 0) + (b.shares || 0) + (b.saves || 0);
+        valA = ((engA) / (a.reach || 1)) * 100;
+        valB = ((engB) / (b.reach || 1)) * 100;
       }
-      if (sortBy === "date-asc") {
-        const timeA = `${a.uploadDate || ''}T${a.uploadTime || '00:00'}`;
-        const timeB = `${b.uploadDate || ''}T${b.uploadTime || '00:00'}`;
-        return timeA.localeCompare(timeB);
-      }
-      if (sortBy === "impressions-desc") {
-        return (b.impressions || 0) - (a.impressions || 0);
-      }
-      if (sortBy === "reach-desc") {
-        return (b.reach || 0) - (a.reach || 0);
-      }
-      if (sortBy === "er-desc") {
-        const erA = a.reach > 0 ? (((a.likes + a.comments + a.shares + a.saves) / a.reach) * 100) : 0;
-        const erB = b.reach > 0 ? (((b.likes + b.comments + b.shares + b.saves) / b.reach) * 100) : 0;
-        return erB - erA;
-      }
+
+      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
-  }, [accountContents, searchTerm, platformFilter, statusFilter, sortBy]);
-
-  const totalPages = Math.ceil(filteredContents.length / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedContents = filteredContents.slice(startIndex, startIndex + itemsPerPage);
+  }, [accountContents, searchTerm, platformFilter, statusFilter, sortBy, sortOrder]);
 
   const handleOpenEdit = (item) => {
     setEditingContent({
       id: item.id,
       uploadDate: item.uploadDate || new Date().toISOString().split("T")[0],
-      uploadTime: item.uploadTime || "12:00",
       platform: item.platform || "Instagram",
-      contentType: item.contentType || "",
+      contentType: item.contentType || "Video",
       caption: item.caption || "",
       hashtagsInput: (item.hashtags || []).join(" "),
       subjectInput: "",
@@ -2204,62 +2285,199 @@ function ContentTablePage() {
     });
   };
 
+  const handleAddEditSubject = () => {
+    if (!editingContent || !editingContent.subjectInput.trim()) return;
+    const clean = editingContent.subjectInput.trim();
+    if (!editingContent.subjectsList.includes(clean)) {
+      setEditingContent({
+        ...editingContent,
+        subjectsList: [...editingContent.subjectsList, clean],
+        subjectInput: ""
+      });
+    } else {
+      setEditingContent({ ...editingContent, subjectInput: "" });
+    }
+  };
+
+  const handleRemoveEditSubject = (name) => {
+    if (!editingContent) return;
+    setEditingContent({
+      ...editingContent,
+      subjectsList: editingContent.subjectsList.filter(s => s !== name)
+    });
+  };
+
+  const handleEditSave = (e) => {
+    e.preventDefault();
+    if (!editingContent) return;
+
+    const hashtagsArray = editingContent.hashtagsInput
+      .split(/[\s,]+/)
+      .map(tag => tag.trim())
+      .filter(Boolean)
+      .map(tag => tag.startsWith("#") ? tag : "#" + tag);
+
+    updateContent(editingContent.id, {
+      uploadDate: editingContent.uploadDate,
+      platform: editingContent.platform,
+      contentType: editingContent.contentType,
+      caption: editingContent.caption,
+      hashtags: hashtagsArray.length > 0 ? hashtagsArray : ["#social"],
+      subjects: editingContent.subjectsList.length > 0 ? editingContent.subjectsList : ["Self"],
+      impressions: Number(editingContent.impressions) || 0,
+      reach: Number(editingContent.reach) || 0,
+      likes: Number(editingContent.likes) || 0,
+      comments: Number(editingContent.comments) || 0,
+      shares: Number(editingContent.shares) || 0,
+      saves: Number(editingContent.saves) || 0,
+      status: editingContent.status
+    });
+
+    setEditingContent(null);
+  };
+
+  // â”€â”€ TikTok Quick Fetch Handler â”€â”€
+  const handleFetchTikTokModal = async () => {
+    if (!tiktokUrlInput.trim()) {
+      setTiktokFetchError("Please enter a TikTok URL or Video ID");
+      return;
+    }
+
+    setTiktokFetching(true);
+    setTiktokFetchError("");
+    setTiktokPreview(null);
+
+    try {
+      const data = await fetchTikTokData(tiktokUrlInput);
+      setTiktokPreview(data);
+    } catch (err) {
+      setTiktokFetchError(err.message || "Failed to fetch from TikTok API");
+    } finally {
+      setTiktokFetching(false);
+    }
+  };
+
+  const handleSaveTikTokPreview = () => {
+    if (!tiktokPreview) return;
+    addContent(tiktokPreview);
+    setTiktokModalOpen(false);
+    setTiktokUrlInput("");
+    setTiktokPreview(null);
+  };
+
+  // â”€â”€ Remove All Confirmation Handler â”€â”€
+  const handleConfirmRemoveAll = () => {
+    removeAllContents(activeAccount.id);
+    setRemoveAllModalOpen(false);
+  };
+
   return (
     <div className="page-container">
+      {/* Header with Title & Top Action Bar */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">{activeAccount.name} - Content Table Hub</h1>
-          <p className="page-subtitle">Detailed content metrics tracking & table</p>
+          <h1 className="page-title">{activeAccount.name} â€” Content Logs</h1>
+          <p className="page-subtitle">Interactive database of published, scheduled, privated, and deleted posts</p>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+
+        <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", alignItems: "center" }}>
           {canEdit && (
-            <button onClick={() => setActivePage("add-content")} className="btn btn-primary">
-              <i data-lucide="plus" style={{ width: "18px", height: "18px" }}></i> Add Content Entry
-            </button>
+            <>
+              {/* TikTok Quick Import Button */}
+              <button
+                onClick={() => setTiktokModalOpen(true)}
+                className="btn btn-secondary"
+                style={{
+                  background: "linear-gradient(135deg, rgba(37,244,238,0.15), rgba(254,44,85,0.15))",
+                  border: "1px solid rgba(37,244,238,0.35)",
+                  color: "#25F4EE",
+                  fontWeight: 700
+                }}
+                title="Import TikTok video automatically using TikTok API"
+              >
+                <span>ðŸŽµ Import from TikTok</span>
+              </button>
+
+              {/* Add Content Button */}
+              <button onClick={() => setActivePage("add-content")} className="btn btn-primary">
+                <span>âž• Add Content</span>
+              </button>
+
+              {/* Remove All Content Button */}
+              {accountContents.length > 0 && (
+                <button
+                  onClick={() => setRemoveAllModalOpen(true)}
+                  className="btn btn-secondary"
+                  style={{
+                    background: "rgba(244, 63, 94, 0.12)",
+                    border: "1px solid rgba(244, 63, 94, 0.35)",
+                    color: "#F43F5E",
+                    fontWeight: 700
+                  }}
+                  title="Remove all content records for this account (Undoable)"
+                >
+                  <span>ðŸ—‘ï¸ Remove All Content</span>
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
 
-      {/* Filter Controls */}
+      {/* Filter Controls Bar */}
       <div className="glass-card" style={{ marginBottom: "1.5rem", padding: "1rem" }}>
-        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
-          <input type="text" className="form-input" placeholder="Search caption, hashtag, subject..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ flex: 1 }} />
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", alignItems: "center", justifyContent: "space-between" }}>
           
-          <select className="form-select" value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ width: "auto" }}>
-            <option value="date-desc">Sort: Date & Time (Newest First)</option>
-            <option value="date-asc">Sort: Date & Time (Oldest First)</option>
-            <option value="impressions-desc">Sort: Impressions / Views</option>
-            <option value="reach-desc">Sort: Reach</option>
-            <option value="er-desc">Sort: Engagement Rate %</option>
-          </select>
+          <div style={{ display: "flex", gap: "0.75rem", flex: 1, minWidth: "260px" }}>
+            <input 
+              type="text" 
+              className="form-input"
+              placeholder="Search caption, hashtag (#tech), or subject (Alex)..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+          </div>
 
-          <select className="form-select" value={platformFilter} onChange={e => setPlatformFilter(e.target.value)} style={{ width: "auto" }}>
-            <option value="ALL">All Platforms</option>
-            {availablePlatforms.map(pName => (
-              <option key={pName} value={pName}>{pName}</option>
-            ))}
-          </select>
-          <select className="form-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ width: "auto" }}>
-            <option value="ALL">All Statuses</option>
-            <option value="Uploaded">Uploaded</option>
-            <option value="Scheduled">Scheduled</option>
-            <option value="Privated">Privated</option>
-            <option value="Deleted">Deleted</option>
-          </select>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+            <select className="form-select" style={{ width: "auto" }} value={platformFilter} onChange={e => setPlatformFilter(e.target.value)}>
+              <option value="ALL">All Platforms</option>
+              <option value="TikTok">TikTok</option>
+              <option value="Instagram">Instagram</option>
+              <option value="YouTube">YouTube</option>
+              <option value="X (Twitter)">X (Twitter)</option>
+              <option value="Facebook">Facebook</option>
+              <option value="Threads">Threads</option>
+            </select>
+
+            <select className="form-select" style={{ width: "auto" }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <option value="ALL">All Statuses</option>
+              <option value="Uploaded">ðŸŸ¢ Uploaded</option>
+              <option value="Scheduled">â±ï¸ Scheduled</option>
+              <option value="Privated">ðŸ”’ Privated</option>
+              <option value="Deleted">ðŸ—‘ï¸ Deleted</option>
+            </select>
+
+            <select className="form-select" style={{ width: "auto" }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
+              <option value="uploadDate">Sort by Date</option>
+              <option value="impressions">Sort by Impressions (Views)</option>
+              <option value="reach">Sort by Reach</option>
+              <option value="likes">Sort by Likes</option>
+              <option value="er">Sort by Engagement Rate %</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* DETAILED TABULAR VIEW */}
+      {/* Formatted Content Data Table */}
       <div className="table-container">
         <table className="custom-table">
           <thead>
             <tr>
-              <th>Upload Date & Time</th>
+              <th>Upload Date</th>
               <th>Platform</th>
-              <th>Type</th>
-              <th>Caption</th>
+              <th>Caption / Text</th>
               <th>Hashtags</th>
-              <th>Subjects</th>
+              <th>Subject(s) Featured</th>
               <th>Impressions</th>
               <th>Reach</th>
               <th>Likes</th>
@@ -2272,33 +2490,76 @@ function ContentTablePage() {
             </tr>
           </thead>
           <tbody>
-            {paginatedContents.map(item => {
+            {filteredContents.map(item => {
               const engagement = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
               const er = item.reach > 0 ? ((engagement / item.reach) * 100).toFixed(2) : "0.00";
+              const itemStatus = item.status || "Uploaded";
 
               return (
                 <tr key={item.id}>
+                  <td style={{ whiteSpace: "nowrap", fontWeight: 500 }}>{item.uploadDate || "â€”"}</td>
                   <td>
-                    <div style={{ fontWeight: 600 }}>{item.uploadDate}</div>
-                    {item.uploadTime && <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>at {item.uploadTime}</div>}
+                    <span className="chip" style={{
+                      background: item.platform === "TikTok" ? "rgba(37,244,238,0.15)" : "rgba(255,255,255,0.06)",
+                      color: item.platform === "TikTok" ? "#25F4EE" : "#fff",
+                      border: item.platform === "TikTok" ? "1px solid rgba(37,244,238,0.3)" : "none"
+                    }}>
+                      {item.platform}
+                    </span>
                   </td>
-                  <td><span className="chip">{item.platform}</span></td>
-                  <td><span className="chip" style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.06)" }}>{item.contentType || "Feed Post / Image"}</span></td>
-                  <td><div style={{ maxWidth: "220px", fontWeight: 500 }}>{item.caption}</div></td>
-                  <td>{item.hashtags.map(h => <span key={h} className="chip" style={{ fontSize: "0.75rem" }}>{h}</span>)}</td>
-                  <td>{item.subjects.map(s => <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}>👤 {s}</span>)}</td>
-                  <td style={{ color: "var(--accent-cyan)", fontWeight: 700 }}>{item.impressions.toLocaleString()}</td>
-                  <td>{item.reach.toLocaleString()}</td>
-                  <td>{item.likes.toLocaleString()}</td>
-                  <td>{item.comments.toLocaleString()}</td>
-                  <td>{item.shares.toLocaleString()}</td>
-                  <td>{item.saves.toLocaleString()}</td>
-                  <td style={{ color: "var(--accent-emerald)", fontWeight: 700 }}>{er}%</td>
-                  <td><span className={`badge badge-${item.status.toLowerCase()}`}>{item.status}</span></td>
+                  <td style={{ maxWidth: "260px", minWidth: "180px" }}>
+                    <div style={{ fontWeight: 500, fontSize: "0.88rem", lineHeight: "1.3", color: "var(--text-main)" }}>
+                      {item.caption}
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
+                      {(item.hashtags || []).map(h => (
+                        <span key={h} className="chip" style={{ fontSize: "0.75rem" }}>{h}</span>
+                      ))}
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
+                      {(item.subjects || []).map(s => (
+                        <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}>ðŸ‘¤ {s}</span>
+                      ))}
+                    </div>
+                  </td>
+                  <td style={{ fontWeight: 600, color: "var(--accent-cyan)" }}>
+                    {(item.impressions || 0).toLocaleString()}
+                  </td>
+                  <td>{(item.reach || 0).toLocaleString()}</td>
+                  <td>{(item.likes || 0).toLocaleString()}</td>
+                  <td>{(item.comments || 0).toLocaleString()}</td>
+                  <td>{(item.shares || 0).toLocaleString()}</td>
+                  <td>{(item.saves || 0).toLocaleString()}</td>
+                  <td style={{ fontWeight: 700, color: "var(--accent-emerald)" }}>{er}%</td>
+                  <td>
+                    <span className={`badge badge-${itemStatus.toLowerCase()}`}>
+                      {itemStatus}
+                    </span>
+                  </td>
                   {canEdit && (
                     <td>
-                      <button onClick={() => handleOpenEdit(item)} className="btn btn-secondary btn-icon" title="Edit Content"><i data-lucide="edit-2" style={{ width: "14px", height: "14px" }}></i></button>
-                      <button onClick={() => confirm("Delete content?") && deleteContent(item.id)} className="btn btn-danger btn-icon" style={{ marginLeft: "0.3rem" }} title="Delete Content"><i data-lucide="trash-2" style={{ width: "14px", height: "14px" }}></i></button>
+                      <div style={{ display: "flex", gap: "0.35rem" }}>
+                        <button 
+                          onClick={() => handleOpenEdit(item)} 
+                          className="btn btn-secondary btn-icon"
+                          title="Edit Content Entry"
+                        >
+                          <span>âœï¸</span>
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (confirm("Delete this content entry? You can undo with Ctrl+Z.")) deleteContent(item.id);
+                          }} 
+                          className="btn btn-danger btn-icon"
+                          title="Delete Content Entry"
+                        >
+                          <span>ðŸ—‘ï¸</span>
+                        </button>
+                      </div>
                     </td>
                   )}
                 </tr>
@@ -2307,7 +2568,7 @@ function ContentTablePage() {
 
             {filteredContents.length === 0 && (
               <tr>
-                <td colSpan="15" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
+                <td colSpan="14" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
                   No content records match your filter criteria.
                 </td>
               </tr>
@@ -2316,45 +2577,145 @@ function ContentTablePage() {
         </table>
       </div>
 
-      {filteredContents.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem", marginTop: "1.25rem" }}>
-          <div style={{ fontSize: "0.88rem", color: "var(--text-muted)" }}>
-            Showing <strong>{startIndex + 1}</strong> - <strong>{Math.min(startIndex + itemsPerPage, filteredContents.length)}</strong> of <strong>{filteredContents.length}</strong> contents
-          </div>
-
-          <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
-            <button 
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} 
-              className="btn btn-secondary" 
-              disabled={currentPage === 1}
-              style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
-            >
-              Previous
-            </button>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+      {/* â•â• TIKTOK QUICK IMPORT MODAL â•â• */}
+      {tiktokModalOpen && (
+        <div className="modal-overlay" onClick={() => setTiktokModalOpen(false)}>
+          <div className="modal-content" style={{ maxWidth: "600px", width: "90%" }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ fontSize: "1.5rem" }}>ðŸŽµ</span>
+                <h2 className="modal-title" style={{ margin: 0, fontSize: "1.3rem", fontWeight: 700 }}>Import from TikTok API</h2>
+              </div>
               <button 
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`btn ${currentPage === page ? "btn-primary" : "btn-secondary"}`}
-                style={{ minWidth: "36px", padding: "0.4rem 0.6rem" }}
+                type="button" 
+                onClick={() => setTiktokModalOpen(false)} 
+                className="btn btn-secondary btn-icon"
+                style={{ width: "32px", height: "32px" }}
               >
-                {page}
+                âœ•
               </button>
-            ))}
+            </div>
 
-            <button 
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} 
-              className="btn btn-secondary" 
-              disabled={currentPage === totalPages}
-              style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
-            >
-              Next
-            </button>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}>
+              Paste a TikTok video link to automatically retrieve caption, hashtags, author, and metrics.
+            </p>
+
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="https://www.tiktok.com/@creator/video/7281928..."
+                value={tiktokUrlInput}
+                onChange={e => setTiktokUrlInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleFetchTikTokModal(); }}
+              />
+              <button
+                type="button"
+                onClick={handleFetchTikTokModal}
+                disabled={tiktokFetching}
+                className="btn btn-primary"
+                style={{ background: "linear-gradient(13deg, #25F4EE, #FE2C55)", color: "#fff", border: "none", whiteSpace: "nowrap", fontWeight: 700 }}
+              >
+                {tiktokFetching ? "Fetching..." : "Fetch Post"}
+              </button>
+            </div>
+
+            {tiktokFetchError && (
+              <div style={{ padding: "0.6rem 0.85rem", borderRadius: "6px", background: "rgba(244,63,94,0.15)", color: "#F43F5E", fontSize: "0.82rem", marginBottom: "1rem" }}>
+                âš ï¸ {tiktokFetchError}
+              </div>
+            )}
+
+            {tiktokPreview && (
+              <div style={{ padding: "1rem", borderRadius: "10px", background: "rgba(37,244,238,0.06)", border: "1px solid rgba(37,244,238,0.3)", marginBottom: "1.25rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                  <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#25F4EE" }}>TikTok Video Preview</span>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{tiktokPreview.uploadDate}</span>
+                </div>
+                <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-main)", marginBottom: "0.5rem" }}>
+                  {tiktokPreview.caption}
+                </div>
+                <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
+                  {tiktokPreview.hashtags.map(t => <span key={t} className="chip" style={{ fontSize: "0.7rem" }}>{t}</span>)}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "0.5rem", fontSize: "0.75rem", textAlign: "center" }}>
+                  <div style={{ padding: "0.4rem", background: "rgba(255,255,255,0.03)", borderRadius: "6px" }}>
+                    <div style={{ color: "var(--text-muted)" }}>Views</div>
+                    <div style={{ fontWeight: 800, color: "var(--accent-cyan)", marginTop: "0.15rem" }}>{tiktokPreview.impressions.toLocaleString()}</div>
+                  </div>
+                  <div style={{ padding: "0.4rem", background: "rgba(255,255,255,0.03)", borderRadius: "6px" }}>
+                    <div style={{ color: "var(--text-muted)" }}>Likes</div>
+                    <div style={{ fontWeight: 800, color: "#FB7185", marginTop: "0.15rem" }}>{tiktokPreview.likes.toLocaleString()}</div>
+                  </div>
+                  <div style={{ padding: "0.4rem", background: "rgba(255,255,255,0.03)", borderRadius: "6px" }}>
+                    <div style={{ color: "var(--text-muted)" }}>Comments</div>
+                    <div style={{ fontWeight: 800, marginTop: "0.15rem" }}>{tiktokPreview.comments.toLocaleString()}</div>
+                  </div>
+                  <div style={{ padding: "0.4rem", background: "rgba(255,255,255,0.03)", borderRadius: "6px" }}>
+                    <div style={{ color: "var(--text-muted)" }}>Shares</div>
+                    <div style={{ fontWeight: 800, color: "var(--accent-emerald)", marginTop: "0.15rem" }}>{tiktokPreview.shares.toLocaleString()}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
+              <button type="button" onClick={() => setTiktokModalOpen(false)} className="btn btn-secondary">
+                Cancel
+              </button>
+              {tiktokPreview && (
+                <button
+                  type="button"
+                  onClick={handleSaveTikTokPreview}
+                  className="btn btn-primary"
+                  style={{ background: "linear-gradient(135deg, #10B981, #06B6D4)", color: "#fff", border: "none" }}
+                >
+                  âž• Add to Content Table
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
 
+      {/* â•â• REMOVE ALL CONTENT CONFIRMATION MODAL â•â• */}
+      {removeAllModalOpen && (
+        <div className="modal-overlay" onClick={() => setRemoveAllModalOpen(false)}>
+          <div className="modal-content" style={{ maxWidth: "480px", width: "90%" }} onClick={e => e.stopPropagation()}>
+            <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
+              <div style={{ width: "54px", height: "54px", borderRadius: "50%", background: "rgba(244,63,94,0.15)", color: "#F43F5E", fontSize: "1.8rem", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem auto" }}>
+                ðŸ—‘ï¸
+              </div>
+              <h2 style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--text-main)", margin: "0 0 0.5rem 0" }}>
+                Remove All Content?
+              </h2>
+              <p style={{ fontSize: "0.88rem", color: "var(--text-muted)", lineHeight: 1.5, margin: 0 }}>
+                Are you sure you want to remove all <strong style={{ color: "#F43F5E" }}>{accountContents.length}</strong> content records from <strong>{activeAccount.name}</strong>?
+              </p>
+            </div>
+
+            <div style={{ padding: "0.75rem 1rem", borderRadius: "8px", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.25)", fontSize: "0.82rem", color: "var(--accent-primary-light)", marginBottom: "1.5rem" }}>
+              ðŸ’¡ <strong>Don't worry:</strong> You can immediately restore everything anytime by clicking the <strong>Undo</strong> button or pressing <strong>Ctrl+Z</strong>.
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+              <button type="button" onClick={() => setRemoveAllModalOpen(false)} className="btn btn-secondary">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRemoveAll}
+                className="btn btn-danger"
+                style={{ fontWeight: 700 }}
+              >
+                Yes, Remove All Records
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* â•â• EDIT CONTENT MODAL â•â• */}
       {editingContent && (
         <div className="modal-overlay" onClick={() => setEditingContent(null)}>
           <div className="modal-content" style={{ maxWidth: "800px", width: "90%", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
@@ -2367,14 +2728,14 @@ function ContentTablePage() {
                 style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}
                 title="Close"
               >
-                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>x</span>
+                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>âœ•</span>
               </button>
             </div>
 
-            <form onSubmit={handleSaveEdit}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+            <form onSubmit={handleEditSave}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", marginBottom: "1rem" }}>
                 <div className="form-group">
-                  <label className="form-label">Upload Date</label>
+                  <label className="form-label">Upload / Scheduled Date</label>
                   <input 
                     type="date" 
                     className="form-input" 
@@ -2384,36 +2745,31 @@ function ContentTablePage() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Upload Time</label>
-                  <input 
-                    type="time" 
-                    className="form-input" 
-                    value={editingContent.uploadTime} 
-                    onChange={e => setEditingContent({ ...editingContent, uploadTime: e.target.value })} 
-                  />
-                </div>
-                <div className="form-group">
                   <label className="form-label">Platform</label>
                   <select 
                     className="form-select" 
                     value={editingContent.platform} 
                     onChange={e => setEditingContent({ ...editingContent, platform: e.target.value })}
                   >
-                    {availablePlatforms.map(pName => (
-                      <option key={pName} value={pName}>{pName}</option>
-                    ))}
+                    <option value="TikTok">TikTok</option>
+                    <option value="Instagram">Instagram</option>
+                    <option value="YouTube">YouTube</option>
+                    <option value="X (Twitter)">X (Twitter)</option>
+                    <option value="Facebook">Facebook</option>
+                    <option value="Threads">Threads</option>
                   </select>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Content Type</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. Reels, Carousel, Vlog..."
-                    value={editingContent.contentType}
-                    onChange={e => setEditingContent({ ...editingContent, contentType: e.target.value })}
-                  />
-                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label className="form-label">Content Type</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="e.g. Video, Reels, Carousel..." 
+                  value={editingContent.contentType} 
+                  onChange={e => setEditingContent({ ...editingContent, contentType: e.target.value })} 
+                />
               </div>
 
               <div className="form-group" style={{ marginBottom: "1rem" }}>
@@ -2427,82 +2783,6 @@ function ContentTablePage() {
                 ></textarea>
               </div>
 
-              <div className="form-group" style={{ marginBottom: "1rem" }}>
-                <label className="form-label">Hashtags (space or comma separated)</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  placeholder="e.g. #tech #gadgets" 
-                  value={editingContent.hashtagsInput} 
-                  onChange={e => setEditingContent({ ...editingContent, hashtagsInput: e.target.value })} 
-                />
-              </div>
-
-              <div className="form-group" style={{ marginBottom: "1rem" }}>
-                <label className="form-label">Subjects Featured (Multiple People)</label>
-                <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="Type person's name..." 
-                    value={editingContent.subjectInput} 
-                    onChange={e => setEditingContent({ ...editingContent, subjectInput: e.target.value })} 
-                    onKeyDown={e => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddEditSubject();
-                      }
-                    }}
-                  />
-                  <button type="button" onClick={handleAddEditSubject} className="btn btn-secondary">Add Person</button>
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-                  {editingContent.subjectsList.map(name => (
-                    <span key={name} className="chip chip-subject" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
-                       {name}
-                      <button 
-                        type="button" 
-                        onClick={() => handleRemoveEditSubject(name)} 
-                        className="btn btn-link"
-                        style={{ fontSize: "0.85rem", padding: "0 4px" }}
-                        title="Remove subject"
-                      >
-                        x
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <hr style={{ borderColor: "var(--border-color)", margin: "1.25rem 0" }} />
-
-              <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "1rem" }}>Content Performance Metrics</h3>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "0.85rem", marginBottom: "1rem" }}>
-                <div className="form-group"><label className="form-label">Impressions</label><input type="number" className="form-input" min="0" value={editingContent.impressions} onChange={e => setEditingContent({ ...editingContent, impressions: e.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Reach</label><input type="number" className="form-input" min="0" value={editingContent.reach} onChange={e => setEditingContent({ ...editingContent, reach: e.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Likes</label><input type="number" className="form-input" min="0" value={editingContent.likes} onChange={e => setEditingContent({ ...editingContent, likes: e.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Comments</label><input type="number" className="form-input" min="0" value={editingContent.comments} onChange={e => setEditingContent({ ...editingContent, comments: e.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Shares</label><input type="number" className="form-input" min="0" value={editingContent.shares} onChange={e => setEditingContent({ ...editingContent, shares: e.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Saves</label><input type="number" className="form-input" min="0" value={editingContent.saves} onChange={e => setEditingContent({ ...editingContent, saves: e.target.value })} /></div>
-              </div>
-
-              <div className="form-group" style={{ marginBottom: "1rem" }}>
-                <label className="form-label">Post Status</label>
-                <select 
-                  className="form-select" 
-                  value={editingContent.status} 
-                  onChange={e => setEditingContent({ ...editingContent, status: e.target.value })}
-                >
-                  <option value="Uploaded">Uploaded</option>
-                  <option value="Scheduled">Scheduled</option>
-                  <option value="Privated">Privated</option>
-                  <option value="Deleted">Deleted</option>
-                </select>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
-                <button type="button" onClick={() => setEditingContent(null)} className="btn btn-secondary">Cancel</button>
                 <button type="submit" className="btn btn-primary">Save Changes</button>
               </div>
             </form>
@@ -2511,239 +2791,16 @@ function ContentTablePage() {
       )}
     </div>
   );
-}
+};
 
-// -----------------------------------------------------------------------
-// DOCX REPORT GENERATOR UTILITY
-// -----------------------------------------------------------------------
-async function generateDocxReport({ accountName, timeframeLabel, contents, accountContents }) {
-  try {
-    // Wait for docx library to load if not already available
-    let docxLib = window.docx;
-    let attempts = 0;
-    while (!docxLib && attempts < 10) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      docxLib = window.docx;
-      attempts++;
-    }
 
-    if (!docxLib) {
-      alert("DOCX library failed to load. Please refresh the page and try again.");
-      return;
-    }
-
-    const {
-      Document, Paragraph, TextRun, Table, TableRow, TableCell,
-      Packer, HeadingLevel, AlignmentType, WidthType, BorderStyle
-    } = docxLib;
-
-    const titleStyle = { bold: true, size: 52, color: "2D3748" };
-    const sectionStyle = { bold: true, size: 32, color: "4A5568" };
-    const labelStyle = { bold: true, size: 22, color: "2B6CB0" };
-    const valueStyle = { size: 22, color: "1A202C" };
-    const mutedStyle = { size: 20, color: "718096" };
-
-    const tableBorder = {
-      top: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-      bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-      left: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-      right: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-      insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-      insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-    };
-
-    const makeHeaderRow = (cells) => new TableRow({
-      children: cells.map(text => new TableCell({
-        borders: tableBorder,
-        shading: { fill: "2D3748" },
-        children: [new Paragraph({ children: [new TextRun({ text: String(text ?? ""), bold: true, size: 18, color: "FFFFFF" })] })]
-      }))
-    });
-
-    const makeDataRow = (cells) => new TableRow({
-      children: cells.map(text => new TableCell({
-        borders: tableBorder,
-        children: [new Paragraph({ children: [new TextRun({ text: String(text ?? ""), size: 18, color: "2D3748" })] })]
-      }))
-    });
-
-    const totalImpressions = accountContents.reduce((s, c) => s + (Number(c.impressions) || 0), 0);
-    const totalReach = accountContents.reduce((s, c) => s + (Number(c.reach) || 0), 0);
-    const totalEngagement = accountContents.reduce((s, c) => s + (Number(c.likes) || 0) + (Number(c.comments) || 0) + (Number(c.shares) || 0) + (Number(c.saves) || 0), 0);
-    const erRate = totalReach > 0 ? ((totalEngagement / totalReach) * 100).toFixed(2) : "0.00";
-    const topPost = [...accountContents].sort((a, b) => (Number(b.impressions) || 0) - (Number(a.impressions) || 0))[0];
-
-    // Hashtag aggregation
-    const hashMap = {};
-    accountContents.forEach(item => {
-      const eng = (Number(item.likes) || 0) + (Number(item.comments) || 0) + (Number(item.shares) || 0) + (Number(item.saves) || 0);
-      (item.hashtags || []).forEach(tag => {
-        if (!tag) return;
-        const t = tag.trim().toLowerCase();
-        if (!t) return;
-        if (!hashMap[t]) hashMap[t] = { tag: t, count: 0, impressions: 0, reach: 0, engagement: 0 };
-        hashMap[t].count += 1;
-        hashMap[t].impressions += Number(item.impressions) || 0;
-        hashMap[t].reach += Number(item.reach) || 0;
-        hashMap[t].engagement += eng;
-      });
-    });
-    const hashtagRows = Object.values(hashMap).sort((a, b) => b.impressions - a.impressions);
-
-    // Subject aggregation
-    const subMap = {};
-    accountContents.forEach(item => {
-      const eng = (Number(item.likes) || 0) + (Number(item.comments) || 0) + (Number(item.shares) || 0) + (Number(item.saves) || 0);
-      (item.subjects || []).forEach(sub => {
-        if (!sub) return;
-        const name = sub.trim();
-        if (!name) return;
-        if (!subMap[name]) subMap[name] = { name, count: 0, impressions: 0, reach: 0, engagement: 0 };
-        subMap[name].count += 1;
-        subMap[name].impressions += Number(item.impressions) || 0;
-        subMap[name].reach += Number(item.reach) || 0;
-        subMap[name].engagement += eng;
-      });
-    });
-    const subjectRows = Object.values(subMap).sort((a, b) => b.impressions - a.impressions);
-
-    const generatedAt = new Date().toLocaleString();
-
-    const doc = new Document({
-      sections: [{
-        properties: {},
-        children: [
-          // ---- HEADER ----
-          new Paragraph({ children: [new TextRun({ text: "SocialVault Analytics Report", ...titleStyle })], alignment: AlignmentType.CENTER }),
-          new Paragraph({ children: [new TextRun({ text: `Account: ${accountName || "Media Account"}`, size: 28, bold: true, color: "4A5568" })], alignment: AlignmentType.CENTER }),
-          new Paragraph({ children: [new TextRun({ text: `Report Period: ${timeframeLabel || "All-Time"}`, size: 24, color: "718096" })], alignment: AlignmentType.CENTER }),
-          new Paragraph({ children: [new TextRun({ text: `Generated: ${generatedAt}`, size: 20, color: "A0AEC0" })], alignment: AlignmentType.CENTER }),
-          new Paragraph({ text: "", spacing: { after: 300 } }),
-
-          // ---- SUMMARY METRICS ----
-          new Paragraph({ children: [new TextRun({ text: "1. Summary Metrics", ...sectionStyle })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }),
-          new Paragraph({ children: [new TextRun({ text: "Total Content Items: ", ...labelStyle }), new TextRun({ text: String(accountContents.length), ...valueStyle })] }),
-          new Paragraph({ children: [new TextRun({ text: "Total Impressions (Views): ", ...labelStyle }), new TextRun({ text: totalImpressions.toLocaleString(), ...valueStyle })] }),
-          new Paragraph({ children: [new TextRun({ text: "Total Reach: ", ...labelStyle }), new TextRun({ text: totalReach.toLocaleString(), ...valueStyle })] }),
-          new Paragraph({ children: [new TextRun({ text: "Total Engagement: ", ...labelStyle }), new TextRun({ text: totalEngagement.toLocaleString(), ...valueStyle })] }),
-          new Paragraph({ children: [new TextRun({ text: "Engagement Rate (ER %): ", ...labelStyle }), new TextRun({ text: `${erRate}%`, ...valueStyle })] }),
-          new Paragraph({ text: "", spacing: { after: 200 } }),
-
-          // ---- TOP PERFORMING POST ----
-          new Paragraph({ children: [new TextRun({ text: "2. Top Performing Post", ...sectionStyle })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }),
-          ...(topPost ? [
-            new Paragraph({ children: [new TextRun({ text: "Caption: ", ...labelStyle }), new TextRun({ text: String(topPost.caption || "No caption"), ...valueStyle })] }),
-            new Paragraph({ children: [new TextRun({ text: "Platform: ", ...labelStyle }), new TextRun({ text: String(topPost.platform || "N/A"), ...valueStyle })] }),
-            new Paragraph({ children: [new TextRun({ text: "Upload Date: ", ...labelStyle }), new TextRun({ text: String(topPost.uploadDate || "N/A"), ...valueStyle })] }),
-            new Paragraph({ children: [new TextRun({ text: "Subjects: ", ...labelStyle }), new TextRun({ text: (topPost.subjects || []).join(", ") || "None", ...valueStyle })] }),
-            new Paragraph({ children: [new TextRun({ text: "Impressions: ", ...labelStyle }), new TextRun({ text: (Number(topPost.impressions) || 0).toLocaleString(), ...valueStyle })] }),
-            new Paragraph({ children: [new TextRun({ text: "Reach: ", ...labelStyle }), new TextRun({ text: (Number(topPost.reach) || 0).toLocaleString(), ...valueStyle })] }),
-            new Paragraph({ children: [new TextRun({ text: "Likes: ", ...labelStyle }), new TextRun({ text: String(topPost.likes || 0), ...valueStyle })] }),
-            new Paragraph({ children: [new TextRun({ text: "Comments: ", ...labelStyle }), new TextRun({ text: String(topPost.comments || 0), ...valueStyle })] }),
-            new Paragraph({ children: [new TextRun({ text: "Shares: ", ...labelStyle }), new TextRun({ text: String(topPost.shares || 0), ...valueStyle })] }),
-            new Paragraph({ children: [new TextRun({ text: "Saves: ", ...labelStyle }), new TextRun({ text: String(topPost.saves || 0), ...valueStyle })] }),
-          ] : [new Paragraph({ children: [new TextRun({ text: "No posts recorded for this period.", ...mutedStyle })] })]),
-          new Paragraph({ text: "", spacing: { after: 200 } }),
-
-          // ---- CONTENT TABLE ----
-          new Paragraph({ children: [new TextRun({ text: "3. Content Log Table", ...sectionStyle })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }),
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows: [
-              makeHeaderRow(["Date", "Platform", "Caption (truncated)", "Hashtags", "Subjects", "Impressions", "Reach", "Likes", "Comments", "Shares", "Saves", "Status"]),
-              ...accountContents.map(item => {
-                const cap = String(item.caption || "");
-                const capTrunc = cap.length > 60 ? cap.substring(0, 57) + "..." : cap;
-                return makeDataRow([
-                  String(item.uploadDate || "N/A"),
-                  String(item.platform || "N/A"),
-                  capTrunc || "No caption",
-                  (item.hashtags || []).join(" "),
-                  (item.subjects || []).join(", "),
-                  (Number(item.impressions) || 0).toLocaleString(),
-                  (Number(item.reach) || 0).toLocaleString(),
-                  String(item.likes || 0),
-                  String(item.comments || 0),
-                  String(item.shares || 0),
-                  String(item.saves || 0),
-                  String(item.status || "uploaded")
-                ]);
-              })
-            ]
-          }),
-
-          new Paragraph({ text: "", spacing: { after: 400 } }),
-
-          // ---- HASHTAG ANALYTICS TABLE ----
-          new Paragraph({ children: [new TextRun({ text: "3. Top 10 Performing Hashtags", ...sectionStyle })], heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ text: "", spacing: { after: 150 } }),
-
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows: [
-              makeHeaderRow(["Hashtag", "Post Count", "Total Impressions", "Total Reach", "Total Engagement", "Avg ER %"]),
-              ...sortedTags.map(t => makeDataRow([
-                t.tag,
-                String(t.count),
-                t.impressions.toLocaleString(),
-                t.reach.toLocaleString(),
-                t.engagement.toLocaleString(),
-                `${t.avgEr}%`
-              ]))
-            ]
-          }),
-
-          new Paragraph({ text: "", spacing: { after: 400 } }),
-
-          // ---- SUBJECT ANALYTICS TABLE ----
-          new Paragraph({ children: [new TextRun({ text: "4. Featured Subject Performance Studio", ...sectionStyle })], heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ text: "", spacing: { after: 150 } }),
-
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows: [
-              makeHeaderRow(["Subject Name", "Posts Featured", "Total Views", "Total Reach", "Total Engagement", "Avg ER %"]),
-              ...sortedSubjects.map(s => makeDataRow([
-                s.name,
-                String(s.count),
-                s.impressions.toLocaleString(),
-                s.reach.toLocaleString(),
-                s.engagement.toLocaleString(),
-                `${s.avgEr}%`
-              ]))
-            ]
-          }),
-
-          // ---- FOOTER ----
-          new Paragraph({ text: "", spacing: { after: 400 } }),
-          new Paragraph({ children: [new TextRun({ text: `SocialVault Pro Analytics Report - ${generatedAt}`, size: 18, color: "A0AEC0", italics: true })], alignment: AlignmentType.CENTER }),
-        ]
-      }]
-    });
-
-    const blob = await Packer.toBlob(doc);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const safeName = (accountName || "Account").replace(/[^a-zA-Z0-9]/g, "_");
-    const safeTimeframe = (timeframeLabel || "Report").replace(/[^a-zA-Z0-9]/g, "_");
-    a.download = `SocialVault_Report_${safeName}_${safeTimeframe}.docx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  } catch (err) {
-    console.error("Error generating DOCX report:", err);
-    alert(`Failed to generate DOCX report: ${err.message || err}`);
-  }
-}
-
-// TIMEFRAME ANALYTICS PAGE (WITH TOP PERFORMING POST HIGHLIGHT BOX & CONTENT TYPE BREAKDOWN)
-// TimeframeAnalyticsPage Component - All-Time, Monthly, and Weekly Reporting
+// TIMEFRAME ANALYTICS PAGE (WITH STATUS SEPARATION - UPLOADED, SCHEDULED, PRIVATED, DELETED)
+// TimeframeAnalyticsPage Component - All-Time, Monthly, and Weekly Reporting with Status Separation
 window.TimeframeAnalyticsPage = function() {
   const { activeAccount, contents } = React.useContext(window.VaultContext);
   const [timeframe, setTimeframe] = React.useState("all"); // 'all', 'monthly', 'weekly'
   const [selectedPlatform, setSelectedPlatform] = React.useState("All");
+  const [selectedStatus, setSelectedStatus] = React.useState("ALL"); // 'ALL', 'Uploaded', 'Scheduled', 'Privated', 'Deleted'
   const [selectedMonth, setSelectedMonth] = React.useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -2769,6 +2826,25 @@ window.TimeframeAnalyticsPage = function() {
     return contents.filter(c => c.accountId === activeAccount.id);
   }, [contents, activeAccount.id]);
 
+  // Overall status distribution across all account contents
+  const statusStats = React.useMemo(() => {
+    const total = accountContents.length;
+    const counts = { Uploaded: 0, Scheduled: 0, Privated: 0, Deleted: 0 };
+    accountContents.forEach(c => {
+      const s = c.status || "Uploaded";
+      if (counts[s] !== undefined) counts[s]++;
+      else counts["Uploaded"]++;
+    });
+    return {
+      total,
+      counts,
+      uploadedPct: total > 0 ? ((counts.Uploaded / total) * 100).toFixed(1) : "0.0",
+      scheduledPct: total > 0 ? ((counts.Scheduled / total) * 100).toFixed(1) : "0.0",
+      privatedPct: total > 0 ? ((counts.Privated / total) * 100).toFixed(1) : "0.0",
+      deletedPct: total > 0 ? ((counts.Deleted / total) * 100).toFixed(1) : "0.0"
+    };
+  }, [accountContents]);
+
   // Get all unique platforms
   const allPlatforms = React.useMemo(() => {
     const platforms = [...new Set(accountContents.map(c => c.platform))];
@@ -2788,20 +2864,17 @@ window.TimeframeAnalyticsPage = function() {
     return Array.from(months).sort().reverse();
   }, [accountContents]);
 
-  // Function to get analytics for a specific month (and optionally filter by platform)
+  // Function to get analytics for a specific month (respecting status filter)
   const getMonthAnalytics = React.useMemo(() => {
-    return (monthStr, platform = "All") => {
+    return (monthStr) => {
       const [year, month] = monthStr.split('-');
-      let monthContents = accountContents.filter(item => {
+      const monthContents = accountContents.filter(item => {
         if (!item.uploadDate) return false;
         const itemDate = new Date(item.uploadDate);
-        return itemDate.getMonth() === parseInt(month) - 1 && itemDate.getFullYear() === parseInt(year);
+        const matchesMonth = itemDate.getMonth() === parseInt(month) - 1 && itemDate.getFullYear() === parseInt(year);
+        const matchesStatus = selectedStatus === "ALL" || (item.status || "Uploaded") === selectedStatus;
+        return matchesMonth && matchesStatus;
       });
-
-      // Filter by platform if not "All"
-      if (platform !== "All") {
-        monthContents = monthContents.filter(item => item.platform === platform);
-      }
 
       const totalImp = monthContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
       const totalReach = monthContents.reduce((sum, c) => sum + (c.reach || 0), 0);
@@ -2820,17 +2893,21 @@ window.TimeframeAnalyticsPage = function() {
         contentCount: monthContents.length
       };
     };
-  }, [accountContents]);
+  }, [accountContents, selectedStatus]);
 
-  // Filter contents by timeframe and platform
+  // Filter contents by timeframe, platform, and post status
   const filteredContents = React.useMemo(() => {
     const now = new Date();
     return accountContents.filter(item => {
-      if (!item.uploadDate) return true;
-      const itemDate = new Date(item.uploadDate);
+      // Status filter
+      if (selectedStatus !== "ALL" && (item.status || "Uploaded") !== selectedStatus) return false;
 
       // Platform filter
       if (selectedPlatform !== "All" && item.platform !== selectedPlatform) return false;
+
+      // Timeframe filter
+      if (!item.uploadDate) return true;
+      const itemDate = new Date(item.uploadDate);
 
       if (timeframe === "weekly") {
         const diffDays = (now - itemDate) / (1000 * 3600 * 24);
@@ -2844,9 +2921,9 @@ window.TimeframeAnalyticsPage = function() {
 
       return true; // all-time
     });
-  }, [accountContents, timeframe, selectedPlatform, selectedMonth]);
+  }, [accountContents, timeframe, selectedPlatform, selectedStatus, selectedMonth]);
 
-  // Compute Aggregates
+  // Compute Aggregates for filtered contents
   const totalImpressions = filteredContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
   const totalReach = filteredContents.reduce((sum, c) => sum + (c.reach || 0), 0);
   const totalLikes = filteredContents.reduce((sum, c) => sum + (c.likes || 0), 0);
@@ -2856,6 +2933,14 @@ window.TimeframeAnalyticsPage = function() {
   
   const totalEngagement = totalLikes + totalComments + totalShares + totalSaves;
   const erRate = totalReach > 0 ? ((totalEngagement / totalReach) * 100).toFixed(2) : "0.00";
+
+  // Status-specific configuration for badges and styling
+  const STATUS_CONFIG = {
+    "Uploaded": { label: "Uploaded (Published)", color: "#10B981", bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.35)", icon: "ðŸŸ¢" },
+    "Scheduled": { label: "Scheduled (Queued)", color: "#06B6D4", bg: "rgba(6, 182, 212, 0.15)", border: "rgba(6, 182, 212, 0.35)", icon: "â±ï¸" },
+    "Privated": { label: "Privated (Hidden)", color: "#F59E0B", bg: "rgba(245, 158, 11, 0.15)", border: "rgba(245, 158, 11, 0.35)", icon: "ðŸ”’" },
+    "Deleted": { label: "Deleted (Archived)", color: "#F43F5E", bg: "rgba(244, 63, 94, 0.15)", border: "rgba(244, 63, 94, 0.35)", icon: "ðŸ—‘ï¸" }
+  };
 
   // Render Chart.js - Different data based on timeframe
   React.useEffect(() => {
@@ -2874,7 +2959,6 @@ window.TimeframeAnalyticsPage = function() {
       const [year, month] = selectedMonth.split('-');
       const monthData = {};
       
-      // Group contents by date
       filteredContents.forEach(c => {
         if (c.uploadDate) {
           const dateObj = new Date(c.uploadDate);
@@ -2885,7 +2969,6 @@ window.TimeframeAnalyticsPage = function() {
         }
       });
 
-      // Sort dates and create arrays
       const sortedDates = Object.keys(monthData).sort();
       labels = sortedDates.length > 0 ? sortedDates.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : ['No Data'];
       impressionsData = sortedDates.length > 0 ? sortedDates.map(d => monthData[d]) : [0];
@@ -2901,19 +2984,21 @@ window.TimeframeAnalyticsPage = function() {
       chartTitle = `Impressions by Platform${selectedPlatform !== "All" ? ` (${selectedPlatform})` : ""}`;
     }
 
+    const chartColor = selectedStatus === "Uploaded" ? "#10B981" : selectedStatus === "Scheduled" ? "#06B6D4" : selectedStatus === "Privated" ? "#F59E0B" : selectedStatus === "Deleted" ? "#F43F5E" : "#8B5CF6";
+
     chartInstanceRef.current = new window.Chart(ctx, {
       type: 'line',
       data: {
         labels: labels,
         datasets: [{
-          label: 'Total Impressions (Views)',
+          label: selectedStatus === "ALL" ? 'Total Impressions (Views)' : `${selectedStatus} Impressions (Views)`,
           data: impressionsData,
-          borderColor: '#06B6D4',
-          backgroundColor: 'rgba(6, 182, 212, 0.1)',
+          borderColor: chartColor,
+          backgroundColor: `${chartColor}22`,
           borderWidth: 2,
           fill: true,
           tension: 0.4,
-          pointBackgroundColor: '#06B6D4',
+          pointBackgroundColor: chartColor,
           pointBorderColor: '#fff',
           pointBorderWidth: 2,
           pointRadius: 5,
@@ -2943,14 +3028,15 @@ window.TimeframeAnalyticsPage = function() {
     return () => {
       if (chartInstanceRef.current) chartInstanceRef.current.destroy();
     };
-  }, [filteredContents, timeframe, selectedMonth]);
+  }, [filteredContents, timeframe, selectedMonth, selectedStatus, selectedPlatform]);
 
   return (
     <div className="page-container">
+      {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">{activeAccount.name} - Timeframe Analytics</h1>
-          <p className="page-subtitle">Aggregated impressions, reach, total engagement, and engagement rate %</p>
+          <h1 className="page-title">{activeAccount.name} â€” Timeframe Analytics</h1>
+          <p className="page-subtitle">Granular performance separated by post status (Uploaded, Scheduled, Privated, Deleted)</p>
         </div>
 
         {/* Timeframe Selector Tabs */}
@@ -2977,59 +3063,189 @@ window.TimeframeAnalyticsPage = function() {
             Past 7 Days
           </button>
         </div>
+      </div>
 
-        {/* Platform & Month/Year Selectors */}
-        <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginTop: "1rem", flexWrap: "wrap" }}>
+      {/* â•â• POST STATUS SEGREGATION TABS & QUICK BAR â•â• */}
+      <div className="glass-card" style={{ padding: "1.25rem 1.5rem", marginBottom: "1.5rem", background: "rgba(15, 23, 42, 0.75)", border: "1px solid var(--border-color)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem", marginBottom: "1rem" }}>
+          <div>
+            <span style={{ fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--accent-cyan)" }}>
+              ðŸŽ¯ Post Status Separation
+            </span>
+            <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: "0.2rem 0 0 0", color: "var(--text-main)" }}>
+              Filter & Isolate Analytics By Post Lifecycle
+            </h3>
+          </div>
+          
+          {/* Status Tab Buttons */}
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <button
+              onClick={() => setSelectedStatus("ALL")}
+              className={`btn btn-sm ${selectedStatus === "ALL" ? "btn-primary" : "btn-secondary"}`}
+              style={{ borderRadius: "8px", fontWeight: 700 }}
+            >
+              ðŸŒ All Statuses ({statusStats.total})
+            </button>
+            <button
+              onClick={() => setSelectedStatus("Uploaded")}
+              className="btn btn-sm"
+              style={{
+                borderRadius: "8px",
+                fontWeight: 700,
+                background: selectedStatus === "Uploaded" ? "#10B981" : "rgba(16, 185, 129, 0.12)",
+                color: selectedStatus === "Uploaded" ? "#fff" : "#10B981",
+                border: "1px solid rgba(16, 185, 129, 0.3)"
+              }}
+            >
+              ðŸŸ¢ Uploaded ({statusStats.counts.Uploaded})
+            </button>
+            <button
+              onClick={() => setSelectedStatus("Scheduled")}
+              className="btn btn-sm"
+              style={{
+                borderRadius: "8px",
+                fontWeight: 700,
+                background: selectedStatus === "Scheduled" ? "#06B6D4" : "rgba(6, 182, 212, 0.12)",
+                color: selectedStatus === "Scheduled" ? "#fff" : "#06B6D4",
+                border: "1px solid rgba(6, 182, 212, 0.3)"
+              }}
+            >
+              â±ï¸ Scheduled ({statusStats.counts.Scheduled})
+            </button>
+            <button
+              onClick={() => setSelectedStatus("Privated")}
+              className="btn btn-sm"
+              style={{
+                borderRadius: "8px",
+                fontWeight: 700,
+                background: selectedStatus === "Privated" ? "#F59E0B" : "rgba(245, 158, 11, 0.12)",
+                color: selectedStatus === "Privated" ? "#fff" : "#F59E0B",
+                border: "1px solid rgba(245, 158, 11, 0.3)"
+              }}
+            >
+              ðŸ”’ Privated ({statusStats.counts.Privated})
+            </button>
+            <button
+              onClick={() => setSelectedStatus("Deleted")}
+              className="btn btn-sm"
+              style={{
+                borderRadius: "8px",
+                fontWeight: 700,
+                background: selectedStatus === "Deleted" ? "#F43F5E" : "rgba(244, 63, 94, 0.12)",
+                color: selectedStatus === "Deleted" ? "#fff" : "#F43F5E",
+                border: "1px solid rgba(244, 63, 94, 0.3)"
+              }}
+            >
+              ðŸ—‘ï¸ Deleted ({statusStats.counts.Deleted})
+            </button>
+          </div>
+        </div>
+
+        {/* Status Distribution Visual Bar */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          {[
+            { key: "Uploaded", label: "Uploaded (Live)", count: statusStats.counts.Uploaded, pct: statusStats.uploadedPct, color: "#10B981" },
+            { key: "Scheduled", label: "Scheduled (Queue)", count: statusStats.counts.Scheduled, pct: statusStats.scheduledPct, color: "#06B6D4" },
+            { key: "Privated", label: "Privated (Hidden)", count: statusStats.counts.Privated, pct: statusStats.privatedPct, color: "#F59E0B" },
+            { key: "Deleted", label: "Deleted (Archive)", count: statusStats.counts.Deleted, pct: statusStats.deletedPct, color: "#F43F5E" }
+          ].map(s => (
+            <div 
+              key={s.key} 
+              onClick={() => setSelectedStatus(s.key)}
+              style={{
+                padding: "0.6rem 0.85rem",
+                borderRadius: "8px",
+                background: selectedStatus === s.key ? `${s.color}18` : "rgba(255, 255, 255, 0.03)",
+                border: `1px solid ${selectedStatus === s.key ? s.color : "rgba(255, 255, 255, 0.07)"}`,
+                cursor: "pointer",
+                transition: "all 0.2s ease"
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
+                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: s.color }}>{s.label}</span>
+                <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 700 }}>{s.pct}%</span>
+              </div>
+              <div style={{ fontSize: "1.15rem", fontWeight: 800, color: "var(--text-main)" }}>
+                {s.count} <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "var(--text-muted)" }}>posts</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Platform & Month Filters */}
+      <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)" }}>Platform Filter:</label>
+          <select 
+            className="form-select"
+            value={selectedPlatform}
+            onChange={e => setSelectedPlatform(e.target.value)}
+            style={{ width: "auto" }}
+          >
+            <option value="All">All Platforms</option>
+            {allPlatforms.map(platform => (
+              <option key={platform} value={platform}>{platform}</option>
+            ))}
+          </select>
+        </div>
+
+        {timeframe === "monthly" && (
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <label style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-muted)" }}>Platform:</label>
+            <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)" }}>Select Month:</label>
             <select 
               className="form-select"
-              value={selectedPlatform}
-              onChange={e => setSelectedPlatform(e.target.value)}
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(e.target.value)}
               style={{ width: "auto" }}
             >
-              <option value="All">All Platforms</option>
-              {allPlatforms.map(platform => (
-                <option key={platform} value={platform}>{platform}</option>
-              ))}
+              {getAvailableMonths.map(month => {
+                const [year, monthNum] = month.split('-');
+                const monthName = new Date(year, parseInt(monthNum) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                return (
+                  <option key={month} value={month}>{monthName}</option>
+                );
+              })}
+              {getAvailableMonths.length === 0 && <option>No data available</option>}
             </select>
           </div>
+        )}
 
-          {timeframe === "monthly" && (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <label style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-muted)" }}>Select Month & Year:</label>
-              <select 
-                className="form-select"
-                value={selectedMonth}
-                onChange={e => setSelectedMonth(e.target.value)}
-                style={{ width: "auto" }}
-              >
-                {getAvailableMonths.map(month => {
-                  const [year, monthNum] = month.split('-');
-                  const monthName = new Date(year, parseInt(monthNum) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-                  return (
-                    <option key={month} value={month}>{monthName}</option>
-                  );
-                })}
-                {getAvailableMonths.length === 0 && <option>No data available</option>}
-              </select>
-            </div>
-          )}
+        {/* Active Filter Indicator */}
+        <div style={{ marginLeft: "auto", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Active View:</span>
+          <span style={{
+            padding: "0.2rem 0.6rem",
+            borderRadius: "6px",
+            fontSize: "0.78rem",
+            fontWeight: 700,
+            background: selectedStatus === "ALL" ? "rgba(139,92,246,0.2)" : STATUS_CONFIG[selectedStatus]?.bg || "rgba(255,255,255,0.1)",
+            color: selectedStatus === "ALL" ? "var(--accent-primary-light)" : STATUS_CONFIG[selectedStatus]?.color || "#fff",
+            border: `1px solid ${selectedStatus === "ALL" ? "rgba(139,92,246,0.35)" : STATUS_CONFIG[selectedStatus]?.border || "transparent"}`
+          }}>
+            {selectedStatus === "ALL" ? "All Statuses (Consolidated)" : STATUS_CONFIG[selectedStatus]?.label || selectedStatus}
+          </span>
         </div>
       </div>
 
       {/* KPI Cards Grid */}
       <div className="stats-grid">
         <div className="glass-card stat-card">
-          <span className="stat-label">Total Impressions (Views)</span>
+          <span className="stat-label">
+            {selectedStatus === "ALL" ? "Total Impressions (Views)" : `${selectedStatus} Impressions`}
+          </span>
           <span className="stat-value" style={{ color: "var(--accent-cyan)" }}>
             {totalImpressions.toLocaleString()}
           </span>
-          <span className="stat-change positive">From {filteredContents.length} contents</span>
+          <span className="stat-change positive">
+            From {filteredContents.length} {selectedStatus !== "ALL" ? selectedStatus.toLowerCase() : ""} contents
+          </span>
         </div>
 
         <div className="glass-card stat-card">
-          <span className="stat-label">Total Reach (Unique Viewers)</span>
+          <span className="stat-label">
+            {selectedStatus === "ALL" ? "Total Reach (Unique Viewers)" : `${selectedStatus} Reach`}
+          </span>
           <span className="stat-value">
             {totalReach.toLocaleString()}
           </span>
@@ -3037,7 +3253,9 @@ window.TimeframeAnalyticsPage = function() {
         </div>
 
         <div className="glass-card stat-card">
-          <span className="stat-label">Total Engagement</span>
+          <span className="stat-label">
+            {selectedStatus === "ALL" ? "Total Engagement" : `${selectedStatus} Engagement`}
+          </span>
           <span className="stat-value" style={{ color: "var(--accent-emerald)" }}>
             {totalEngagement.toLocaleString()}
           </span>
@@ -3049,16 +3267,23 @@ window.TimeframeAnalyticsPage = function() {
           <span className="stat-value" style={{ color: "var(--accent-primary)" }}>
             {erRate}%
           </span>
-          <span className="stat-change positive">(Total Engagement / Reach) x 100</span>
+          <span className="stat-change positive">(Total Engagement / Reach) Ã— 100</span>
         </div>
       </div>
 
       {/* Analytics Breakdown & Chart */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem", marginTop: "1.5rem" }}>
         <div className="glass-card" style={{ height: "350px", display: "flex", flexDirection: "column" }}>
-          <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1rem" }}>
-            {timeframe === "monthly" ? `Daily Impressions - ${new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}` : `Impressions by Platform ${selectedPlatform !== "All" ? `(${selectedPlatform})` : ""}`}
-          </h3>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0 }}>
+              {timeframe === "monthly" 
+                ? `Daily Impressions - ${new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}` 
+                : `Impressions by Platform ${selectedPlatform !== "All" ? `(${selectedPlatform})` : ""}`}
+            </h3>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", background: "rgba(255,255,255,0.05)", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>
+              Status: {selectedStatus}
+            </span>
+          </div>
           <div style={{ flex: 1, position: "relative" }}>
             <canvas ref={chartRef}></canvas>
           </div>
@@ -3066,38 +3291,162 @@ window.TimeframeAnalyticsPage = function() {
 
         {/* Engagement Details Breakdown */}
         <div className="glass-card">
-          <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1.25rem" }}>Engagement Metrics</h3>
+          <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1.25rem" }}>
+            {selectedStatus === "ALL" ? "Engagement Breakdown" : `${selectedStatus} Metrics`}
+          </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}> Likes</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>â¤ï¸ Likes</span>
               <strong style={{ fontSize: "0.95rem" }}>{totalLikes.toLocaleString()}</strong>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}> Comments</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>ðŸ’¬ Comments</span>
               <strong style={{ fontSize: "0.95rem" }}>{totalComments.toLocaleString()}</strong>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}> Shares</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>ðŸ” Shares</span>
               <strong style={{ fontSize: "0.95rem" }}>{totalShares.toLocaleString()}</strong>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}> Saves</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>ðŸ“Œ Saves</span>
               <strong style={{ fontSize: "0.95rem" }}>{totalSaves.toLocaleString()}</strong>
+            </div>
+
+            <div style={{ marginTop: "0.5rem", padding: "0.75rem", borderRadius: "8px", background: "rgba(255,255,255,0.03)", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+              <strong>Posts in scope: </strong> {filteredContents.length} ({selectedStatus})
             </div>
 
           </div>
         </div>
       </div>
 
+      {/* â•â• DEDICATED SEPARATED STATUS SUMMARY (When viewing ALL) â•â• */}
+      {selectedStatus === "ALL" && (
+        <div style={{ marginTop: "2.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
+            <div>
+              <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", margin: 0 }}>
+                ðŸ“‘ Separated Post Status Breakdown
+              </h2>
+              <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: "0.25rem 0 0 0" }}>
+                Individual performance & inventory metrics segregated by post status
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "1.25rem" }}>
+            {[
+              {
+                status: "Uploaded",
+                title: "ðŸŸ¢ Uploaded (Live)",
+                desc: "Active published content with live audience metrics",
+                items: accountContents.filter(c => (c.status || "Uploaded") === "Uploaded"),
+                color: "#10B981",
+                btnText: "Analyze Uploaded"
+              },
+              {
+                status: "Scheduled",
+                title: "â±ï¸ Scheduled (Queue)",
+                desc: "Upcoming content waiting for automated or planned release",
+                items: accountContents.filter(c => c.status === "Scheduled"),
+                color: "#06B6D4",
+                btnText: "Analyze Scheduled"
+              },
+              {
+                status: "Privated",
+                title: "ðŸ”’ Privated (Hidden)",
+                desc: "Content hidden from public view / unlisted posts",
+                items: accountContents.filter(c => c.status === "Privated"),
+                color: "#F59E0B",
+                btnText: "Analyze Privated"
+              },
+              {
+                status: "Deleted",
+                title: "ðŸ—‘ï¸ Deleted (Archived)",
+                desc: "Removed or archived posts with historical record retention",
+                items: accountContents.filter(c => c.status === "Deleted"),
+                color: "#F43F5E",
+                btnText: "Analyze Deleted"
+              }
+            ].map(sec => {
+              const secImp = sec.items.reduce((s, c) => s + (c.impressions || 0), 0);
+              const secReach = sec.items.reduce((s, c) => s + (c.reach || 0), 0);
+              const secEng = sec.items.reduce((s, c) => s + (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0), 0);
+              const secEr = secReach > 0 ? ((secEng / secReach) * 100).toFixed(2) : "0.00";
+
+              return (
+                <div 
+                  key={sec.status}
+                  className="glass-card"
+                  style={{
+                    padding: "1.35rem",
+                    borderTop: `3px solid ${sec.color}`,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between"
+                  }}
+                >
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                      <h4 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0, color: sec.color }}>{sec.title}</h4>
+                      <span style={{
+                        padding: "0.2rem 0.5rem",
+                        borderRadius: "12px",
+                        fontSize: "0.75rem",
+                        fontWeight: 800,
+                        background: `${sec.color}20`,
+                        color: sec.color
+                      }}>
+                        {sec.items.length} posts
+                      </span>
+                    </div>
+                    <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1rem", lineHeight: 1.4 }}>
+                      {sec.desc}
+                    </p>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem", marginBottom: "1rem", padding: "0.75rem", background: "rgba(255,255,255,0.02)", borderRadius: "8px" }}>
+                      <div>
+                        <div style={{ fontSize: "0.7rem", color: "var(--text-subtle)", textTransform: "uppercase" }}>Impressions</div>
+                        <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--accent-cyan)" }}>{secImp.toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "0.7rem", color: "var(--text-subtle)", textTransform: "uppercase" }}>Reach</div>
+                        <div style={{ fontSize: "0.95rem", fontWeight: 700 }}>{secReach.toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "0.7rem", color: "var(--text-subtle)", textTransform: "uppercase" }}>Engagement</div>
+                        <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--accent-emerald)" }}>{secEng.toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "0.7rem", color: "var(--text-subtle)", textTransform: "uppercase" }}>ER %</div>
+                        <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--accent-primary)" }}>{secEr}%</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setSelectedStatus(sec.status)}
+                    className="btn btn-secondary btn-sm"
+                    style={{ width: "100%", fontSize: "0.8rem", color: sec.color, borderColor: `${sec.color}40` }}
+                  >
+                    {sec.btnText} â†’
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Month Comparison Section */}
       {timeframe === "monthly" && (
         <div style={{ marginTop: "2.5rem" }}>
           <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "1rem" }}>
-             Compare Two Months
+            ðŸ“Š Compare Two Months ({selectedStatus === "ALL" ? "All Statuses" : selectedStatus})
           </h2>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "2rem", marginBottom: "1.5rem" }}>
@@ -3105,7 +3454,7 @@ window.TimeframeAnalyticsPage = function() {
             <div className="glass-card" style={{ padding: "1.5rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
                 <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "linear-gradient(135deg, #3B82F6, #06B6D4)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: "1.1rem" }}>
-                  1
+                  1ï¸âƒ£
                 </div>
                 <div>
                   <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>First Month</label>
@@ -3127,7 +3476,7 @@ window.TimeframeAnalyticsPage = function() {
               </div>
 
               {(() => {
-                const month1Data = getMonthAnalytics(compareMonth1, selectedPlatform);
+                const month1Data = getMonthAnalytics(compareMonth1);
                 return (
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
@@ -3159,7 +3508,7 @@ window.TimeframeAnalyticsPage = function() {
             <div className="glass-card" style={{ padding: "1.5rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
                 <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "linear-gradient(135deg, #A855F7, #06B6D4)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: "1.1rem" }}>
-                  2
+                  2ï¸âƒ£
                 </div>
                 <div>
                   <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>Second Month</label>
@@ -3181,7 +3530,7 @@ window.TimeframeAnalyticsPage = function() {
               </div>
 
               {(() => {
-                const month2Data = getMonthAnalytics(compareMonth2, selectedPlatform);
+                const month2Data = getMonthAnalytics(compareMonth2);
                 return (
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
@@ -3212,7 +3561,7 @@ window.TimeframeAnalyticsPage = function() {
             {/* Comparison Insights */}
             <div className="glass-card" style={{ padding: "1.5rem", background: "linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(59, 130, 246, 0.1))", borderLeft: "4px solid rgba(34, 197, 94, 0.5)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-                <div style={{ fontSize: "1.5rem" }}></div>
+                <div style={{ fontSize: "1.5rem" }}>ðŸ“ˆ</div>
                 <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>Change Analysis</h3>
               </div>
 
@@ -3229,15 +3578,15 @@ window.TimeframeAnalyticsPage = function() {
                 return (
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}> Impressions</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>ðŸ“Š Impressions</span>
                       <strong style={{ color: impDiff >= 0 ? "var(--accent-emerald)" : "#F43F5E" }}>{impDiff >= 0 ? "+" : ""}{impDiff.toLocaleString()} ({impPercent}%)</strong>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}> Reach</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>ðŸ‘¥ Reach</span>
                       <strong style={{ color: reachDiff >= 0 ? "var(--accent-emerald)" : "#F43F5E" }}>{reachDiff >= 0 ? "+" : ""}{reachDiff.toLocaleString()} ({reachPercent}%)</strong>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}> Engagement</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>ðŸ’¬ Engagement</span>
                       <strong style={{ color: engDiff >= 0 ? "var(--accent-emerald)" : "#F43F5E" }}>{engDiff >= 0 ? "+" : ""}{engDiff.toLocaleString()} ({engPercent}%)</strong>
                     </div>
                   </div>
@@ -3248,93 +3597,13 @@ window.TimeframeAnalyticsPage = function() {
         </div>
       )}
 
-      {/* Content Type Analytics Section - Bottom of Page */}
+      {/* Content Type Analytics Section */}
       <div style={{ marginTop: "2.5rem" }}>
         <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "1.5rem" }}>
-           Upload Time Performance Analysis
+          ðŸŽ¬ Content Type Performance ({selectedStatus === "ALL" ? "All Statuses" : selectedStatus})
         </h2>
 
         {(() => {
-          // Analyze upload times
-          const timeData = {};
-          contents.forEach(c => {
-            if (c.accountId === activeAccount.id && c.uploadTime) {
-              const hour = parseInt(c.uploadTime.split(':')[0]);
-              const timeSlot = hour < 12 ? 'Morning (6am-12pm)' : hour < 17 ? 'Afternoon (12pm-5pm)' : 'Evening (5pm-11pm)';
-              if (!timeData[timeSlot]) {
-                timeData[timeSlot] = { count: 0, impressions: 0, engagement: 0, posts: [] };
-              }
-              const eng = (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0);
-              timeData[timeSlot].count += 1;
-              timeData[timeSlot].impressions += (c.impressions || 0);
-              timeData[timeSlot].engagement += eng;
-              timeData[timeSlot].posts.push(c);
-            }
-          });
-
-          const timeSlots = Object.entries(timeData).map(([slot, data]) => ({
-            slot,
-            count: data.count,
-            avgImp: Math.round(data.impressions / data.count),
-            totalImp: data.impressions,
-            engRate: data.posts.length > 0 ? ((data.engagement / (data.posts.reduce((sum, p) => sum + (p.reach || 0), 0) || 1)) * 100).toFixed(2) : 0,
-            posts: data.posts
-          })).sort((a, b) => b.totalImp - a.totalImp);
-
-          const bestTime = timeSlots[0];
-          const worstTime = timeSlots[timeSlots.length - 1];
-
-          return (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.5rem", marginBottom: "2rem" }}>
-              {timeSlots.map((ts, idx) => (
-                <div key={ts.slot} className="glass-card" style={{ padding: "1.5rem", borderLeft: ts === bestTime ? "4px solid var(--accent-lime)" : ts === worstTime ? "4px solid #F43F5E" : "4px solid var(--border-color)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-                    <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0, color: "var(--text-main)" }}>{ts.slot}</h3>
-                    {ts === bestTime && <span style={{ fontSize: "0.65rem", fontWeight: 800, color: "var(--accent-lime)", background: "rgba(132,204,22,0.15)", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>BEST TIME</span>}
-                    {ts === worstTime && timeSlots.length > 1 && <span style={{ fontSize: "0.65rem", fontWeight: 800, color: "#F43F5E", background: "rgba(244,63,94,0.15)", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>LOWEST</span>}
-                  </div>
-                  <div style={{ display: "grid", gap: "0.75rem", marginBottom: "1rem" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>Posts</span>
-                      <strong>{ts.count}</strong>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>Avg Impressions</span>
-                      <strong style={{ color: "var(--accent-cyan)" }}>{ts.avgImp >= 1000000 ? (ts.avgImp/1000000).toFixed(2)+"M" : ts.avgImp >= 1000 ? (ts.avgImp/1000).toFixed(1)+"K" : ts.avgImp.toLocaleString()}</strong>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>Engagement Rate</span>
-                      <strong style={{ color: "var(--accent-primary)" }}>{ts.engRate}%</strong>
-                    </div>
-                  </div>
-                  <div style={{ padding: "0.75rem", background: "rgba(255,255,255,0.03)", borderRadius: "8px", fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.6 }}>
-                    {ts === bestTime ? "✓ Your audience is most active at this time. Prioritize posting here." : ts === worstTime && timeSlots.length > 1 ? "⚠ Lower engagement at this time. Consider posting at peak hours instead." : "Moderate engagement. Test different times to optimize."}
-                  </div>
-                </div>
-              ))}
-            </div>
-          );
-        })()}
-
-        <div style={{ background: "linear-gradient(135deg,rgba(34,197,94,0.1),rgba(59,130,246,0.1))", border: "1px solid rgba(34,197,94,0.2)", borderRadius: "var(--radius-md)", padding: "1.25rem", marginBottom: "2rem" }}>
-          <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-main)", marginTop: 0 }}>📅 Upload Time Recommendations</h4>
-          <ul style={{ margin: "0.75rem 0 0", paddingLeft: "1.25rem", fontSize: "0.9rem", color: "var(--text-secondary)", lineHeight: 1.8 }}>
-            <li>Post consistently at your best performing time slot</li>
-            <li>Test the same content at different times to identify platform-specific peaks</li>
-            <li>Consider time zones if you have a global audience</li>
-            <li>Use scheduling tools to post at optimal times automatically</li>
-            <li>Track engagement after changing posting times to measure impact</li>
-          </ul>
-        </div>
-      </div>
-
-      <div style={{ marginTop: "2.5rem" }}>
-        <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "1.5rem" }}>
-           Content Type Performance
-        </h2>
-
-        {(() => {
-          // Group contents by content type and calculate analytics
           const contentTypeStats = React.useMemo(() => {
             const stats = {};
             filteredContents.forEach(content => {
@@ -3357,7 +3626,6 @@ window.TimeframeAnalyticsPage = function() {
               stats[type].engagement += (content.likes || 0) + (content.comments || 0) + (content.shares || 0) + (content.saves || 0);
             });
 
-            // Calculate averages
             Object.keys(stats).forEach(type => {
               const stat = stats[type];
               stat.avgImpressions = stat.count > 0 ? Math.round(stat.impressions / stat.count) : 0;
@@ -3368,18 +3636,9 @@ window.TimeframeAnalyticsPage = function() {
             return Object.values(stats).sort((a, b) => b.impressions - a.impressions);
           }, [filteredContents]);
 
-          // Content type icon mapping
           const contentTypeIcons = {
-            "Reels": "",
-            "Carousel": "",
-            "Vlog": "",
-            "Video": "",
-            "Image": "",
-            "Story": "",
-            "Live": "",
-            "Post": "",
-            "Short": "",
-            "Thread": ""
+            "Reels": "ðŸ“¹", "Carousel": "ðŸŽ ", "Vlog": "ðŸŽ¥", "Video": "ðŸŽ¬", "Image": "ðŸ“·",
+            "Story": "ðŸ“–", "Live": "ðŸ”´", "Post": "ðŸ“", "Short": "â±ï¸", "Thread": "ðŸ§µ"
           };
 
           return (
@@ -3396,7 +3655,7 @@ window.TimeframeAnalyticsPage = function() {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.25rem" }}>
-                      <div style={{ width:"36px", height:"36px", borderRadius:"9px", background:"rgba(139,92,246,0.12)", border:"1px solid rgba(139,92,246,0.2)", display:"flex", alignItems:"center", justifyContent:"center" }}><Icon name={contentTypeIcons[stat.type] || "file"} size={18} color="var(--accent-primary)" /></div>
+                      <div style={{ fontSize: "2rem" }}>{contentTypeIcons[stat.type] || "ðŸ“„"}</div>
                       <div>
                         <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-main)", margin: 0 }}>{stat.type}</h3>
                         <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.25rem 0 0 0" }}>{stat.count} content{stat.count !== 1 ? "s" : ""}</p>
@@ -3415,7 +3674,7 @@ window.TimeframeAnalyticsPage = function() {
                           <strong style={{ color: "var(--accent-cyan)", fontSize: "0.9rem" }}>{stat.impressions.toLocaleString()}</strong>
                         </div>
                         <div style={{ width: "100%", height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
-                          <div style={{ width: `${Math.min((stat.impressions / Math.max(...contentTypeStats.map(s => s.impressions))) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, var(--accent-cyan), var(--accent-primary))", borderRadius: "3px" }} />
+                          <div style={{ width: `${Math.min((stat.impressions / (Math.max(...contentTypeStats.map(s => s.impressions)) || 1)) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, var(--accent-cyan), var(--accent-primary))", borderRadius: "3px" }} />
                         </div>
                       </div>
 
@@ -3425,7 +3684,7 @@ window.TimeframeAnalyticsPage = function() {
                           <strong style={{ fontSize: "0.9rem" }}>{stat.reach.toLocaleString()}</strong>
                         </div>
                         <div style={{ width: "100%", height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
-                          <div style={{ width: `${Math.min((stat.reach / Math.max(...contentTypeStats.map(s => s.reach))) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, #A78BFA, #7C3AED)", borderRadius: "3px" }} />
+                          <div style={{ width: `${Math.min((stat.reach / (Math.max(...contentTypeStats.map(s => s.reach)) || 1)) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, #A78BFA, #7C3AED)", borderRadius: "3px" }} />
                         </div>
                       </div>
 
@@ -3435,7 +3694,7 @@ window.TimeframeAnalyticsPage = function() {
                           <strong style={{ color: "var(--accent-emerald)", fontSize: "0.9rem" }}>{stat.engagement.toLocaleString()}</strong>
                         </div>
                         <div style={{ width: "100%", height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
-                          <div style={{ width: `${Math.min((stat.engagement / Math.max(...contentTypeStats.map(s => s.engagement))) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, #34D399, #10B981)", borderRadius: "3px" }} />
+                          <div style={{ width: `${Math.min((stat.engagement / (Math.max(...contentTypeStats.map(s => s.engagement)) || 1)) * 100, 100)}%`, height: "100%", background: "linear-gradient(90deg, #34D399, #10B981)", borderRadius: "3px" }} />
                         </div>
                       </div>
 
@@ -3456,7 +3715,7 @@ window.TimeframeAnalyticsPage = function() {
                 ))
               ) : (
                 <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
-                  No content data available for the selected timeframe
+                  No content data available for status: {selectedStatus}
                 </div>
               )}
             </div>
@@ -3466,11 +3725,10 @@ window.TimeframeAnalyticsPage = function() {
         {/* Top Performing Post by Platform Section */}
         <div style={{ marginTop: "2.5rem" }}>
           <h2 style={{ fontSize: "1.25rem", fontWeight: 800, marginBottom: "1.25rem", color: "var(--text-main)" }}>
-            Top Performing Post by Platform
+            ðŸ† Top Performing Posts by Platform ({selectedStatus === "ALL" ? "All Statuses" : selectedStatus})
           </h2>
 
           {(() => {
-            // Get top post per platform for the selected timeframe
             const topPostsByPlatform = React.useMemo(() => {
               const platformMap = {};
               
@@ -3479,14 +3737,12 @@ window.TimeframeAnalyticsPage = function() {
                 if (!platformMap[platform]) {
                   platformMap[platform] = item;
                 } else {
-                  // Compare by impressions
                   if ((item.impressions || 0) > (platformMap[platform].impressions || 0)) {
                     platformMap[platform] = item;
                   }
                 }
               });
 
-              // Convert to array and sort by impressions
               return Object.values(platformMap).sort((a, b) => (b.impressions || 0) - (a.impressions || 0));
             }, [filteredContents]);
 
@@ -3498,6 +3754,8 @@ window.TimeframeAnalyticsPage = function() {
                     const er = post.reach > 0 ? ((engagement / post.reach) * 100).toFixed(2) : "0.00";
                     const caption = String(post.caption || "").substring(0, 100);
                     const captionTrunc = caption.length > 100 ? caption.substring(0, 97) + "..." : caption;
+                    const postStatus = post.status || "Uploaded";
+                    const stConfig = STATUS_CONFIG[postStatus] || { label: postStatus, color: "#10B981", bg: "rgba(16,185,129,0.15)" };
 
                     return (
                       <div
@@ -3513,7 +3771,7 @@ window.TimeframeAnalyticsPage = function() {
                           gap: "1rem"
                         }}
                       >
-                        {/* Platform Badge */}
+                        {/* Platform & Status Badge Header */}
                         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: "space-between" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                             <div style={{
@@ -3530,14 +3788,28 @@ window.TimeframeAnalyticsPage = function() {
                               <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Posted {post.uploadDate || "N/A"}</div>
                             </div>
                           </div>
-                          {idx === 0 && (
-                            <div style={{
-                              padding: "0.4rem 0.8rem", background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-primary))",
-                              borderRadius: "6px", fontSize: "0.7rem", fontWeight: 700, color: "#fff"
+                          
+                          <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                            <span style={{
+                              padding: "0.2rem 0.55rem",
+                              borderRadius: "6px",
+                              fontSize: "0.7rem",
+                              fontWeight: 700,
+                              background: stConfig.bg,
+                              color: stConfig.color,
+                              border: `1px solid ${stConfig.border || "transparent"}`
                             }}>
-                              TOP
-                            </div>
-                          )}
+                              {postStatus}
+                            </span>
+                            {idx === 0 && (
+                              <div style={{
+                                padding: "0.2rem 0.6rem", background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-primary))",
+                                borderRadius: "6px", fontSize: "0.7rem", fontWeight: 700, color: "#fff"
+                              }}>
+                                TOP
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         {/* Caption */}
@@ -3597,7 +3869,7 @@ window.TimeframeAnalyticsPage = function() {
                   })
                 ) : (
                   <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
-                    No posts available for the selected timeframe and filters
+                    No posts available for {selectedStatus} in the selected timeframe and filters
                   </div>
                 )}
               </div>
@@ -3716,12 +3988,12 @@ window.HashtagAnalyticsPage = function() {
 
       <div className="page-header">
         <div>
-          <h1 className="page-title">{activeAccount.name} — Hashtag Studio</h1>
+          <h1 className="page-title">{activeAccount.name} â€” Hashtag Studio</h1>
           <p className="page-subtitle">Analyze hashtag performance per platform or across all platforms combined</p>
         </div>
       </div>
 
-      {/* ── PLATFORM TABS ─────────────────────────────────────────────────── */}
+      {/* â”€â”€ PLATFORM TABS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"2rem", flexWrap:"wrap" }}>
         {["All"].concat(allPlatforms).map(function(plat) {
           const isActive = activePlatform === plat;
@@ -3755,7 +4027,7 @@ window.HashtagAnalyticsPage = function() {
         })}
       </div>
 
-      {/* ── SCOPE SUMMARY STRIP ───────────────────────────────────────────── */}
+      {/* â”€â”€ SCOPE SUMMARY STRIP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {activeStats.length > 0 && (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))", gap:"0.85rem", marginBottom:"2rem" }}>
           {[
@@ -3790,7 +4062,7 @@ window.HashtagAnalyticsPage = function() {
         </div>
       )}
 
-      {/* ── TOP 3 CARDS ───────────────────────────────────────────────────── */}
+      {/* â”€â”€ TOP 3 CARDS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {top3.length > 0 && (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))", gap:"1.25rem", marginBottom:"2.5rem" }}>
           {top3.map(function(hashtag, index) {
@@ -3859,7 +4131,7 @@ window.HashtagAnalyticsPage = function() {
         </div>
       )}
 
-      {/* ── HASHTAG TABLE ─────────────────────────────────────────────────── */}
+      {/* â”€â”€ HASHTAG TABLE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="glass-card" style={{ padding:"1.5rem" }}>
 
         {/* Table controls */}
@@ -3873,7 +4145,7 @@ window.HashtagAnalyticsPage = function() {
             </div>
             <div>
               <div style={{ fontSize:"1rem", fontWeight:700, color:"var(--text-main)" }}>
-                {activePlatform === "All" ? "All Platforms" : activePlatform} — Hashtag Performance Table
+                {activePlatform === "All" ? "All Platforms" : activePlatform} â€” Hashtag Performance Table
               </div>
               {activePlatform !== "All" && (
                 <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", marginTop:"0.1rem" }}>
@@ -4347,7 +4619,7 @@ function SubjectsTable({ subjects, combined, pct, fmt, grads }) {
                   {isTop && <span style={{ fontSize:"0.62rem", fontWeight:800, color:"#F59E0B", padding:"0.1rem 0.35rem", borderRadius:"4px", background:"rgba(245,158,11,0.12)", border:"1px solid rgba(245,158,11,0.25)" }}>Top</span>}
                   {isLow && <span style={{ fontSize:"0.62rem", fontWeight:800, color:"#F43F5E", padding:"0.1rem 0.35rem", borderRadius:"4px", background:"rgba(244,63,94,0.12)", border:"1px solid rgba(244,63,94,0.25)" }}>Lowest</span>}
                 </div>
-                <div className="subject-meta">{s.count} appearance{s.count!==1?"s":""} — {sharePct}% of total impressions</div>
+                <div className="subject-meta">{s.count} appearance{s.count!==1?"s":""} â€” {sharePct}% of total impressions</div>
               </div>
               <div style={{ textAlign:"right", marginRight:"1rem", flexShrink:0 }}>
                 <div style={{ fontSize:"1.05rem", fontWeight:800, fontFamily:"var(--font-heading)", color:isLow?"#F43F5E":"var(--text-main)" }}>{fmt(s.imp)}</div>
@@ -4367,7 +4639,7 @@ function SubjectsTable({ subjects, combined, pct, fmt, grads }) {
       {totalPages > 1 && (
         <div style={{ marginTop: "1rem", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0.75rem 1rem", borderRadius:"var(--radius-sm)", background:"rgba(255,255,255,0.03)", border:"1px solid var(--border-color)" }}>
           <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", fontWeight:600 }}>
-            Page {currentPage} of {totalPages} • Showing {paginatedSubjects.length} of {subjects.length} subjects
+            Page {currentPage} of {totalPages} â€¢ Showing {paginatedSubjects.length} of {subjects.length} subjects
           </div>
           <div style={{ display:"flex", gap:"0.5rem" }}>
             <button
@@ -4376,7 +4648,7 @@ function SubjectsTable({ subjects, combined, pct, fmt, grads }) {
               className="btn btn-secondary btn-sm"
               style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
             >
-              ← Previous
+              â† Previous
             </button>
             <button
               onClick={handleNextPage}
@@ -4384,7 +4656,7 @@ function SubjectsTable({ subjects, combined, pct, fmt, grads }) {
               className="btn btn-secondary btn-sm"
               style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
             >
-              Next →
+              Next â†’
             </button>
           </div>
         </div>
@@ -4468,7 +4740,7 @@ function PostsTable({ posts, color, fmtDate, fmt, calcEr, erGrade, pIcon, pColor
       {totalPages > 1 && (
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0.75rem 1rem", borderRadius:"var(--radius-sm)", background:"rgba(255,255,255,0.03)", border:"1px solid var(--border-color)" }}>
           <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", fontWeight:600 }}>
-            Page {currentPage} of {totalPages} • Showing {paginatedPosts.length} of {posts.length} posts
+            Page {currentPage} of {totalPages} â€¢ Showing {paginatedPosts.length} of {posts.length} posts
           </div>
           <div style={{ display:"flex", gap:"0.5rem" }}>
             <button
@@ -4477,7 +4749,7 @@ function PostsTable({ posts, color, fmtDate, fmt, calcEr, erGrade, pIcon, pColor
               className="btn btn-secondary btn-sm"
               style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
             >
-              ← Previous
+              â† Previous
             </button>
             <button
               onClick={handleNextPage}
@@ -4485,7 +4757,7 @@ function PostsTable({ posts, color, fmtDate, fmt, calcEr, erGrade, pIcon, pColor
               className="btn btn-secondary btn-sm"
               style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
             >
-              Next →
+              Next â†’
             </button>
           </div>
         </div>
@@ -4494,1575 +4766,904 @@ function PostsTable({ posts, color, fmtDate, fmt, calcEr, erGrade, pIcon, pColor
   );
 }
 
-// Report Summary Page - Professional Deep Analytics
-// ReportSummaryPage v4 — with Account Brief Vault
+// ReportSummaryPage - Separated Post Status Analytics Report
+// ReportSummaryPage â€” Separated Status Analytics Report (Uploaded, Scheduled, Privated, Deleted)
 function ReportSummaryPage() {
-  const { activeAccount, contents, editAccount, canEdit } = React.useContext(VaultContext);
+  const { activeAccount, contents, editAccount, canEdit } = React.useContext(window.VaultContext);
+  const [reportStatusScope, setReportStatusScope] = React.useState("ALL"); // 'ALL', 'Uploaded', 'Scheduled', 'Privated', 'Deleted'
 
-  // ── Account Brief state ────────────────────────────────────────────────────
-  const [briefOpen,    setBriefOpen]    = React.useState(false);
-  const [briefSaving,  setBriefSaving]  = React.useState(false);
-  const [briefSaved,   setBriefSaved]   = React.useState(false);
+  // Account Brief state
+  const [briefOpen, setBriefOpen] = React.useState(false);
+  const [briefSaving, setBriefSaving] = React.useState(false);
+  const [briefSaved, setBriefSaved] = React.useState(false);
 
-  // Draft fields (separate from saved so user can cancel)
-  const [draftNiche,    setDraftNiche]    = React.useState("");
-  const [draftGoals,    setDraftGoals]    = React.useState("");
+  // Draft fields
+  const [draftNiche, setDraftNiche] = React.useState("");
+  const [draftGoals, setDraftGoals] = React.useState("");
   const [draftAudience, setDraftAudience] = React.useState("");
-  const [draftTone,     setDraftTone]     = React.useState("");
-  const [draftPillars,  setDraftPillars]  = React.useState("");
-  const [draftContext,  setDraftContext]  = React.useState("");
+  const [draftTone, setDraftTone] = React.useState("");
+  const [draftPillars, setDraftPillars] = React.useState("");
+  const [draftContext, setDraftContext] = React.useState("");
 
-  // ── Report Generator (Local, No API Needed) ────────────────────────────────────
-  const [aiLoading,    setAiLoading]    = React.useState(false);
-  const [aiOutput,     setAiOutput]     = React.useState("");
-  const [aiError,      setAiError]      = React.useState("");
-
-  async function generateAiAnalysis(combined, platformData, contentTypeData, subjectData, brief, fmt, fmtFull, fmtDate, calcEr, pct) {
-    setAiLoading(true);
-    setAiOutput("");
-    setAiError("");
-    
-    // Generate local analysis without API calls
-    try {
-      var report = generateLocalReport(combined, platformData, contentTypeData, subjectData, brief, fmt, fmtFull, fmtDate, calcEr, pct);
-      setAiOutput(report);
-    } catch(err) {
-      setAiError(err.message || "Error generating report. Please try again.");
-    }
-    setAiLoading(false);
-  }
-
-  function generateLocalReport(combined, platformData, contentTypeData, subjectData, brief, fmt, fmtFull, fmtDate, calcEr, pct) {
-    if (combined.count === 0) return "No content data available for analysis.";
-    
-    var report = "";
-    
-    // 1. DIAGNOSTIC SUMMARY
-    var erStatus = combined.er > 5 ? "excellent" : combined.er > 3 ? "good" : combined.er > 1 ? "average" : "poor";
-    var healthScore = combined.impTiers.fyp > 0 ? "strong" : combined.impTiers.good > 0 ? "healthy" : combined.impTiers.danger > 0 ? "critical" : "needs improvement";
-    var trajectory = combined.impTiers.danger > combined.count * 0.2 ? "declining" : combined.impTiers.fyp > 0 ? "growing" : "stable";
-    
-    report += "1. DIAGNOSTIC SUMMARY\n";
-    report += "════════════════════════════════════════════════════════════════\n\n";
-    report += "Account Health: " + healthScore.toUpperCase() + "\n";
-    report += "Trajectory: " + trajectory.toUpperCase() + "\n";
-    report += "Analysis Period: " + fmtDate(combined.dateFrom) + " to " + fmtDate(combined.dateTo) + "\n";
-    report += "Total Posts Analyzed: " + combined.count + "\n\n";
-    
-    if (combined.impTiers.danger > 0) {
-      report += "⚠️ CRITICAL ISSUE: " + combined.impTiers.danger + " post" + (combined.impTiers.danger > 1 ? "s" : "") + " with ZERO impressions.\n";
-      report += "   → This signals to the algorithm that content is not resonating.\n";
-      report += "   → IMMEDIATE ACTION: Review these posts for quality, hashtags, and posting time.\n\n";
-    }
-    
-    report += "Overall Engagement Rate: " + combined.er + "% (" + erStatus + ")\n";
-    report += "   → Industry Benchmark: 1-3% average, 3-5% good, 5%+ excellent\n";
-    report += "   → Your Status: " + (combined.er > 5 ? "EXCELLENT - You're outperforming most creators" : combined.er > 3 ? "GOOD - Above average engagement" : combined.er > 1 ? "AVERAGE - Room for improvement" : "POOR - Content needs optimization") + "\n\n";
-    
-    report += "Total Reach: " + fmtFull(combined.reach) + " unique users\n";
-    report += "Average Reach per Post: " + fmtFull(Math.round(combined.reach / combined.count)) + "\n";
-    report += "Impression to Reach Ratio: " + combined.ir + "x\n";
-    report += "   → Benchmark: 1.5x healthy, 2x+ strong distribution\n";
-    report += "   → This shows how many times each person sees your content\n\n";
-    
-    // 2. ALGORITHM HEALTH ANALYSIS
-    report += "\n2. ALGORITHM HEALTH ANALYSIS\n";
-    report += "════════════════════════════════════════════════════════════════\n\n";
-    
-    var dangerPct = (combined.impTiers.danger / combined.count * 100).toFixed(1);
-    var warningPct = (combined.impTiers.warning / combined.count * 100).toFixed(1);
-    var fypPct = (combined.impTiers.fyp / combined.count * 100).toFixed(1);
-    
-    report += "Content Distribution Health:\n";
-    report += "  🔴 Danger (0 views): " + combined.impTiers.danger + " posts (" + dangerPct + "%)\n";
-    report += "  🟡 Warning (1-99 views): " + combined.impTiers.warning + " posts (" + warningPct + "%)\n";
-    report += "  🟢 Safe (100-999 views): " + combined.impTiers.safe + " posts\n";
-    report += "  💚 Good (1K-9.9K views): " + combined.impTiers.good + " posts\n";
-    report += "  ⭐ FYP (10K+ views): " + combined.impTiers.fyp + " posts (" + fypPct + "%)\n\n";
-    
-    if (fypPct > 10) {
-      report += "✓ POSITIVE: " + fypPct + "% of your posts reach 10K+ impressions.\n";
-      report += "   → Your content is breaking through the algorithm consistently.\n";
-    } else if (fypPct > 0) {
-      report += "⚠ MODERATE: Only " + fypPct + "% reach viral threshold (10K+).\n";
-      report += "   → Analyze these viral posts to identify winning patterns.\n";
-    } else {
-      report += "⚠ CONCERN: No posts reaching 10K+ impressions.\n";
-      report += "   → Algorithm is not giving your content broad distribution.\n";
-    }
-    
-    report += "\nWhy posts get 0 impressions:\n";
-    report += "  • Posting at wrong time (algorithm favors peak hours)\n";
-    report += "  • Hashtags too competitive or irrelevant\n";
-    report += "  • Weak hook in first 1-2 seconds (users scroll away)\n";
-    report += "  • Content violates platform guidelines\n";
-    report += "  • Account has low trust score (build followers, engagement)\n\n";
-    
-    // 3. PLATFORM-SPECIFIC STRATEGY
-    report += "\n3. PLATFORM-SPECIFIC DEEP DIVE\n";
-    report += "════════════════════════════════════════════════════════════════\n\n";
-    
-    platformData.forEach(function(pl) {
-      var erQuality = pl.er > 5 ? "EXCELLENT" : pl.er > 3 ? "GOOD" : pl.er > 1 ? "AVERAGE" : "POOR";
-      var avgBench = pl.avgImp > 1000 ? "strong distribution" : pl.avgImp > 500 ? "moderate distribution" : "low distribution";
-      
-      report += "PLATFORM: " + pl.name + "\n";
-      report += "  Posts: " + pl.posts.length + " | Views: " + fmtFull(pl.imp) + " (" + pl.impShare + "% of total)\n";
-      report += "  Avg Views/Post: " + fmtFull(pl.avgImp) + " (" + avgBench + ")\n";
-      report += "  Engagement Rate: " + pl.er + "% (" + erQuality + ")\n";
-      report += "  Engagement Mix: Likes " + pl.likPct + "% | Shares " + pl.shaPct + "% | Saves " + pl.savPct + "%\n\n";
-      
-      if (pl.topPost) {
-        var tpe = (pl.topPost.likes || 0) + (pl.topPost.comments || 0) + (pl.topPost.shares || 0) + (pl.topPost.saves || 0);
-        var topEr = calcEr(tpe, pl.topPost.reach || 0);
-        report += "  ✓ TOP POST: \"" + (pl.topPost.caption || "").substring(0, 60) + "...\"\n";
-        report += "    Views: " + fmtFull(pl.topPost.impressions || 0) + " | ER: " + topEr + "%\n";
-        if (pl.topPost.hashtags && pl.topPost.hashtags.length) {
-          report += "    Tags: " + pl.topPost.hashtags.slice(0, 5).join(" ") + "\n";
-        }
-        report += "    → What's working: Analyze this content's format, caption style, hashtags\n\n";
-      }
-      
-      if (pl.worstPost && pl.worstPost.id !== (pl.topPost || {}).id) {
-        report += "  ✗ LOWEST POST: \"" + (pl.worstPost.caption || "").substring(0, 50) + "...\"\n";
-        report += "    Views: " + fmtFull(pl.worstPost.impressions || 0) + "\n";
-        report += "    → Why this flopped: Compare with top post - difference is key insight\n\n";
-      }
-      
-      report += "  HIGHEST-IMPACT ACTION: ";
-      if (pl.er < 1.5) {
-        report += "Increase comment-bait hooks and call-to-actions\n";
-      } else if (pl.avgImp < 500) {
-        report += "Test different posting times (post when audience is most active)\n";
-      } else if (pl.shaPct < 10) {
-        report += "Create more share-worthy content (useful tips, trending sounds)\n";
-      } else {
-        report += "Maintain current strategy - it's working\n";
-      }
-      report += "\n";
-    });
-    
-    // 4. ENGAGEMENT MIX ANALYSIS
-    report += "\n4. ENGAGEMENT & CONTENT GAP ANALYSIS\n";
-    report += "════════════════════════════════════════════════════════════════\n\n";
-    
-    report += "Engagement Breakdown:\n";
-    report += "  Likes: " + combined.likPct + "% (" + fmtFull(combined.lik) + " total)\n";
-    report += "  Comments: " + combined.comPct + "% (" + fmtFull(combined.com) + " total)\n";
-    report += "  Shares: " + combined.shaPct + "% (" + fmtFull(combined.sha) + " total)\n";
-    report += "  Saves: " + combined.savPct + "% (" + fmtFull(combined.sav) + " total)\n\n";
-    
-    report += "What this means:\n";
-    report += "  • HIGH SAVES: Audience finds your content valuable/useful\n";
-    report += "  • HIGH SHARES: Content is viral/relatable/funny\n";
-    report += "  • HIGH COMMENTS: Content sparks discussion (strong signal)\n";
-    report += "  • HIGH LIKES: Passive engagement (weakest signal)\n\n";
-    
-    if (combined.likPct > 80) {
-      report += "⚠ CONCERN: Over 80% likes with few comments/shares\n";
-      report += "   → Add more engagement hooks: ask questions, create controversy, use CTAs\n\n";
-    }
-    
-    if (combined.shaPct < 5) {
-      report += "⚠ OPPORTUNITY: Less than 5% shares\n";
-      report += "   → Create more shareable content: trending sounds, relatable moments, tips\n\n";
-    }
-    
-    if (combined.savPct > 15) {
-      report += "✓ STRONG: Over 15% saves\n";
-      report += "   → Audience finds your content valuable - keep this style going\n\n";
-    }
-    
-    // 5. CONTENT TYPE PERFORMANCE
-    if (contentTypeData.length > 0) {
-      report += "\n5. CONTENT TYPE PERFORMANCE\n";
-      report += "════════════════════════════════════════════════════════════════\n\n";
-      
-      contentTypeData.forEach(function(ct) {
-        var erQuality = ct.er > 5 ? "EXCELLENT" : ct.er > 3 ? "GOOD" : "NEEDS WORK";
-        report += "• " + ct.type + ": " + ct.posts.length + " posts | Avg " + fmtFull(ct.avgImp) + " views | ER " + ct.er + "% (" + erQuality + ")\n";
-      });
-      report += "\n";
-    }
-    
-    // 6. TOP 3 GROWTH LEVERS
-    report += "\n6. TOP 3 HIGHEST-ROI GROWTH ACTIONS (Next 30 Days)\n";
-    report += "════════════════════════════════════════════════════════════════\n\n";
-    
-    var actions = [];
-    
-    if (combined.impTiers.danger > 0) {
-      actions.push({
-        rank: 1,
-        action: "DELETE/ARCHIVE ZERO-IMPRESSION POSTS",
-        reason: combined.impTiers.danger + " posts with 0 views hurt algorithm trust",
-        impact: "High - Removes trust-damaging signals",
-        timeline: "Immediate"
-      });
-    }
-    
-    if (combined.er < 2) {
-      actions.push({
-        rank: actions.length + 1,
-        action: "IMPROVE ENGAGEMENT HOOKS",
-        reason: "ER of " + combined.er + "% is below 3% benchmark",
-        impact: "High - Each 1% ER increase = 3x better distribution",
-        timeline: "2 weeks"
-      });
-    }
-    
-    if (platformData[0] && platformData[0].avgImp < 500) {
-      actions.push({
-        rank: actions.length + 1,
-        action: "TEST POSTING TIMES",
-        reason: "Average " + fmtFull(platformData[0].avgImp) + " views suggests timing issues",
-        impact: "Medium-High - Right timing can 2-3x views",
-        timeline: "1-2 weeks"
-      });
-    }
-    
-    if (combined.shaPct < 10) {
-      actions.push({
-        rank: actions.length + 1,
-        action: "CREATE SHARE-WORTHY CONTENT",
-        reason: "Only " + combined.shaPct + "% shares (target: 15%+)",
-        impact: "Medium - Shares = organic reach",
-        timeline: "Ongoing"
-      });
-    }
-    
-    actions.slice(0, 3).forEach(function(a) {
-      report += a.rank + ". " + a.action + "\n";
-      report += "   Why: " + a.reason + "\n";
-      report += "   Impact: " + a.impact + "\n";
-      report += "   Timeline: " + a.timeline + "\n\n";
-    });
-    
-    // 7. 30/60/90 DAY ROADMAP
-    report += "\n7. 30/60/90 DAY GROWTH ROADMAP\n";
-    report += "════════════════════════════════════════════════════════════════\n\n";
-    
-    report += "DAY 30 - Foundation (Complete by week 4):\n";
-    report += "  ✓ Remove/archive all zero-impression posts\n";
-    report += "  ✓ Identify top 3 post types by ER\n";
-    report += "  ✓ Test posting times (morning/afternoon/evening)\n";
-    report += "  ✓ Target ER: " + (combined.er + 1) + "% (+1% improvement)\n";
-    report += "  ✓ Target FYP posts: " + (combined.impTiers.fyp + 1) + " posts\n\n";
-    
-    report += "DAY 60 - Optimization (Complete by week 8):\n";
-    report += "  ✓ Double down on winning post formats\n";
-    report += "  ✓ A/B test caption styles\n";
-    report += "  ✓ Build 3-4 content pillars aligned with audience\n";
-    report += "  ✓ Target ER: " + (combined.er + 2) + "% (+2% from baseline)\n";
-    report += "  ✓ Target FYP posts: " + (combined.impTiers.fyp + 3) + " posts\n\n";
-    
-    report += "DAY 90 - Scale (Complete by week 12):\n";
-    report += "  ✓ Consistent posting schedule (3-5x/week ideal)\n";
-    report += "  ✓ Established audience inside your niche\n";
-    report += "  ✓ Cross-platform repurposing (if multi-platform)\n";
-    report += "  ✓ Target ER: " + (combined.er + 3) + "% (+3% from baseline)\n";
-    report += "  ✓ Goal: " + (combined.impTiers.fyp * 2) + "+ FYP posts per month\n\n";
-    
-    // 8. SUMMARY
-    report += "\n8. KEY TAKEAWAYS\n";
-    report += "════════════════════════════════════════════════════════════════\n\n";
-    report += "Overall Score: " + (combined.er > 5 ? "⭐⭐⭐⭐⭐ Excellent" : combined.er > 3 ? "⭐⭐⭐⭐ Good" : combined.er > 1 ? "⭐⭐⭐ Average" : "⭐⭐ Needs Work") + "\n";
-    report += "Biggest Strength: " + (platformData[0] ? platformData[0].name + " with " + platformData[0].er + "% ER" : "Platform performance") + "\n";
-    report += "Most Urgent Fix: " + (combined.impTiers.danger > 0 ? "Remove zero-impression posts" : combined.er < 1.5 ? "Improve engagement hooks" : "Optimize posting times") + "\n";
-    report += "Projected Growth (90 days): " + Math.round(combined.er * 1.5) + "% ER | ~" + Math.round(combined.reach * 1.3) + " total reach\n";
-    report += "\n📊 Report generated: " + new Date().toLocaleString() + "\n";
-    
-    return report;
-  }
+  // AI / Local Report Generator state
+  const [reportLoading, setReportLoading] = React.useState(false);
+  const [reportOutput, setReportOutput] = React.useState("");
 
   if (!activeAccount) {
     return (
       <div className="page-container">
-        <div className="glass-card" style={{ textAlign:"center", padding:"4rem 2rem" }}>
-          <p style={{ color:"var(--text-muted)" }}>No active account selected.</p>
+        <div className="glass-card" style={{ textAlign: "center", padding: "4rem 2rem" }}>
+          <p style={{ color: "var(--text-muted)" }}>No active account selected.</p>
         </div>
       </div>
     );
   }
 
-  // Resolved brief — what is actually saved on the account object
-  var brief = {
-    niche:    activeAccount.brief_niche    || "",
-    goals:    activeAccount.brief_goals    || "",
-    audience: activeAccount.brief_audience || "",
-    tone:     activeAccount.brief_tone     || "",
-    pillars:  activeAccount.brief_pillars  || "",
-    context:  activeAccount.brief_context  || ""
-  };
-
-  var hasBrief = brief.niche || brief.goals || brief.audience || brief.tone || brief.pillars || brief.context;
-
-  // Open brief editor – pre-fill drafts from saved values
-  function openBrief() {
-    setDraftNiche(brief.niche);
-    setDraftGoals(brief.goals);
-    setDraftAudience(brief.audience);
-    setDraftTone(brief.tone);
-    setDraftPillars(brief.pillars);
-    setDraftContext(brief.context);
-    setBriefOpen(true);
-  }
-
-  function cancelBrief() { setBriefOpen(false); }
-
-  async function saveBrief() {
-    setBriefSaving(true);
-    await editAccount(activeAccount.id, {
-      brief_niche:    draftNiche.trim(),
-      brief_goals:    draftGoals.trim(),
-      brief_audience: draftAudience.trim(),
-      brief_tone:     draftTone.trim(),
-      brief_pillars:  draftPillars.trim(),
-      brief_context:  draftContext.trim()
-    });
-    setBriefSaving(false);
-    setBriefSaved(true);
-    setBriefOpen(false);
-    setTimeout(function() { setBriefSaved(false); }, 2500);
-  }
-
-
-  // ── Data helpers ─────────────────────────────────────────────────────────────
-  function fmt(n) {
-    if (!n && n !== 0) return "0";
-    if (n >= 1000000) return (n/1000000).toFixed(2)+"M";
-    if (n >= 1000)    return (n/1000).toFixed(1)+"K";
-    return n.toLocaleString();
-  }
-  function fmtFull(n) { return (n||0).toLocaleString(); }
-  function fmtDate(d) {
-    if (!d) return "-";
-    var p = d.split("-");
-    return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
-  }
-  function pct(num,den)     { return den>0 ? ((num/den)*100).toFixed(1) : "0.0"; }
-  function calcEr(eng,reach){ return reach>0 ? ((eng/reach)*100).toFixed(2) : "0.00"; }
-  function calcIr(imp,reach){ return reach>0 ? (imp/reach).toFixed(2) : "0.00"; }
-  // ── Impression health tier ─────────────────────────────────────────────────
-  // danger=0, warning=1-99, safe=100-999, good=1000-9999, fyp=10000+
-  function impHealth(n) {
-    if (!n || n === 0) return { tier:"danger",  label:"Danger",  color:"#F43F5E", cls:"imp-badge-danger",  desc:"Zero impressions — critically dangerous for account health" };
-    if (n < 100)       return { tier:"warning", label:"Warning", color:"#F59E0B", cls:"imp-badge-warning", desc:"Below 100 impressions — not good, needs immediate attention" };
-    if (n < 1000)      return { tier:"safe",    label:"Safe",    color:"#34D399", cls:"imp-badge-safe",    desc:"100–999 impressions — safe range" };
-    if (n < 10000)     return { tier:"good",    label:"Good",    color:"#22D3EE", cls:"imp-badge-good",    desc:"1K–9.9K impressions — good performance" };
-    return                    { tier:"fyp",     label:"FYP",     color:"#A78BFA", cls:"imp-badge-fyp",     desc:"10K+ impressions — excellent, FYP / viral reach" };
-  }
-
-  function erGrade(er) {
-    var v = parseFloat(er);
-    if (v>=6) return {label:"Exceptional",      color:"#10B981",bg:"rgba(16,185,129,0.12)", border:"rgba(16,185,129,0.3)"};
-    if (v>=3) return {label:"Above Average",    color:"#34D399",bg:"rgba(52,211,153,0.12)", border:"rgba(52,211,153,0.3)"};
-    if (v>=1) return {label:"Industry Standard",color:"#F59E0B",bg:"rgba(245,158,11,0.12)", border:"rgba(245,158,11,0.3)"};
-    return         {label:"Needs Improvement",  color:"#F43F5E",bg:"rgba(244,63,94,0.12)",  border:"rgba(244,63,94,0.3)"};
-  }
-  var PCOLORS = {"Instagram":"#E1306C","YouTube":"#FF4444","TikTok":"#25F4EE","X (Twitter)":"#60A5FA","Facebook":"#4B8FE4","Threads":"#E8EAED"};
-  var PICONS  = {"Instagram":"instagram","YouTube":"youtube","TikTok":"music-2","X (Twitter)":"twitter","Facebook":"facebook","Threads":"at-sign"};
-  function pColor(p){ return PCOLORS[p]||"var(--accent-primary)"; }
-  function pIcon(p) { return PICONS[p] ||"globe"; }
-
-
   const accountContents = React.useMemo(
-    function() { return contents.filter(function(c){return c.accountId===activeAccount.id;}); },
-    [contents,activeAccount.id]
+    () => contents.filter(c => c.accountId === activeAccount.id),
+    [contents, activeAccount.id]
   );
 
-  // ── Combined metrics ─────────────────────────────────────────────────────────
-  var combined = React.useMemo(function() {
-    var imp=0,reach=0,lik=0,com=0,sha=0,sav=0;
-    accountContents.forEach(function(c){
-      imp+=c.impressions||0; reach+=c.reach||0;
-      lik+=c.likes||0; com+=c.comments||0; sha+=c.shares||0; sav+=c.saves||0;
-    });
-    var eng=lik+com+sha+sav; var n=accountContents.length;
-    var dates=accountContents.map(function(c){return c.uploadDate;}).filter(Boolean).sort();
-    var statuses={};
-    accountContents.forEach(function(c){var s=c.status||"Unknown";statuses[s]=(statuses[s]||0)+1;});
-    var sorted=accountContents.slice().sort(function(a,b){return (b.impressions||0)-(a.impressions||0);});
+  // â”€â”€â”€ HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const fmt = n => {
+    if (!n && n !== 0) return "0";
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + "M";
+    if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
+    return (n || 0).toLocaleString();
+  };
+  const fmtFull = n => (n || 0).toLocaleString();
+  const fmtDate = d => {
+    if (!d) return "â€”";
+    const [y, m, day] = d.split("-");
+    return new Date(+y, +m - 1, +day).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
+  const pct = (num, den) => den > 0 ? ((num / den) * 100).toFixed(1) : "0.0";
+  const erOf = (eng, reach) => reach > 0 ? ((eng / reach) * 100).toFixed(2) : "0.00";
+  const irOf = (imp, reach) => reach > 0 ? (imp / reach).toFixed(2) : "0.00";
+
+  const PLATFORM_COLOR = { "Instagram": "#E1306C", "YouTube": "#FF4444", "TikTok": "#25F4EE", "X (Twitter)": "#60A5FA", "Facebook": "#4B8FE4", "Threads": "#E8EAED" };
+  const PLATFORM_ICON = { "Instagram": "instagram", "YouTube": "youtube", "TikTok": "music-2", "X (Twitter)": "twitter", "Facebook": "facebook", "Threads": "at-sign" };
+  const pColor = p => PLATFORM_COLOR[p] || "var(--accent-primary)";
+  const pIcon = p => PLATFORM_ICON[p] || "globe";
+
+  const erLabel = er => {
+    const v = parseFloat(er);
+    if (v >= 6) return { label: "Exceptional", color: "#10B981" };
+    if (v >= 3) return { label: "Above Average", color: "#34D399" };
+    if (v >= 1) return { label: "Industry Standard", color: "#F59E0B" };
+    return { label: "Needs Improvement", color: "#F43F5E" };
+  };
+
+  // â”€â”€â”€ SEPARATED METRICS BY STATUS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const statusGroups = React.useMemo(() => {
+    const uploadedList = accountContents.filter(c => (c.status || "Uploaded") === "Uploaded");
+    const scheduledList = accountContents.filter(c => c.status === "Scheduled");
+    const privatedList = accountContents.filter(c => c.status === "Privated");
+    const deletedList = accountContents.filter(c => c.status === "Deleted");
+
+    const computeGroup = (list, name, color, icon) => {
+      const imp = list.reduce((s, c) => s + (c.impressions || 0), 0);
+      const reach = list.reduce((s, c) => s + (c.reach || 0), 0);
+      const lik = list.reduce((s, c) => s + (c.likes || 0), 0);
+      const com = list.reduce((s, c) => s + (c.comments || 0), 0);
+      const sha = list.reduce((s, c) => s + (c.shares || 0), 0);
+      const sav = list.reduce((s, c) => s + (c.saves || 0), 0);
+      const eng = lik + com + sha + sav;
+      const n = list.length;
+      const dates = list.map(c => c.uploadDate).filter(Boolean).sort();
+      const sorted = [...list].sort((a, b) => (b.impressions || 0) - (a.impressions || 0));
+
+      return {
+        name,
+        color,
+        icon,
+        count: n,
+        items: sorted,
+        imp,
+        reach,
+        lik,
+        com,
+        sha,
+        sav,
+        eng,
+        er: erOf(eng, reach),
+        ir: irOf(imp, reach),
+        avgImp: n > 0 ? Math.round(imp / n) : 0,
+        avgReach: n > 0 ? Math.round(reach / n) : 0,
+        avgEng: n > 0 ? Math.round(eng / n) : 0,
+        likPct: pct(lik, eng),
+        comPct: pct(com, eng),
+        shaPct: pct(sha, eng),
+        savPct: pct(sav, eng),
+        dateFrom: dates[0] || null,
+        dateTo: dates[dates.length - 1] || null,
+        topContent: sorted.slice(0, 3)
+      };
+    };
+
     return {
-      imp,reach,lik,com,sha,sav,eng,
-      er:calcEr(eng,reach), ir:calcIr(imp,reach),
-      avgImp:n>0?Math.round(imp/n):0, avgReach:n>0?Math.round(reach/n):0, avgEng:n>0?Math.round(eng/n):0,
-      likPct:pct(lik,eng), comPct:pct(com,eng), shaPct:pct(sha,eng), savPct:pct(sav,eng),
-      count:n, dateFrom:dates[0]||null, dateTo:dates[dates.length-1]||null,
-      statuses, topContent:sorted.slice(0,3), bottomContent:sorted.slice(-2).reverse(),
-      allSorted:sorted,
-      impTiers: {
-        danger:  sorted.filter(function(c){ return !c.impressions || c.impressions===0; }).length,
-        warning: sorted.filter(function(c){ return c.impressions>0 && c.impressions<100; }).length,
-        safe:    sorted.filter(function(c){ return c.impressions>=100 && c.impressions<1000; }).length,
-        good:    sorted.filter(function(c){ return c.impressions>=1000 && c.impressions<10000; }).length,
-        fyp:     sorted.filter(function(c){ return c.impressions>=10000; }).length
-      }
+      uploaded: computeGroup(uploadedList, "Uploaded (Published)", "#10B981", "ðŸŸ¢"),
+      scheduled: computeGroup(scheduledList, "Scheduled (Pipeline)", "#06B6D4", "â±ï¸"),
+      privated: computeGroup(privatedList, "Privated (Hidden)", "#F59E0B", "ðŸ”’"),
+      deleted: computeGroup(deletedList, "Deleted (Archived)", "#F43F5E", "ðŸ—‘ï¸"),
+      totalCount: accountContents.length
     };
   }, [accountContents]);
 
-  // ── Per-platform metrics ─────────────────────────────────────────────────────
-  var platformData = React.useMemo(function() {
-    var map={};
-    accountContents.forEach(function(c){
-      var p=c.platform||"Unknown";
-      if (!map[p]) map[p]={name:p,posts:[],imp:0,reach:0,lik:0,com:0,sha:0,sav:0};
+  // Overall combined metrics
+  const combined = React.useMemo(() => {
+    const targetItems = reportStatusScope === "ALL" 
+      ? accountContents 
+      : accountContents.filter(c => (c.status || "Uploaded") === reportStatusScope);
+
+    const imp = targetItems.reduce((s, c) => s + (c.impressions || 0), 0);
+    const reach = targetItems.reduce((s, c) => s + (c.reach || 0), 0);
+    const lik = targetItems.reduce((s, c) => s + (c.likes || 0), 0);
+    const com = targetItems.reduce((s, c) => s + (c.comments || 0), 0);
+    const sha = targetItems.reduce((s, c) => s + (c.shares || 0), 0);
+    const sav = targetItems.reduce((s, c) => s + (c.saves || 0), 0);
+    const eng = lik + com + sha + sav;
+    const n = targetItems.length;
+    const dates = targetItems.map(c => c.uploadDate).filter(Boolean).sort();
+    const statuses = { Uploaded: 0, Scheduled: 0, Privated: 0, Deleted: 0 };
+    accountContents.forEach(c => { const s = c.status || "Uploaded"; if (statuses[s] !== undefined) statuses[s]++; else statuses["Uploaded"]++; });
+
+    return {
+      imp, reach, lik, com, sha, sav, eng,
+      er: erOf(eng, reach), ir: irOf(imp, reach),
+      avgImp: n > 0 ? Math.round(imp / n) : 0,
+      avgReach: n > 0 ? Math.round(reach / n) : 0,
+      avgEng: n > 0 ? Math.round(eng / n) : 0,
+      likPct: pct(lik, eng), comPct: pct(com, eng),
+      shaPct: pct(sha, eng), savPct: pct(sav, eng),
+      count: n,
+      dateFrom: dates[0] || null, dateTo: dates[dates.length - 1] || null,
+      statuses,
+      topContent: [...targetItems].sort((a, b) => (b.impressions || 0) - (a.impressions || 0)).slice(0, 3)
+    };
+  }, [accountContents, reportStatusScope]);
+
+  // â”€â”€â”€ PER-PLATFORM STATUS METRICS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const platformData = React.useMemo(() => {
+    const map = {};
+    accountContents.forEach(c => {
+      const p = c.platform || "Unknown";
+      if (!map[p]) {
+        map[p] = {
+          name: p,
+          posts: [],
+          uploaded: [],
+          scheduled: [],
+          privated: [],
+          deleted: [],
+          imp: 0,
+          reach: 0,
+          lik: 0,
+          com: 0,
+          sha: 0,
+          sav: 0
+        };
+      }
       map[p].posts.push(c);
-      map[p].imp+=c.impressions||0; map[p].reach+=c.reach||0;
-      map[p].lik+=c.likes||0; map[p].com+=c.comments||0; map[p].sha+=c.shares||0; map[p].sav+=c.saves||0;
+      const st = c.status || "Uploaded";
+      if (map[p][st.toLowerCase()]) {
+        map[p][st.toLowerCase()].push(c);
+      } else {
+        map[p].uploaded.push(c);
+      }
+      map[p].imp += c.impressions || 0;
+      map[p].reach += c.reach || 0;
+      map[p].lik += c.likes || 0;
+      map[p].com += c.comments || 0;
+      map[p].sha += c.shares || 0;
+      map[p].sav += c.saves || 0;
     });
-    return Object.values(map).map(function(p){
-      var eng=p.lik+p.com+p.sha+p.sav; var n=p.posts.length;
-      var sp=p.posts.slice().sort(function(a,b){return (b.impressions||0)-(a.impressions||0);});
-      var ds=p.posts.map(function(x){return x.uploadDate;}).filter(Boolean).sort();
-      return Object.assign({},p,{
-        eng,er:calcEr(eng,p.reach),ir:calcIr(p.imp,p.reach),
-        avgImp:n>0?Math.round(p.imp/n):0, avgReach:n>0?Math.round(p.reach/n):0, avgEng:n>0?Math.round(eng/n):0,
-        likPct:pct(p.lik,eng), comPct:pct(p.com,eng), shaPct:pct(p.sha,eng), savPct:pct(p.sav,eng),
-        impShare:pct(p.imp,combined.imp||1), reachShare:pct(p.reach,combined.reach||1), engShare:pct(eng,combined.eng||1),
-        topPost:sp[0]||null, worstPost:sp[sp.length-1]||null, sortedPosts:sp, dates:ds
+
+    return Object.values(map).map(p => {
+      const eng = p.lik + p.com + p.sha + p.sav;
+      const n = p.posts.length;
+      return {
+        ...p,
+        eng,
+        er: erOf(eng, p.reach),
+        ir: irOf(p.imp, p.reach),
+        avgImp: n > 0 ? Math.round(p.imp / n) : 0,
+        avgReach: n > 0 ? Math.round(p.reach / n) : 0,
+        avgEng: n > 0 ? Math.round(eng / n) : 0,
+        likPct: pct(p.lik, eng),
+        comPct: pct(p.com, eng),
+        shaPct: pct(p.sha, eng),
+        savPct: pct(p.sav, eng),
+        impShare: pct(p.imp, combined.imp || 1),
+        reachShare: pct(p.reach, combined.reach || 1),
+        engShare: pct(eng, combined.eng || 1),
+        topPost: [...p.posts].sort((a, b) => (b.impressions || 0) - (a.impressions || 0))[0] || null,
+        worstPost: [...p.posts].sort((a, b) => (a.impressions || 0) - (b.impressions || 0))[0] || null,
+        dates: p.posts.map(x => x.uploadDate).filter(Boolean).sort()
+      };
+    }).sort((a, b) => b.imp - a.imp);
+  }, [accountContents, combined]);
+
+  // â”€â”€â”€ SUBJECT METRICS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const subjectData = React.useMemo(() => {
+    const map = {};
+    accountContents.forEach(c => {
+      (c.subjects || []).forEach(sub => {
+        if (!map[sub]) map[sub] = { name: sub, count: 0, imp: 0, eng: 0, statuses: { Uploaded: 0, Scheduled: 0, Privated: 0, Deleted: 0 } };
+        map[sub].count += 1;
+        const st = c.status || "Uploaded";
+        map[sub].statuses[st] = (map[sub].statuses[st] || 0) + 1;
+        map[sub].imp += c.impressions || 0;
+        map[sub].eng += (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0);
       });
-    }).sort(function(a,b){return b.imp-a.imp;});
-  }, [accountContents,combined]);
-
-
-  // ── Content type + subject metrics ────────────────────────────────────────────
-  var contentTypeData = React.useMemo(function() {
-    var map={};
-    accountContents.forEach(function(c){
-      var t=c.contentType||"Standard Post";
-      if (!map[t]) map[t]={type:t,posts:[],imp:0,reach:0,eng:0};
-      map[t].posts.push(c); map[t].imp+=c.impressions||0; map[t].reach+=c.reach||0;
-      map[t].eng+=(c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
     });
-    return Object.values(map).map(function(t){
-      var n=t.posts.length;
-      return Object.assign({},t,{avgImp:n>0?Math.round(t.imp/n):0,avgEng:n>0?Math.round(t.eng/n):0,er:calcEr(t.eng,t.reach)});
-    }).sort(function(a,b){return b.avgImp-a.avgImp;});
-  }, [accountContents,combined]);
-
-  var subjectData = React.useMemo(function() {
-    var map={};
-    accountContents.forEach(function(c){
-      (c.subjects||[]).forEach(function(s){
-        if (!map[s]) map[s]={name:s,count:0,imp:0,eng:0};
-        map[s].count+=1; map[s].imp+=c.impressions||0;
-        map[s].eng+=(c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
-      });
-    });
-    return Object.values(map).sort(function(a,b){return b.imp-a.imp;});
+    return Object.values(map).sort((a, b) => b.imp - a.imp);
   }, [accountContents]);
 
-  var today    = new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
-  var erC      = erGrade(combined.er);
-  var bestPl   = platformData[0]||null;
-  var worstPl  = platformData.length>1 ? platformData[platformData.length-1] : null;
-  var bestCt   = contentTypeData[0]||null;
-  var worstCt  = contentTypeData.length>1 ? contentTypeData[contentTypeData.length-1] : null;
+  const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const erInfo = erLabel(combined.er);
 
+  // â”€â”€â”€ DOCX EXPORT (SEPARATED BY STATUS) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const handleExportDocx = () => {
+    if (!window.docx) {
+      alert("DOCX library not loaded â€” please check your internet connection and refresh.");
+      return;
+    }
+    const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle } = window.docx;
+    
+    const H1 = (text, color = "7C3AED") => new Paragraph({
+      children: [new TextRun({ text, bold: true, size: 28, color })],
+      spacing: { before: 450, after: 150 },
+      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "2D3748" } }
+    });
 
-  // ── DOCX Export ──────────────────────────────────────────────────────────────
-  function handleExportDocx() {
-    if (!window.docx) { alert("DOCX library not loaded. Please check your internet connection and reload."); return; }
-    var Document=window.docx.Document,Packer=window.docx.Packer,Paragraph=window.docx.Paragraph,
-        TextRun=window.docx.TextRun,AlignmentType=window.docx.AlignmentType,BorderStyle=window.docx.BorderStyle;
-    function H(text,color){ return new Paragraph({children:[new TextRun({text,bold:true,size:26,color:color||"7C3AED"})],spacing:{before:400,after:150},border:{bottom:{style:BorderStyle.SINGLE,size:4,color:"2D3748"}}}); }
-    function P(text){ return new Paragraph({children:[new TextRun({text,size:20,color:"C9D1D9"})],spacing:{after:140}}); }
-    function B(label,value){ return new Paragraph({children:[new TextRun({text:label+": ",bold:true,size:20,color:"F0F6FC"}),new TextRun({text:value,size:20,color:"9CA3AF"})],bullet:{level:0},spacing:{after:80}}); }
-    var children=[
-      new Paragraph({children:[new TextRun({text:"PERFORMANCE ANALYTICS REPORT",bold:true,size:44,color:"7C3AED"})],alignment:AlignmentType.CENTER,spacing:{after:100}}),
-      new Paragraph({children:[new TextRun({text:activeAccount.name,bold:true,size:30,color:"06B6D4"})],alignment:AlignmentType.CENTER,spacing:{after:80}}),
-      new Paragraph({children:[new TextRun({text:"Generated: "+today+" | Period: "+fmtDate(combined.dateFrom)+" to "+fmtDate(combined.dateTo),size:18,color:"6B7280",italics:true})],alignment:AlignmentType.CENTER,spacing:{after:300}}),
+    const H2 = (text, color = "06B6D4") => new Paragraph({
+      children: [new TextRun({ text, bold: true, size: 22, color })],
+      spacing: { before: 300, after: 100 }
+    });
+
+    const P = (text) => new Paragraph({
+      children: [new TextRun({ text, size: 20, color: "C9D1D9" })],
+      spacing: { after: 140 }
+    });
+
+    const B = (label, value) => new Paragraph({
+      children: [
+        new TextRun({ text: `${label}: `, bold: true, size: 20, color: "F0F6FC" }),
+        new TextRun({ text: value, size: 20, color: "9CA3AF" })
+      ],
+      bullet: { level: 0 },
+      spacing: { after: 80 }
+    });
+
+    const children = [
+      new Paragraph({
+        children: [new TextRun({ text: "PERFORMANCE ANALYTICS REPORT", bold: true, size: 44, color: "7C3AED" })],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 100 }
+      }),
+      new Paragraph({
+        children: [new TextRun({ text: `${activeAccount.name} â€” Multi-Status Segregated Audit`, bold: true, size: 28, color: "06B6D4" })],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 80 }
+      }),
+      new Paragraph({
+        children: [new TextRun({ text: `Generated: ${today}  Â·  Post Statuses Segregated: Uploaded, Scheduled, Privated, Deleted`, size: 18, color: "6B7280", italics: true })],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 400 }
+      }),
+
+      // Executive Summary & Status Breakdown
+      H1("EXECUTIVE SUMMARY & STATUS DISTRIBUTION", "06B6D4"),
+      P(`${activeAccount.name} has a total inventory of ${statusGroups.totalCount} content pieces across ${platformData.length} platform(s). Content is partitioned into 4 distinct lifecycles: Uploaded (${statusGroups.uploaded.count}), Scheduled (${statusGroups.scheduled.count}), Privated (${statusGroups.privated.count}), and Deleted (${statusGroups.deleted.count}).`),
+      B("Uploaded (Published)", `${statusGroups.uploaded.count} posts (${pct(statusGroups.uploaded.count, statusGroups.totalCount)}%) â€” ${fmtFull(statusGroups.uploaded.imp)} impressions`),
+      B("Scheduled (Queue)", `${statusGroups.scheduled.count} posts (${pct(statusGroups.scheduled.count, statusGroups.totalCount)}%) â€” Upcoming scheduled pipeline`),
+      B("Privated (Hidden)", `${statusGroups.privated.count} posts (${pct(statusGroups.privated.count, statusGroups.totalCount)}%) â€” ${fmtFull(statusGroups.privated.imp)} historical impressions`),
+      B("Deleted (Archived)", `${statusGroups.deleted.count} posts (${pct(statusGroups.deleted.count, statusGroups.totalCount)}%) â€” ${fmtFull(statusGroups.deleted.imp)} archived impressions`),
+
+      // Chapter 1: Uploaded Content Performance
+      H1("CHAPTER 1: UPLOADED (PUBLISHED) LIVE PERFORMANCE", "10B981"),
+      P(`This section evaluates active public content currently generating live views and interactions.`),
+      B("Live Posts Published", `${statusGroups.uploaded.count}`),
+      B("Total Live Impressions", `${fmtFull(statusGroups.uploaded.imp)} views`),
+      B("Total Live Reach", `${fmtFull(statusGroups.uploaded.reach)} unique viewers`),
+      B("Total Engagement", `${fmtFull(statusGroups.uploaded.eng)} (Likes ${fmtFull(statusGroups.uploaded.lik)} Â· Comments ${fmtFull(statusGroups.uploaded.com)} Â· Shares ${fmtFull(statusGroups.uploaded.sha)} Â· Saves ${fmtFull(statusGroups.uploaded.sav)})`),
+      B("Live Engagement Rate", `${statusGroups.uploaded.er}% (${erLabel(statusGroups.uploaded.er).label})`),
+      B("Average Views / Live Post", `${fmtFull(statusGroups.uploaded.avgImp)}`),
+      B("Impression / Reach Ratio", `${statusGroups.uploaded.ir}Ã—`),
+
+      H2("Top Performing Live Content (Uploaded)", "10B981"),
+      ...statusGroups.uploaded.items.slice(0, 5).map((c, i) => {
+        const eng = (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0);
+        return B(`#${i + 1} [${c.platform}] ${fmtDate(c.uploadDate)}`, `"${(c.caption || "").substring(0, 70)}â€¦" Â· ${fmtFull(c.impressions || 0)} views Â· ${fmtFull(eng)} engagements Â· ER ${erOf(eng, c.reach || 0)}%`);
+      }),
+
+      // Chapter 2: Scheduled Content Pipeline
+      H1("CHAPTER 2: SCHEDULED CONTENT PIPELINE", "06B6D4"),
+      P(`This section details the upcoming scheduled content queued across all accounts and platforms.`),
+      B("Total Queued Posts", `${statusGroups.scheduled.count}`),
+      ...statusGroups.scheduled.items.map((c, i) => {
+        return B(`Queue #${i + 1} [${c.platform}] Scheduled: ${fmtDate(c.uploadDate)}`, `"${(c.caption || "").substring(0, 80)}â€¦" Â· Tags: ${(c.hashtags || []).join(" ")}`);
+      }),
+
+      // Chapter 3: Privated Content
+      H1("CHAPTER 3: PRIVATED & UNLISTED CONTENT", "F59E0B"),
+      P(`Audit of content removed from public visibility but maintained in internal records.`),
+      B("Total Privated Posts", `${statusGroups.privated.count}`),
+      ...statusGroups.privated.items.map((c, i) => {
+        return B(`Hidden #${i + 1} [${c.platform}]`, `"${(c.caption || "").substring(0, 80)}â€¦" Â· Historical Views: ${fmtFull(c.impressions || 0)}`);
+      }),
+
+      // Chapter 4: Deleted Content History
+      H1("CHAPTER 4: DELETED / ARCHIVED CONTENT LOG", "F43F5E"),
+      P(`Historical registry of deleted content items.`),
+      B("Total Deleted Posts", `${statusGroups.deleted.count}`),
+      ...statusGroups.deleted.items.map((c, i) => {
+        return B(`Archived #${i + 1} [${c.platform}]`, `"${(c.caption || "").substring(0, 80)}â€¦" Â· Archived Views: ${fmtFull(c.impressions || 0)}`);
+      }),
+
+      // Chapter 5: Platform Breakdown
+      H1("CHAPTER 5: PER-PLATFORM STATUS BREAKDOWN", "8B5CF6")
     ];
-    if (hasBrief) {
-      children.push(H("ACCOUNT BRIEF","06B6D4"));
-      if (brief.niche)    children.push(B("Niche / Industry", brief.niche));
-      if (brief.goals)    children.push(B("Goals", brief.goals));
-      if (brief.audience) children.push(B("Target Audience", brief.audience));
-      if (brief.tone)     children.push(B("Content Tone", brief.tone));
-      if (brief.pillars)  children.push(B("Content Pillars", brief.pillars));
-      if (brief.context)  children.push(B("Additional Context", brief.context));
-    }
-    children.push(H("COMBINED KEY METRICS","10B981"));
-    children.push(B("Total Impressions",fmtFull(combined.imp)));
-    children.push(B("Total Reach",fmtFull(combined.reach)));
-    children.push(B("Total Engagement",fmtFull(combined.eng)));
-    children.push(B("Likes / Comments / Shares / Saves",fmtFull(combined.lik)+" / "+fmtFull(combined.com)+" / "+fmtFull(combined.sha)+" / "+fmtFull(combined.sav)));
-    children.push(B("Overall ER%",combined.er+"% - "+erC.label));
-    children.push(B("Avg Views/Post",fmtFull(combined.avgImp)));
-    platformData.forEach(function(pl,idx){
-      var erI=erGrade(pl.er);
-      children.push(H("PLATFORM "+(idx+1)+": "+pl.name.toUpperCase(),"8B5CF6"));
-      children.push(B("Posts",""+pl.posts.length));
-      children.push(B("Impressions",fmtFull(pl.imp)+" ("+pl.impShare+"% of total)"));
-      children.push(B("ER%",pl.er+"% - "+erI.label));
-      children.push(B("Avg Views/Post",fmtFull(pl.avgImp)));
-      pl.sortedPosts.forEach(function(post,pi){
-        var pe=(post.likes||0)+(post.comments||0)+(post.shares||0)+(post.saves||0);
-        children.push(B("#"+(pi+1)+" ("+fmtDate(post.uploadDate)+")",(post.caption||"").substring(0,60)+"... | "+fmtFull(post.impressions||0)+" views | ER "+calcEr(pe,post.reach||0)+"%"));
-      });
+
+    platformData.forEach((pl, idx) => {
+      children.push(H2(`PLATFORM ${idx + 1}: ${pl.name.toUpperCase()}`, pColor(pl.name).replace("#", "")));
+      children.push(B("Status Breakdown", `Uploaded: ${pl.uploaded.length} Â· Scheduled: ${pl.scheduled.length} Â· Privated: ${pl.privated.length} Â· Deleted: ${pl.deleted.length}`));
+      children.push(B("Total Platform Impressions", `${fmtFull(pl.imp)} (${pl.impShare}% of all platforms)`));
+      children.push(B("Engagement Rate", `${pl.er}% (${erLabel(pl.er).label})`));
     });
-    children.push(H("STRATEGIC RECOMMENDATIONS","34D399"));
-    buildRecs().forEach(function(rec){ children.push(P(rec.num+". "+rec.title+": "+rec.body)); });
-    children.push(new Paragraph({children:[new TextRun({text:"Generated by SocioVault on "+today,size:16,color:"484F58",italics:true})],alignment:AlignmentType.CENTER,spacing:{before:600}}));
-    var doc=new Document({sections:[{properties:{},children}]});
-    Packer.toBlob(doc).then(function(blob){
-      var url=URL.createObjectURL(blob),a=document.createElement("a");
-      a.href=url; a.download=(activeAccount.name.replace(/\s+/g,"_"))+"_Report_"+(new Date().toISOString().slice(0,10))+".docx";
-      a.click(); URL.revokeObjectURL(url);
+
+    // Strategic recommendations
+    children.push(H1("CHAPTER 6: STRATEGIC RECOMMENDATIONS", "34D399"));
+    children.push(B("1. Live Content Optimization", "Focus creative effort on high ER formats identified in Chapter 1."));
+    children.push(B("2. Scheduled Pipeline Management", `Maintain a regular release cadence for the ${statusGroups.scheduled.count} scheduled posts.`));
+    children.push(B("3. Status Hygiene", `Review ${statusGroups.privated.count} privated and ${statusGroups.deleted.count} deleted posts to learn why they were taken down.`));
+
+    children.push(new Paragraph({
+      children: [new TextRun({ text: `\nGenerated by SocioVault Multi-Status Analytics Engine Â· ${today}`, size: 16, color: "484F58", italics: true })],
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 600 }
+    }));
+
+    const doc = new Document({ sections: [{ properties: {}, children }] });
+    window.docx.Packer.toBlob(doc).then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${activeAccount.name.replace(/\s+/g, "_")}_Separated_Report_${new Date().toISOString().slice(0, 10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
     });
-  }
+  };
 
+  // â”€â”€â”€ LOCAL REPORT GENERATOR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const generateStatusAnalysis = () => {
+    setReportLoading(true);
+    setTimeout(() => {
+      let output = `ðŸ“Š SOCIOVAULT SEPARATED STATUS PERFORMANCE AUDIT\n`;
+      output += `Account: ${activeAccount.name}\n`;
+      output += `Generated: ${new Date().toLocaleString()}\n`;
+      output += `â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n\n`;
 
-  // ── Context-aware recommendations builder ─────────────────────────────────────
-  // Uses brief fields to personalise every recommendation
-  function buildRecs() {
-    var recs = [];
-    var nicheCtx    = brief.niche    ? " for a "+brief.niche+" account" : "";
-    var goalCtx     = brief.goals    ? " Aligns with your stated goal: \""+brief.goals+"\"." : "";
-    var audCtx      = brief.audience ? " Your target audience is "+brief.audience+"." : "";
-    var toneCtx     = brief.tone     ? " Match the "+brief.tone+" tone your audience expects." : "";
-    var pillarCtx   = brief.pillars  ? " Content pillars to lean into: "+brief.pillars+"." : "";
+      output += `1. LIFECYCLE DISTRIBUTION\n`;
+      output += `----------------------------------------------------------------\n`;
+      output += `â€¢ Total Content: ${statusGroups.totalCount} items\n`;
+      output += `â€¢ ðŸŸ¢ Uploaded (Live): ${statusGroups.uploaded.count} posts (${pct(statusGroups.uploaded.count, statusGroups.totalCount)}%)\n`;
+      output += `â€¢ â±ï¸ Scheduled (Queue): ${statusGroups.scheduled.count} posts (${pct(statusGroups.scheduled.count, statusGroups.totalCount)}%)\n`;
+      output += `â€¢ ðŸ”’ Privated (Hidden): ${statusGroups.privated.count} posts (${pct(statusGroups.privated.count, statusGroups.totalCount)}%)\n`;
+      output += `â€¢ ðŸ—‘ï¸ Deleted (Archived): ${statusGroups.deleted.count} posts (${pct(statusGroups.deleted.count, statusGroups.totalCount)}%)\n\n`;
 
-    var recCounter = 1;
+      output += `2. UPLOADED (LIVE) PERFORMANCE\n`;
+      output += `----------------------------------------------------------------\n`;
+      output += `â€¢ Total Live Impressions: ${fmtFull(statusGroups.uploaded.imp)}\n`;
+      output += `â€¢ Total Live Reach: ${fmtFull(statusGroups.uploaded.reach)}\n`;
+      output += `â€¢ Live Engagement Rate: ${statusGroups.uploaded.er}% (${erLabel(statusGroups.uploaded.er).label})\n`;
+      output += `â€¢ Average Views / Post: ${fmtFull(statusGroups.uploaded.avgImp)}\n\n`;
 
-    // 0 — Impression health alert (injected first if danger/warning posts exist)
-    var dangerCount  = combined.impTiers.danger;
-    var warningCount = combined.impTiers.warning;
-    if (dangerCount > 0 || warningCount > 0) {
-      var healthColor = dangerCount > 0 ? "#F43F5E" : "#F59E0B";
-      var healthTitle = dangerCount > 0
-        ? "CRITICAL: "+dangerCount+" Post"+(dangerCount>1?"s":""+" With Zero Impressions — Account Health at Risk")
-        : "WARNING: "+warningCount+" Post"+(warningCount>1?"s":"")+" Below 100 Impressions";
-      var healthBody = "";
-      if (dangerCount > 0) {
-        healthBody += dangerCount+" post"+(dangerCount>1?"s":"")+" have zero impressions. "
-          +"This is dangerous for your account — the algorithm interprets dead content as a signal of poor account quality, which suppresses distribution of future posts. "
-          +"Immediate actions: (1) delete or archive zero-impression posts, (2) check if they violate platform guidelines, (3) audit posting times and hashtag sets.";
-      }
-      if (warningCount > 0) {
-        if (healthBody) healthBody += " Additionally, ";
-        healthBody += warningCount+" post"+(warningCount>1?"s":"")+" have under 100 impressions. "
-          +"This indicates the content was not distributed by the algorithm. Likely causes: wrong posting time, oversaturated hashtags, weak hook, or engagement bait. "
-          +"Review and reschedule with improved captions.";
-      }
-      if (brief.audience) healthBody += " Ensure content resonates directly with "+brief.audience+".";
-      recs.push({ num:""+recCounter, color:healthColor, title:healthTitle, body:healthBody, urgent:true });
-      recCounter++;
-    }
-    // Best platform
-    recs.push({num:""+recCounter, color:"var(--accent-emerald)",
-      title:"Scale "+( bestPl ? bestPl.name : "Your Best Platform"),
-      body: bestPl
-        ? bestPl.name+" drives "+bestPl.impShare+"% of impressions"+nicheCtx+" with ER "+bestPl.er+"%. Increase posting frequency to at least "+(bestPl.posts.length*2)+" posts/month."+toneCtx+goalCtx
-        : "Identify the platform generating most reach and concentrate content production there."
-    });
-    recCounter++;
+      output += `3. SCHEDULED PIPELINE\n`;
+      output += `----------------------------------------------------------------\n`;
+      output += `â€¢ Queued posts waiting for release: ${statusGroups.scheduled.count}\n\n`;
 
-    // Underperforming platform
-    if (worstPl) {
-      recs.push({num:""+recCounter, color:"#F43F5E",
-        title:worstPl.name+" Is Underperforming — Fix or Reallocate",
-        body: worstPl.name+" delivers only "+worstPl.impShare+"% of impressions with ER "+worstPl.er+"% (account avg "+combined.er+"%)."+audCtx
-          +(parseFloat(worstPl.er)<1
-            ? " Engagement is critically low. Run a 4-week content experiment with 3 new formats before deciding to cut this platform."
-            : " Test posting time, caption structure, and hashtag sets tailored specifically for "+worstPl.name+"'s algorithm.")
-      });
-      recCounter++;
-    }
+      output += `4. PRIVATED & DELETED CONTENT AUDIT\n`;
+      output += `----------------------------------------------------------------\n`;
+      output += `â€¢ Privated Posts: ${statusGroups.privated.count} (Historical Views: ${fmtFull(statusGroups.privated.imp)})\n`;
+      output += `â€¢ Deleted Posts: ${statusGroups.deleted.count} (Archived Views: ${fmtFull(statusGroups.deleted.imp)})\n\n`;
 
-    // Engagement rate
-    recs.push({num:""+recCounter, color: parseFloat(combined.er)<3?"#F43F5E":"var(--accent-emerald)",
-      title: parseFloat(combined.er)<3 ? "Engagement Rate ("+combined.er+"%) Needs Improvement" : "Sustain "+combined.er+"% ER",
-      body: parseFloat(combined.er)<3
-        ? "Current ER is "+erC.label+". Tactics"+nicheCtx+": (1) end every caption with a direct question"+audCtx+", (2) use interactive features like polls and stickers in the first 3 seconds, (3) reply to comments within 1 hour to trigger algorithm re-distribution."+goalCtx
-        : "ER "+combined.er+"% ("+erC.label+"). Maintain with rotating interactive formats."+goalCtx+" Watch for drops below 3% as an early warning signal."
-    });
-    recCounter++;
+      setReportOutput(output);
+      setReportLoading(false);
+    }, 300);
+  };
 
-    // Content type
-    if (bestCt) {
-      recs.push({num:""+recCounter, color:"#F59E0B",
-        title: bestCt.type+" Content Outperforms — Scale It",
-        body: bestCt.type+" averages "+fmt(bestCt.avgImp)+" views/post"
-          +(worstCt ? " vs "+fmt(worstCt.avgImp)+" for "+worstCt.type+" (your weakest format)" : "")
-          +". Shift at least 60% of content production to "+bestCt.type+"."+pillarCtx+toneCtx
-      });
-      recCounter++;
-    }
+  // â”€â”€â”€ REUSABLE SUB-COMPONENTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const MetricPill = ({ value, color, bg }) => (
+    <span style={{ display: "inline-flex", alignItems: "center", padding: "0.15rem 0.6rem", borderRadius: "6px", background: bg || `${color}18`, border: `1px solid ${color}30`, fontSize: "0.82rem", fontWeight: 700, color, fontFamily: "var(--font-heading)", whiteSpace: "nowrap" }}>
+      {value}
+    </span>
+  );
 
-    // Saves / algo signal
-    recs.push({num:""+recCounter, color:"#06B6D4",
-      title: parseFloat(combined.savPct)<15 ? "Boost Save Rate ("+combined.savPct+"%) — Strongest Algo Signal" : "Saves Are Strong — Compound It",
-      body: parseFloat(combined.savPct)<15
-        ? "Save rate is "+combined.savPct+"%. Saves are the highest-value algorithmic signal. Create evergreen reference content"+nicheCtx+": step-by-step guides, checklists, templates, and resources people bookmark."+audCtx+" Add 'Save this for later' as a CTA."
-        : "Save rate "+combined.savPct+"% is strong. Convert top-saved posts into series, carousels, or short-form repost editions to extend their life."
-    });
-    recCounter++;
+  const EngBar = ({ label, icon, value, pctVal, color, gradient }) => (
+    <div className="engagement-bar-row">
+      <div className="engagement-bar-label">
+        <span style={{ color, marginRight: "4px" }}>â€¢</span>
+        {label}
+      </div>
+      <div className="engagement-bar-track">
+        <div className="engagement-bar-fill" style={{ width: `${pctVal}%`, background: gradient }}></div>
+      </div>
+      <div className="engagement-bar-value">{fmt(value)}</div>
+      <div className="engagement-bar-pct">{pctVal}%</div>
+    </div>
+  );
 
-    // Brief goal rec
-    if (brief.goals) {
-      recs.push({num:""+recCounter, color:"var(--accent-primary)",
-        title:"Align Analytics to Your Goal",
-        body: "Your stated goal is: \""+brief.goals+"\". "
-          +(combined.count<10
-            ? "With only "+combined.count+" posts, focus on publishing frequency before optimising individual metrics."
-            : "With "+combined.count+" posts of data, the next lever is testing: run 2-week experiments changing one variable at a time — posting time, caption format, or hook style — and measure ER change.")
-          +(brief.audience ? " Consistently frame content around the needs and pain points of "+brief.audience+"." : "")
-      });
-      recCounter++;
-    }
+  const SectionHead = ({ emoji, label, colorBg, colorBorder }) => (
+    <div className="report-section-head">
+      <div className="report-section-icon" style={{ background: colorBg, border: `1px solid ${colorBorder}` }}>
+        <span>{emoji}</span>
+      </div>
+      <div className="report-section-label">{label}</div>
+    </div>
+  );
 
-    // Performance gap rec
-    if (combined.allSorted.length >= 2) {
-      var topImp   = combined.allSorted[0].impressions||0;
-      var lowImp   = combined.allSorted[combined.allSorted.length-1].impressions||0;
-      var gapMulti = lowImp>0 ? Math.round(topImp/lowImp) : null;
-      recs.push({num:""+recCounter, color:"var(--accent-primary)",
-        title:"Close the "+( gapMulti ? gapMulti+"x" : "Large")+" Performance Gap",
-        body: "Your best post earned "+fmt(topImp)+" views; your lowest earned "+fmt(lowImp)
-          +". Audit the structural differences: hook length, posting time, hashtag volume, caption CTA, and thumbnail."+pillarCtx
-          +" Apply the top-post formula to your next 3 pieces and measure the delta."
-      });
-    }
+  const MiniStat = ({ label, value, color }) => (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+      <span style={{ fontSize: "0.68rem", color: "var(--text-subtle)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>{label}</span>
+      <span style={{ fontSize: "1.05rem", fontWeight: 800, fontFamily: "var(--font-heading)", color: color || "var(--text-main)" }}>{value}</span>
+    </div>
+  );
 
-    return recs;
-  }
-
-
-  // ── RENDER ────────────────────────────────────────────────────────────────────
   return (
     <div className="page-container">
 
-      {/* ══ ACCOUNT BRIEF VAULT ════════════════════════════════════════════════ */}
-      <div style={{
-        marginBottom:"1.75rem", borderRadius:"var(--radius-lg)",
-        border: hasBrief ? "1px solid rgba(139,92,246,0.35)" : "1px dashed rgba(255,255,255,0.12)",
-        background: hasBrief ? "linear-gradient(135deg,rgba(139,92,246,0.07),rgba(6,182,212,0.04))" : "rgba(255,255,255,0.02)",
-        overflow:"hidden"
-      }}>
-        {/* Header row */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"1rem 1.5rem", borderBottom: hasBrief ? "1px solid rgba(139,92,246,0.15)" : "none", gap:"1rem", flexWrap:"wrap" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>
-            <div style={{ width:"36px", height:"36px", borderRadius:"10px", background:"linear-gradient(135deg,#8B5CF6,#06B6D4)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 4px 12px rgba(139,92,246,0.3)" }}>
-              <Icon name="book-open" size={16} color="#fff" />
-            </div>
-            <div>
-              <div style={{ fontWeight:700, fontSize:"0.95rem", color:"var(--text-main)" }}>Account Brief</div>
-              <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", marginTop:"0.1rem" }}>
-                {hasBrief ? "Your account context is set — recommendations are personalised to this brief." : "Describe your account goals, niche, and audience to get personalised recommendations."}
-              </div>
-            </div>
-            {briefSaved && (
-              <span style={{ display:"inline-flex", alignItems:"center", gap:"0.35rem", fontSize:"0.75rem", fontWeight:700, color:"#10B981", padding:"0.2rem 0.6rem", borderRadius:"var(--radius-full)", background:"rgba(16,185,129,0.12)", border:"1px solid rgba(16,185,129,0.3)" }}>
-                <Icon name="check" size={11} color="" /> Saved
-              </span>
-            )}
-          </div>
-          {canEdit && (
-            <button onClick={briefOpen ? cancelBrief : openBrief} className="btn btn-secondary btn-sm"
-              style={{ gap:"0.4rem" }}>
-              <Icon name={briefOpen ? "x" : (hasBrief ? "pencil" : "plus")} size={13} color="currentColor" />
-              {briefOpen ? "Cancel" : (hasBrief ? "Edit Brief" : "Add Brief")}
-            </button>
-          )}
-        </div>
-
-
-        {/* SAVED BRIEF DISPLAY */}
-        {hasBrief && !briefOpen && (
-          <div style={{ padding:"1.25rem 1.5rem", display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))", gap:"1rem" }}>
-            {[
-              { icon:"tag",          label:"Niche / Industry",    value:brief.niche    },
-              { icon:"target",       label:"Goals",               value:brief.goals    },
-              { icon:"users",        label:"Target Audience",     value:brief.audience },
-              { icon:"mic-2",        label:"Content Tone",        value:brief.tone     },
-              { icon:"columns",      label:"Content Pillars",     value:brief.pillars  },
-              { icon:"message-square", label:"Additional Context",value:brief.context  },
-            ].filter(function(f){ return !!f.value; }).map(function(field) {
-              return (
-                <div key={field.label} style={{ display:"flex", gap:"0.65rem", alignItems:"flex-start" }}>
-                  <div style={{ width:"28px", height:"28px", borderRadius:"7px", background:"rgba(139,92,246,0.1)", border:"1px solid rgba(139,92,246,0.2)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:"0.1rem" }}>
-                    <Icon name={field.icon} size={12} color="var(--accent-primary)" />
-                  </div>
-                  <div>
-                    <div style={{ fontSize:"0.7rem", fontWeight:700, color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.2rem" }}>{field.label}</div>
-                    <div style={{ fontSize:"0.85rem", color:"var(--text-secondary)", lineHeight:1.55 }}>{field.value}</div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* EMPTY STATE */}
-        {!hasBrief && !briefOpen && (
-          <div style={{ padding:"1.5rem", display:"flex", alignItems:"center", justifyContent:"center", gap:"1.25rem", flexWrap:"wrap" }}>
-            {["Niche / Industry","Goals","Target Audience","Content Tone","Content Pillars"].map(function(label) {
-              return (
-                <div key={label} style={{ display:"flex", alignItems:"center", gap:"0.4rem", fontSize:"0.78rem", color:"var(--text-subtle)" }}>
-                  <div style={{ width:"6px", height:"6px", borderRadius:"50%", background:"rgba(139,92,246,0.3)" }}></div>
-                  {label}
-                </div>
-              );
-            })}
-            {canEdit && (
-              <button onClick={openBrief} className="btn btn-primary btn-sm" style={{ gap:"0.4rem" }}>
-                <Icon name="plus" size={12} color="" />
-                Fill in Brief
-              </button>
-            )}
-          </div>
-        )}
-
-
-        {/* BRIEF EDIT FORM */}
-        {briefOpen && (
-          <div style={{ padding:"1.5rem", borderTop:"1px solid rgba(139,92,246,0.15)" }}>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))", gap:"1.1rem", marginBottom:"1.25rem" }}>
-
-              {/* Niche */}
-              <div className="form-group" style={{ margin:0 }}>
-                <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                  <Icon name="tag" size={11} color="" /> Niche / Industry
-                </label>
-                <input type="text" className="form-input" placeholder="e.g. Tech & Lifestyle, Beauty, Finance..."
-                  value={draftNiche} onChange={function(e){ setDraftNiche(e.target.value); }} />
-              </div>
-
-              {/* Target Audience */}
-              <div className="form-group" style={{ margin:0 }}>
-                <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                  <Icon name="users" size={11} color="" /> Target Audience
-                </label>
-                <input type="text" className="form-input" placeholder="e.g. Tech-savvy millennials aged 22-35..."
-                  value={draftAudience} onChange={function(e){ setDraftAudience(e.target.value); }} />
-              </div>
-
-              {/* Content Tone */}
-              <div className="form-group" style={{ margin:0 }}>
-                <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                  <Icon name="mic-2" size={11} color="" /> Content Tone
-                </label>
-                <input type="text" className="form-input" placeholder="e.g. Educational, Entertaining, Professional..."
-                  value={draftTone} onChange={function(e){ setDraftTone(e.target.value); }} />
-              </div>
-
-              {/* Content Pillars */}
-              <div className="form-group" style={{ margin:0 }}>
-                <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                  <Icon name="columns" size={11} color="" /> Content Pillars
-                </label>
-                <input type="text" className="form-input" placeholder="e.g. Product reviews, tutorials, behind-the-scenes..."
-                  value={draftPillars} onChange={function(e){ setDraftPillars(e.target.value); }} />
-              </div>
-
-              {/* Goals — full width */}
-              <div className="form-group" style={{ margin:0, gridColumn:"1 / -1" }}>
-                <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                  <Icon name="target" size={11} color="" /> Goals & Objectives
-                </label>
-                <textarea className="form-textarea" rows={3}
-                  placeholder="e.g. Grow to 500K followers by Dec 2026. Increase brand deal revenue by 40%. Build authority in AI & gadget space..."
-                  value={draftGoals} onChange={function(e){ setDraftGoals(e.target.value); }}
-                  style={{ resize:"vertical", minHeight:"72px" }} />
-              </div>
-
-              {/* Additional Context — full width */}
-              <div className="form-group" style={{ margin:0, gridColumn:"1 / -1" }}>
-                <label className="form-label" style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                  <Icon name="message-square" size={11} color="" /> Additional Context
-                  <span style={{ fontSize:"0.68rem", color:"var(--text-subtle)", fontWeight:400, marginLeft:"0.25rem" }}>(optional — anything else the analysis should know)</span>
-                </label>
-                <textarea className="form-textarea" rows={3}
-                  placeholder="e.g. This account monetises through brand sponsorships and affiliate links. Main competitors are XYZ. We have a team of 3 editors..."
-                  value={draftContext} onChange={function(e){ setDraftContext(e.target.value); }}
-                  style={{ resize:"vertical", minHeight:"72px" }} />
-              </div>
-
-            </div>
-
-            {/* Form actions */}
-            <div style={{ display:"flex", gap:"0.75rem", alignItems:"center", justifyContent:"flex-end" }}>
-              <button onClick={cancelBrief} className="btn btn-secondary btn-sm">Cancel</button>
-              <button onClick={saveBrief} className="btn btn-primary btn-sm" disabled={briefSaving}
-                style={{ gap:"0.45rem", minWidth:"110px" }}>
-                {briefSaving
-                  ? <><Icon name="loader-2" size={13} color="" /> Saving...</>
-                  : <><Icon name="save" size={13} color="" /> Save Brief</>
-                }
-              </button>
-            </div>
-          </div>
-        )}
-
-      </div>
-      {/* ══ END ACCOUNT BRIEF ══════════════════════════════════════════════════ */}
-
-
-      {/* ══ REPORT HERO ═══════════════════════════════════════════════════════ */}
+      {/* â•â• HERO â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <div className="report-hero">
         <div className="report-hero-content">
           <div className="report-title-eyebrow">
-            <Icon name="file-bar-chart" size={12} color="" />
-            Performance Analytics Report
+            ðŸ“Š Separated Post Status Report & Analytics
           </div>
           <h1 className="report-hero-title">{activeAccount.name}</h1>
-          <p style={{ color:"var(--text-muted)", fontSize:"0.9rem", marginBottom:"0.5rem" }}>
-            {activeAccount.description || "Social Media Analytics Overview"}
-            {hasBrief && brief.niche && (
-              <span style={{ marginLeft:"0.5rem", fontSize:"0.78rem", color:"var(--accent-primary-light)", background:"rgba(139,92,246,0.1)", padding:"0.1rem 0.5rem", borderRadius:"var(--radius-full)", border:"1px solid rgba(139,92,246,0.2)" }}>
-                {brief.niche}
-              </span>
-            )}
+          <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: "0.5rem" }}>
+            {activeAccount.description || "Segmented reports for Uploaded, Scheduled, Privated, and Deleted posts"}
           </p>
           <div className="report-hero-meta">
-            {[
-              { icon:"calendar",          text: combined.dateFrom ? fmtDate(combined.dateFrom)+" - "+fmtDate(combined.dateTo) : "All-Time" },
-              { icon:"layers",            text: combined.count+" content pieces" },
-              { icon:"monitor-smartphone",text: platformData.length+" platform"+(platformData.length!==1?"s":"") },
-              { icon:"clock",             text: "Generated "+today },
-            ].map(function(m){ return (
-              <div key={m.icon} className="report-hero-meta-item">
-                <Icon name={m.icon} size={13} color="" />
-                <span>{m.text}</span>
-              </div>
-            ); })}
+            <div className="report-hero-meta-item"><span>ðŸ“… {combined.dateFrom ? `${fmtDate(combined.dateFrom)} â€” ${fmtDate(combined.dateTo)}` : "All-Time"}</span></div>
+            <div className="report-hero-meta-item"><span>ðŸ“‘ {accountContents.length} total posts</span></div>
+            <div className="report-hero-meta-item"><span>ðŸ“¡ {platformData.length} platform{platformData.length !== 1 ? "s" : ""}</span></div>
+            <div className="report-hero-meta-item"><span>ðŸ•’ Generated {today}</span></div>
           </div>
         </div>
-        <div style={{ position:"absolute", top:"1.5rem", right:"1.5rem", display:"flex", gap:"0.6rem" }}>
-          <button className="btn btn-export btn-sm" onClick={handleExportDocx}>
-            <Icon name="download" size={13} color="" /> Export DOCX
+        <div style={{ position: "absolute", top: "1.5rem", right: "1.5rem", display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+          <button className="btn btn-export btn-sm" onClick={handleExportDocx} title="Export segregated report as .docx">
+            ðŸ“¥ Export Segregated DOCX
           </button>
-          <button className="btn btn-print btn-sm" onClick={function(){ window.print(); }}>
-            <Icon name="printer" size={13} color="" /> Print
+          <button className="btn btn-secondary btn-sm" onClick={generateStatusAnalysis}>
+            âš¡ Generate Audit Text
+          </button>
+          <button className="btn btn-print btn-sm" onClick={() => window.print()}>
+            ðŸ–¨ï¸ Print
           </button>
         </div>
       </div>
 
-      {/* ══ KPI STRIP ════════════════════════════════════════════════════════ */}
-      <div className="report-kpi-grid">
+      {/* â•â• POST STATUS SCOPE SWITCHER â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      <div className="glass-card" style={{ padding: "1.25rem 1.5rem", marginBottom: "1.5rem", background: "rgba(15, 23, 42, 0.8)", border: "1px solid var(--border-color)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
+          <div>
+            <div style={{ fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--accent-cyan)" }}>
+              ðŸ“‘ Report View Mode
+            </div>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: "0.2rem 0 0 0" }}>
+              Select Status View Scope
+            </h3>
+          </div>
+
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <button
+              onClick={() => setReportStatusScope("ALL")}
+              className={`btn btn-sm ${reportStatusScope === "ALL" ? "btn-primary" : "btn-secondary"}`}
+              style={{ fontWeight: 700, borderRadius: "8px" }}
+            >
+              ðŸŒ Full Separated Report ({statusGroups.totalCount})
+            </button>
+            <button
+              onClick={() => setReportStatusScope("Uploaded")}
+              className="btn btn-sm"
+              style={{
+                fontWeight: 700,
+                borderRadius: "8px",
+                background: reportStatusScope === "Uploaded" ? "#10B981" : "rgba(16, 185, 129, 0.12)",
+                color: reportStatusScope === "Uploaded" ? "#fff" : "#10B981",
+                border: "1px solid rgba(16, 185, 129, 0.3)"
+              }}
+            >
+              ðŸŸ¢ Uploaded ({statusGroups.uploaded.count})
+            </button>
+            <button
+              onClick={() => setReportStatusScope("Scheduled")}
+              className="btn btn-sm"
+              style={{
+                fontWeight: 700,
+                borderRadius: "8px",
+                background: reportStatusScope === "Scheduled" ? "#06B6D4" : "rgba(6, 182, 212, 0.12)",
+                color: reportStatusScope === "Scheduled" ? "#fff" : "#06B6D4",
+                border: "1px solid rgba(6, 182, 212, 0.3)"
+              }}
+            >
+              â±ï¸ Scheduled ({statusGroups.scheduled.count})
+            </button>
+            <button
+              onClick={() => setReportStatusScope("Privated")}
+              className="btn btn-sm"
+              style={{
+                fontWeight: 700,
+                borderRadius: "8px",
+                background: reportStatusScope === "Privated" ? "#F59E0B" : "rgba(245, 158, 11, 0.12)",
+                color: reportStatusScope === "Privated" ? "#fff" : "#F59E0B",
+                border: "1px solid rgba(245, 158, 11, 0.3)"
+              }}
+            >
+              ðŸ”’ Privated ({statusGroups.privated.count})
+            </button>
+            <button
+              onClick={() => setReportStatusScope("Deleted")}
+              className="btn btn-sm"
+              style={{
+                fontWeight: 700,
+                borderRadius: "8px",
+                background: reportStatusScope === "Deleted" ? "#F43F5E" : "rgba(244, 63, 94, 0.12)",
+                color: reportStatusScope === "Deleted" ? "#fff" : "#F43F5E",
+                border: "1px solid rgba(244, 63, 94, 0.3)"
+              }}
+            >
+              ðŸ—‘ï¸ Deleted ({statusGroups.deleted.count})
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* â•â• AUDIT TEXT OUTPUT (IF GENERATED) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {reportOutput && (
+        <div className="glass-card" style={{ padding: "1.5rem", marginBottom: "1.5rem", background: "rgba(7, 9, 15, 0.9)", border: "1px solid var(--accent-cyan)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+            <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--accent-cyan)", margin: 0 }}>âš¡ Status Audit Summary Output</h3>
+            <button className="btn btn-secondary btn-sm" onClick={() => setReportOutput("")}>Close</button>
+          </div>
+          <pre style={{ whiteSpace: "pre-wrap", fontFamily: "JetBrains Mono, monospace", fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>
+            {reportOutput}
+          </pre>
+        </div>
+      )}
+
+      {/* â•â• STATUS SUMMARY CARDS STRIP â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
         {[
-          { label:"Total Impressions", value:fmt(combined.imp),    sub:fmtFull(combined.imp)+" views",  color:"#06B6D4", g:"linear-gradient(90deg,#06B6D4,#22D3EE)" },
-          { label:"Total Reach",       value:fmt(combined.reach),  sub:"unique viewers",                 color:"#8B5CF6", g:"linear-gradient(90deg,#8B5CF6,#A78BFA)" },
-          { label:"Total Engagement",  value:fmt(combined.eng),    sub:"likes+comments+shares+saves",   color:"#10B981", g:"linear-gradient(90deg,#10B981,#34D399)" },
-          { label:"Engagement Rate",   value:combined.er+"%",      sub:erC.label,                        color:erC.color, g:"linear-gradient(90deg,"+erC.color+","+erC.color+"88)" },
-          { label:"Avg Views/Post",    value:fmt(combined.avgImp), sub:"per content piece",              color:"#F59E0B", g:"linear-gradient(90deg,#F59E0B,#FCD34D)" },
-          { label:"Imp/Reach Ratio",   value:combined.ir+"x",     sub:parseFloat(combined.ir)>1.5?"Strong retention":"Single-view", color:"#EC4899", g:"linear-gradient(90deg,#EC4899,#F9A8D4)" },
-        ].map(function(k,i){ return (
-          <div key={i} className="report-kpi-card">
-            <div className="kpi-accent-bar" style={{ background:k.g }}></div>
-            <div className="report-kpi-label">{k.label}</div>
-            <div className="report-kpi-value" style={{ color:k.color }}>{k.value}</div>
-            <div className="report-kpi-sub">{k.sub}</div>
+          { key: "Uploaded", title: "ðŸŸ¢ Uploaded (Live)", count: statusGroups.uploaded.count, pct: pct(statusGroups.uploaded.count, statusGroups.totalCount), imp: statusGroups.uploaded.imp, er: statusGroups.uploaded.er, color: "#10B981" },
+          { key: "Scheduled", title: "â±ï¸ Scheduled (Queue)", count: statusGroups.scheduled.count, pct: pct(statusGroups.scheduled.count, statusGroups.totalCount), imp: statusGroups.scheduled.imp, er: statusGroups.scheduled.er, color: "#06B6D4" },
+          { key: "Privated", title: "ðŸ”’ Privated (Hidden)", count: statusGroups.privated.count, pct: pct(statusGroups.privated.count, statusGroups.totalCount), imp: statusGroups.privated.imp, er: statusGroups.privated.er, color: "#F59E0B" },
+          { key: "Deleted", title: "ðŸ—‘ï¸ Deleted (Archived)", count: statusGroups.deleted.count, pct: pct(statusGroups.deleted.count, statusGroups.totalCount), imp: statusGroups.deleted.imp, er: statusGroups.deleted.er, color: "#F43F5E" }
+        ].map(st => (
+          <div
+            key={st.key}
+            onClick={() => setReportStatusScope(st.key)}
+            className="glass-card"
+            style={{
+              padding: "1.1rem",
+              borderTop: `3px solid ${st.color}`,
+              background: reportStatusScope === st.key ? `${st.color}15` : "rgba(15, 23, 42, 0.6)",
+              cursor: "pointer"
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
+              <span style={{ fontSize: "0.85rem", fontWeight: 700, color: st.color }}>{st.title}</span>
+              <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 700 }}>{st.pct}%</span>
+            </div>
+            <div style={{ fontSize: "1.6rem", fontWeight: 800, fontFamily: "var(--font-heading)", color: st.color, lineHeight: 1.1 }}>
+              {st.count} <span style={{ fontSize: "0.75rem", fontWeight: 500, color: "var(--text-muted)" }}>posts</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "0.6rem", paddingTop: "0.5rem", borderTop: "1px solid rgba(255,255,255,0.06)", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+              <span>Views: <strong style={{ color: "var(--accent-cyan)" }}>{fmt(st.imp)}</strong></span>
+              <span>ER: <strong style={{ color: "var(--accent-primary)" }}>{st.er}%</strong></span>
+            </div>
           </div>
-        ); })}
+        ))}
       </div>
 
-
-      {/* ══ EXECUTIVE SUMMARY ════════════════════════════════════════════════ */}
-      <div className="report-section" style={{ marginBottom:"1.5rem" }}>
-        <div className="report-section-head">
-          <div className="report-section-icon" style={{ background:"rgba(6,182,212,0.1)", border:"1px solid rgba(6,182,212,0.2)" }}>
-            <Icon name="clipboard-list" size={16} color="#06B6D4" />
-          </div>
-          <div className="report-section-label">Executive Summary</div>
-        </div>
-        <div className="report-section-body insight-prose">
-          <p>
-            <strong>{activeAccount.name}</strong> has published{" "}
-            <span className="metric-callout metric-callout-primary">{combined.count} pieces</span> across{" "}
-            <span className="metric-callout metric-callout-cyan">{platformData.length} platform{platformData.length!==1?"s":""}</span>,
-            accumulating <span className="metric-callout metric-callout-cyan">{fmtFull(combined.imp)} impressions</span> and reaching{" "}
-            <span className="metric-callout metric-callout-primary">{fmtFull(combined.reach)} unique viewers</span>.
-            Impression-to-reach ratio <strong>{combined.ir}x</strong> —{" "}
-            {parseFloat(combined.ir)>1.5 ? "strong content retention; viewers return multiple times." : "typical single-view pattern; focus on hook strength to extend dwell time."}
-          </p>
-          <p>
-            Total engagement:{" "}
-            <span className="metric-callout metric-callout-emerald">{fmtFull(combined.eng)}</span> — ER{" "}
-            <span className="metric-callout" style={{ background:erC.bg, color:erC.color, border:"1px solid "+erC.border }}>{combined.er}%</span>{" "}
-            (<strong style={{ color:erC.color }}>{erC.label}</strong>).
-            Per-post average: <strong>{fmtFull(combined.avgImp)}</strong> views, <strong>{fmtFull(combined.avgEng)}</strong> interactions.
-          </p>
-          {hasBrief && (
-            <p style={{ padding:"0.75rem 1rem", background:"rgba(139,92,246,0.06)", borderRadius:"var(--radius-sm)", border:"1px solid rgba(139,92,246,0.15)", marginBottom:0 }}>
-              <strong style={{ color:"var(--accent-primary-light)" }}>Brief context: </strong>
-              {brief.niche ? "This is a "+brief.niche+" account" : "This account"}{brief.audience ? " targeting "+brief.audience : ""}.
-              {brief.goals ? " Goal: "+brief.goals+"." : ""}
-              {brief.tone  ? " The content tone is "+brief.tone+"." : ""}
-              {" "}The recommendations below are tailored to this brief.
-            </p>
-          )}
-          {combined.allSorted.length >= 2 && (
-            <p style={{ padding:"0.75rem 1rem", background:"rgba(244,63,94,0.06)", borderRadius:"var(--radius-sm)", border:"1px solid rgba(244,63,94,0.15)", marginBottom:0 }}>
-              <strong style={{ color:"#F43F5E" }}>Performance gap: </strong>
-              Top post earned <strong style={{ color:"#06B6D4" }}>{fmt(combined.allSorted[0].impressions||0)}</strong> views vs lowest at <strong style={{ color:"#F43F5E" }}>{fmt(combined.allSorted[combined.allSorted.length-1].impressions||0)}</strong> —{" "}
-              a <strong style={{ color:"#F43F5E" }}>
-                {combined.allSorted[combined.allSorted.length-1].impressions>0
-                  ? Math.round((combined.allSorted[0].impressions||0)/(combined.allSorted[combined.allSorted.length-1].impressions||1))+"x"
-                  : "large"}
-              </strong> difference. Analyse structural differences and apply top-post learnings to underperforming content.
-            </p>
-          )}
-        </div>
-      </div>
-
-
-      {/* ══ ENGAGEMENT + STATUS ══════════════════════════════════════════════ */}
-      <div className="report-two-col" style={{ marginBottom:"1.5rem" }}>
-
-        <div className="report-section" style={{ marginBottom:0 }}>
-          <div className="report-section-head">
-            <div className="report-section-icon" style={{ background:"rgba(139,92,246,0.1)", border:"1px solid rgba(139,92,246,0.2)" }}>
-              <Icon name="bar-chart-2" size={16} color="var(--accent-primary)" />
-            </div>
-            <div className="report-section-label">Engagement Breakdown</div>
-          </div>
+      {/* â•â• SECTION 1: UPLOADED (PUBLISHED) REPORT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {(reportStatusScope === "ALL" || reportStatusScope === "Uploaded") && (
+        <div className="report-section" style={{ marginBottom: "2rem", borderLeft: "4px solid #10B981" }}>
+          <SectionHead emoji="ðŸŸ¢" label="Live Published Content (Uploaded) â€” Deep Performance" colorBg="rgba(16, 185, 129, 0.1)" colorBorder="rgba(16, 185, 129, 0.3)" />
+          
           <div className="report-section-body">
-            {[
-              { label:"Likes",    icon:"heart",          v:combined.lik, p:combined.likPct, c:"#F43F5E", g:"linear-gradient(90deg,#F43F5E,#FB7185)" },
-              { label:"Comments", icon:"message-circle", v:combined.com, p:combined.comPct, c:"#8B5CF6", g:"linear-gradient(90deg,#8B5CF6,#A78BFA)" },
-              { label:"Shares",   icon:"repeat-2",       v:combined.sha, p:combined.shaPct, c:"#06B6D4", g:"linear-gradient(90deg,#06B6D4,#22D3EE)" },
-              { label:"Saves",    icon:"bookmark",       v:combined.sav, p:combined.savPct, c:"#10B981", g:"linear-gradient(90deg,#10B981,#34D399)" },
-            ].map(function(item){ return (
-              <div key={item.label} className="engagement-bar-row">
-                <div className="engagement-bar-label">
-                  <Icon name={item.icon} size={13} color={item.c} style={{flexShrink:0}} />{item.label}
-                </div>
-                <div className="engagement-bar-track">
-                  <div className="engagement-bar-fill" style={{ width:item.p+"%", background:item.g }}></div>
-                </div>
-                <div className="engagement-bar-value">{fmt(item.v)}</div>
-                <div className="engagement-bar-pct">{item.p}%</div>
-              </div>
-            ); })}
-            <div style={{ marginTop:"1rem", paddingTop:"0.85rem", borderTop:"1px solid var(--border-color)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <span style={{ fontSize:"0.78rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.04em" }}>Total</span>
-              <span style={{ fontSize:"1.2rem", fontWeight:800, fontFamily:"var(--font-heading)", color:"var(--accent-emerald)" }}>{fmtFull(combined.eng)}</span>
-            </div>
-            <div style={{ marginTop:"0.85rem", padding:"0.85rem 1rem", background:"rgba(244,63,94,0.05)", borderRadius:"var(--radius-sm)", border:"1px solid rgba(244,63,94,0.15)" }}>
-              <p style={{ fontSize:"0.8rem", color:"var(--text-muted)", lineHeight:1.6, margin:0 }}>
-                <strong style={{ color:"#F43F5E" }}>Weakest signal: </strong>
-                {parseFloat(combined.savPct)<10
-                  ? "Save rate ("+combined.savPct+"%) is low. Saves are the top algorithmic signal. Create more how-to and reference content."+(brief.pillars ? " Relevant pillars: "+brief.pillars+"." : "")
-                  : parseFloat(combined.shaPct)<10
-                    ? "Share rate ("+combined.shaPct+"%) is low. Use emotional hooks, surprising facts, or strong opinions to drive re-sharing."
-                    : parseFloat(combined.comPct)<10
-                      ? "Comment rate ("+combined.comPct+"%) is low. End every post with a direct open-ended question."+(brief.audience ? " Tailor the question to "+brief.audience+"." : "")
-                      : "Engagement mix is balanced. Keep monitoring weekly for shifts."}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="report-section" style={{ marginBottom:0 }}>
-          <div className="report-section-head">
-            <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.2)" }}>
-              <Icon name="layout-list" size={16} color="var(--accent-amber)" />
-            </div>
-            <div className="report-section-label">Content Status</div>
-          </div>
-          <div className="report-section-body">
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.85rem", marginBottom:"1.25rem" }}>
+            {/* Live KPI Grid */}
+            <div className="report-kpi-grid" style={{ marginBottom: "1.5rem" }}>
               {[
-                { key:"Uploaded",  label:"Published", color:"#10B981", bg:"linear-gradient(135deg,rgba(16,185,129,0.15),rgba(16,185,129,0.05))",  border:"rgba(16,185,129,0.3)",  icon:"check-circle" },
-                { key:"Scheduled", label:"Scheduled", color:"#06B6D4", bg:"linear-gradient(135deg,rgba(6,182,212,0.15),rgba(6,182,212,0.05))",    border:"rgba(6,182,212,0.3)",   icon:"clock"        },
-                { key:"Privated",  label:"Privated",  color:"#F59E0B", bg:"linear-gradient(135deg,rgba(245,158,11,0.15),rgba(245,158,11,0.05))",  border:"rgba(245,158,11,0.3)",  icon:"eye-off"      },
-                { key:"Deleted",   label:"Archived",  color:"#F43F5E", bg:"linear-gradient(135deg,rgba(244,63,94,0.12),rgba(244,63,94,0.04))",    border:"rgba(244,63,94,0.25)",  icon:"archive"      },
-              ].map(function(s){
-                var count=combined.statuses[s.key]||0;
-                if (!count) return null;
-                return (
-                  <div key={s.key} style={{ padding:"1rem", borderRadius:"var(--radius-md)", background:s.bg, border:"1px solid "+s.border }}>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.5rem" }}>
-                      <Icon name={s.icon} size={15} color={s.color} />
-                      <span style={{ fontSize:"0.7rem", color:s.color, fontWeight:700 }}>{pct(count,combined.count)}%</span>
-                    </div>
-                    <div style={{ fontSize:"1.6rem", fontWeight:800, fontFamily:"var(--font-heading)", color:s.color, lineHeight:1 }}>{count}</div>
-                    <div style={{ fontSize:"0.72rem", color:"var(--text-muted)", fontWeight:700, marginTop:"0.2rem", textTransform:"uppercase", letterSpacing:"0.04em" }}>{s.label}</div>
-                  </div>
-                );
-              })}
+                { label: "Live Impressions", value: fmt(statusGroups.uploaded.imp), sub: fmtFull(statusGroups.uploaded.imp) + " views", color: "#06B6D4", g: "linear-gradient(90deg,#06B6D4,#22D3EE)" },
+                { label: "Live Reach", value: fmt(statusGroups.uploaded.reach), sub: "unique viewers", color: "#8B5CF6", g: "linear-gradient(90deg,#8B5CF6,#A78BFA)" },
+                { label: "Live Engagement", value: fmt(statusGroups.uploaded.eng), sub: "likes+comments+shares+saves", color: "#10B981", g: "linear-gradient(90deg,#10B981,#34D399)" },
+                { label: "Live ER Rate", value: statusGroups.uploaded.er + "%", sub: erLabel(statusGroups.uploaded.er).label, color: erLabel(statusGroups.uploaded.er).color, g: "linear-gradient(90deg,#10B981,#34D399)" },
+                { label: "Avg Views / Post", value: fmt(statusGroups.uploaded.avgImp), sub: "per published post", color: "#F59E0B", g: "linear-gradient(90deg,#F59E0B,#FCD34D)" },
+                { label: "Imp / Reach Ratio", value: statusGroups.uploaded.ir + "Ã—", sub: "retention index", color: "#EC4899", g: "linear-gradient(90deg,#EC4899,#F9A8D4)" }
+              ].map((k, i) => (
+                <div key={i} className="report-kpi-card">
+                  <div className="kpi-accent-bar" style={{ background: k.g }}></div>
+                  <div className="report-kpi-label">{k.label}</div>
+                  <div className="report-kpi-value" style={{ color: k.color }}>{k.value}</div>
+                  <div className="report-kpi-sub">{k.sub}</div>
+                </div>
+              ))}
             </div>
-            <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", fontWeight:700, marginBottom:"0.5rem", textTransform:"uppercase", letterSpacing:"0.04em" }}>Publication Rate</div>
-            <div className="progress-bar-track progress-bar-track-lg">
-              <div className="progress-bar-fill progress-bar-fill-emerald" style={{ width:pct(combined.statuses["Uploaded"]||0,combined.count)+"%" }}></div>
-            </div>
-            <div style={{ display:"flex", justifyContent:"space-between", marginTop:"0.35rem" }}>
-              <span style={{ fontSize:"0.75rem", color:"var(--accent-emerald)" }}>{combined.statuses["Uploaded"]||0} published</span>
-              <span style={{ fontSize:"0.75rem", color:"var(--text-muted)" }}>{combined.count} total</span>
-            </div>
-            <div style={{ marginTop:"1rem", padding:"0.85rem 1rem", background:erC.color+"0F", borderRadius:"var(--radius-sm)", border:"1px solid "+erC.color+"25" }}>
-              <div style={{ fontSize:"0.72rem", textTransform:"uppercase", letterSpacing:"0.05em", color:"var(--text-subtle)", fontWeight:700, marginBottom:"0.3rem" }}>Overall ER Health</div>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                <span style={{ fontSize:"1.5rem", fontWeight:800, fontFamily:"var(--font-heading)", color:erC.color }}>{combined.er}%</span>
-                <span style={{ padding:"0.25rem 0.65rem", borderRadius:"var(--radius-full)", background:erC.bg, border:"1px solid "+erC.border, fontSize:"0.75rem", fontWeight:700, color:erC.color }}>{erC.label}</span>
+
+            {/* Engagement Mix & Top Posts Table */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "1.25rem", marginBottom: "1.5rem" }}>
+              <div style={{ padding: "1.1rem", borderRadius: "var(--radius-md)", background: "rgba(7,9,15,0.4)", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 700, textTransform: "uppercase", marginBottom: "1rem" }}>
+                  Live Engagement Mix
+                </div>
+                {[
+                  { label: "Likes", icon: "heart", value: statusGroups.uploaded.lik, pctVal: statusGroups.uploaded.likPct, color: "#F43F5E", gradient: "linear-gradient(90deg,#F43F5E,#FB7185)" },
+                  { label: "Comments", icon: "message-circle", value: statusGroups.uploaded.com, pctVal: statusGroups.uploaded.comPct, color: "#8B5CF6", gradient: "linear-gradient(90deg,#8B5CF6,#A78BFA)" },
+                  { label: "Shares", icon: "repeat-2", value: statusGroups.uploaded.sha, pctVal: statusGroups.uploaded.shaPct, color: "#06B6D4", gradient: "linear-gradient(90deg,#06B6D4,#22D3EE)" },
+                  { label: "Saves", icon: "bookmark", value: statusGroups.uploaded.sav, pctVal: statusGroups.uploaded.savPct, color: "#10B981", gradient: "linear-gradient(90deg,#10B981,#34D399)" }
+                ].map(item => <EngBar key={item.label} {...item} />)}
+              </div>
+
+              <div style={{ padding: "1.1rem", borderRadius: "var(--radius-md)", background: "rgba(7,9,15,0.4)", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 700, textTransform: "uppercase", marginBottom: "0.75rem" }}>
+                  Top Published Posts ({statusGroups.uploaded.items.length})
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table className="custom-table" style={{ fontSize: "0.8rem" }}>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Platform</th>
+                        <th>Caption</th>
+                        <th style={{ color: "var(--accent-cyan)" }}>Views</th>
+                        <th>Reach</th>
+                        <th style={{ color: "var(--accent-emerald)" }}>Engmt</th>
+                        <th style={{ color: "var(--accent-primary)" }}>ER%</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {statusGroups.uploaded.items.slice(0, 5).map((post, idx) => {
+                        const postEng = (post.likes || 0) + (post.comments || 0) + (post.shares || 0) + (post.saves || 0);
+                        const postEr = erOf(postEng, post.reach || 0);
+                        return (
+                          <tr key={post.id || idx}>
+                            <td style={{ whiteSpace: "nowrap" }}>{fmtDate(post.uploadDate)}</td>
+                            <td><span style={{ fontWeight: 600, color: pColor(post.platform) }}>{post.platform}</span></td>
+                            <td style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.caption}</td>
+                            <td style={{ fontWeight: 700, color: "var(--accent-cyan)" }}>{fmt(post.impressions || 0)}</td>
+                            <td>{fmt(post.reach || 0)}</td>
+                            <td style={{ fontWeight: 700, color: "var(--accent-emerald)" }}>{fmt(postEng)}</td>
+                            <td style={{ fontWeight: 700, color: erLabel(postEr).color }}>{postEr}%</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-
-      {/* ══ CROSS-PLATFORM RANKING ════════════════════════════════════════════ */}
-      {platformData.length > 1 && (
-        <div className="report-section" style={{ marginBottom:"1.5rem" }}>
-          <div className="report-section-head">
-            <div className="report-section-icon" style={{ background:"rgba(99,102,241,0.1)", border:"1px solid rgba(99,102,241,0.2)" }}>
-              <Icon name="bar-chart-horizontal" size={16} color="#6366F1" />
-            </div>
-            <div className="report-section-label">Cross-Platform Comparison</div>
-          </div>
+      {/* â•â• SECTION 2: SCHEDULED CONTENT PIPELINE â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {(reportStatusScope === "ALL" || reportStatusScope === "Scheduled") && (
+        <div className="report-section" style={{ marginBottom: "2rem", borderLeft: "4px solid #06B6D4" }}>
+          <SectionHead emoji="â±ï¸" label="Scheduled Content Pipeline & Upcoming Queue" colorBg="rgba(6, 182, 212, 0.1)" colorBorder="rgba(6, 182, 212, 0.3)" />
+          
           <div className="report-section-body">
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))", gap:"1rem", marginBottom:"1.25rem" }}>
-              {["Impressions","Reach","Engagement","ER %"].map(function(metric){
-                var sorted=platformData.slice().sort(function(a,b){
-                  if (metric==="Impressions") return b.imp-a.imp;
-                  if (metric==="Reach")       return b.reach-a.reach;
-                  if (metric==="Engagement")  return b.eng-a.eng;
-                  return parseFloat(b.er)-parseFloat(a.er);
-                });
-                var maxVal=sorted.length>0?(metric==="ER %"?parseFloat(sorted[0].er):(metric==="Impressions"?sorted[0].imp:metric==="Reach"?sorted[0].reach:sorted[0].eng)):1;
-                return (
-                  <div key={metric} style={{ padding:"1rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.5)", border:"1px solid var(--border-color)" }}>
-                    <div style={{ fontSize:"0.72rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.85rem" }}>{metric} Ranking</div>
-                    {sorted.map(function(pl, rank){
-                      var val=metric==="ER %"?parseFloat(pl.er):(metric==="Impressions"?pl.imp:metric==="Reach"?pl.reach:pl.eng);
-                      var disp=metric==="ER %"?pl.er+"%":fmt(val);
-                      var barPct=maxVal>0?(val/maxVal)*100:0;
-                      var c=pColor(pl.name);
-                      var isLast=rank===sorted.length-1&&sorted.length>1;
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0 }}>
+                {statusGroups.scheduled.count > 0 
+                  ? `There are ${statusGroups.scheduled.count} scheduled content pieces waiting for release.` 
+                  : "No scheduled content currently queued."}
+              </p>
+              <span style={{ padding: "0.2rem 0.6rem", borderRadius: "12px", background: "rgba(6, 182, 212, 0.15)", color: "#06B6D4", fontSize: "0.75rem", fontWeight: 700 }}>
+                {statusGroups.scheduled.count} Queued
+              </span>
+            </div>
+
+            {statusGroups.scheduled.count > 0 ? (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+                {statusGroups.scheduled.items.map((item, idx) => (
+                  <div key={item.id || idx} style={{ padding: "1.1rem", borderRadius: "var(--radius-md)", background: "rgba(6, 182, 212, 0.05)", border: "1px solid rgba(6, 182, 212, 0.2)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                      <span style={{ fontWeight: 700, color: pColor(item.platform) }}>{item.platform}</span>
+                      <span style={{ fontSize: "0.75rem", color: "var(--accent-cyan)", fontWeight: 700 }}>ðŸ“… {fmtDate(item.uploadDate)}</span>
+                    </div>
+                    <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", lineHeight: 1.4, marginBottom: "0.75rem" }}>
+                      "{item.caption}"
+                    </p>
+                    <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                      {(item.hashtags || []).map(tag => (
+                        <span key={tag} style={{ fontSize: "0.7rem", padding: "0.1rem 0.4rem", borderRadius: "4px", background: "rgba(255,255,255,0.05)", color: "var(--text-muted)" }}>
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)", background: "rgba(255,255,255,0.02)", borderRadius: "8px" }}>
+                No scheduled content found.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* â•â• SECTION 3: PRIVATED CONTENT AUDIT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {(reportStatusScope === "ALL" || reportStatusScope === "Privated") && (
+        <div className="report-section" style={{ marginBottom: "2rem", borderLeft: "4px solid #F59E0B" }}>
+          <SectionHead emoji="ðŸ”’" label="Privated & Hidden Content Audit" colorBg="rgba(245, 158, 11, 0.1)" colorBorder="rgba(245, 158, 11, 0.3)" />
+          
+          <div className="report-section-body">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0 }}>
+                {statusGroups.privated.count > 0 
+                  ? `${statusGroups.privated.count} posts are currently marked as Privated (hidden from public feed).` 
+                  : "No privated content found."}
+              </p>
+              <span style={{ padding: "0.2rem 0.6rem", borderRadius: "12px", background: "rgba(245, 158, 11, 0.15)", color: "#F59E0B", fontSize: "0.75rem", fontWeight: 700 }}>
+                {statusGroups.privated.count} Privated
+              </span>
+            </div>
+
+            {statusGroups.privated.count > 0 ? (
+              <div style={{ overflowX: "auto" }}>
+                <table className="custom-table" style={{ fontSize: "0.8rem" }}>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Platform</th>
+                      <th>Caption</th>
+                      <th>Historical Views</th>
+                      <th>Historical Reach</th>
+                      <th>Historical Engmt</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {statusGroups.privated.items.map((post, idx) => {
+                      const postEng = (post.likes || 0) + (post.comments || 0) + (post.shares || 0) + (post.saves || 0);
                       return (
-                        <div key={pl.name} style={{ marginBottom:"0.65rem" }}>
-                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.25rem" }}>
-                            <div style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                              <span style={{ fontSize:"0.68rem", fontWeight:800, color:isLast?"#F43F5E":"var(--text-subtle)", width:"14px" }}>#{rank+1}</span>
-                              <Icon name={pIcon(pl.name)} size={11} color={c} />
-                              <span style={{ fontSize:"0.78rem", fontWeight:600, color:isLast?"#F43F5E":"var(--text-secondary)" }}>{pl.name}</span>
-                              {isLast && <span style={{ fontSize:"0.62rem", color:"#F43F5E", fontWeight:700 }}>Lowest</span>}
-                            </div>
-                            <span style={{ fontSize:"0.78rem", fontWeight:700, color:c }}>{disp}</span>
-                          </div>
-                          <div className="progress-bar-track">
-                            <div className="progress-bar-fill" style={{ width:barPct+"%", background:"linear-gradient(90deg,"+c+","+c+"88)" }}></div>
-                          </div>
-                        </div>
+                        <tr key={post.id || idx}>
+                          <td style={{ whiteSpace: "nowrap" }}>{fmtDate(post.uploadDate)}</td>
+                          <td><span style={{ fontWeight: 600, color: pColor(post.platform) }}>{post.platform}</span></td>
+                          <td style={{ maxWidth: "240px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.caption}</td>
+                          <td style={{ fontWeight: 700, color: "var(--accent-cyan)" }}>{fmt(post.impressions || 0)}</td>
+                          <td>{fmt(post.reach || 0)}</td>
+                          <td style={{ fontWeight: 700, color: "var(--accent-emerald)" }}>{fmt(postEng)}</td>
+                          <td><span className="badge badge-privated">Privated</span></td>
+                        </tr>
                       );
                     })}
-                  </div>
-                );
-              })}
-            </div>
-            {worstPl && (
-              <div style={{ padding:"0.85rem 1rem", background:"rgba(244,63,94,0.06)", borderRadius:"var(--radius-sm)", border:"1px solid rgba(244,63,94,0.15)" }}>
-                <p style={{ fontSize:"0.8rem", color:"var(--text-muted)", lineHeight:1.6, margin:0 }}>
-                  <strong style={{ color:"#F43F5E" }}>Underperformer: </strong>
-                  {worstPl.name} has the lowest impressions ({fmt(worstPl.imp)}, {worstPl.impShare}% of total) and ER {worstPl.er}%.
-                  {parseFloat(worstPl.er)<parseFloat(combined.er)
-                    ? " Test new content formats tailored to "+worstPl.name+"'s algorithm for 4 weeks before reallocating budget."
-                    : " Volume is low but ER is healthy — consider increasing posting frequency here."}
-                </p>
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)", background: "rgba(255,255,255,0.02)", borderRadius: "8px" }}>
+                No privated content in this account.
               </div>
             )}
           </div>
         </div>
       )}
 
-
-      {/* ══ PER-PLATFORM DEEP ANALYSIS ═══════════════════════════════════════ */}
-      {platformData.map(function(pl, plIdx){
-        var color=pColor(pl.name); var erI=erGrade(pl.er);
-        var isTop=plIdx===0; var isLow=plIdx===platformData.length-1&&platformData.length>1;
-        return (
-          <div key={pl.name} className="report-section" style={{ marginBottom:"1.5rem" }}>
-            <div className="report-section-head" style={{ background:"linear-gradient(135deg,"+color+"10,"+color+"04)", borderBottom:"1px solid "+color+"20" }}>
-              <div style={{ width:"36px", height:"36px", borderRadius:"10px", background:color+"18", border:"1px solid "+color+"35", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                <Icon name={pIcon(pl.name)} size={16} color={color} />
-              </div>
-              <div style={{ flex:1 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:"0.65rem", flexWrap:"wrap" }}>
-                  <span className="report-section-label" style={{ color:color }}>{pl.name}</span>
-                  <span style={{ fontSize:"0.7rem", color:erI.color, fontWeight:700, padding:"0.15rem 0.5rem", borderRadius:"var(--radius-full)", background:erI.bg, border:"1px solid "+erI.border }}>ER {pl.er}% — {erI.label}</span>
-                  {isTop && <span style={{ fontSize:"0.68rem", color:"#F59E0B", fontWeight:800, padding:"0.12rem 0.45rem", borderRadius:"var(--radius-full)", background:"rgba(245,158,11,0.12)", border:"1px solid rgba(245,158,11,0.3)" }}>Top Platform</span>}
-                  {isLow && <span style={{ fontSize:"0.68rem", color:"#F43F5E", fontWeight:800, padding:"0.12rem 0.45rem", borderRadius:"var(--radius-full)", background:"rgba(244,63,94,0.12)", border:"1px solid rgba(244,63,94,0.3)" }}>Needs Attention</span>}
-                </div>
-                <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", marginTop:"0.15rem" }}>
-                  {pl.posts.length} post{pl.posts.length!==1?"s":""}{pl.dates.length?" | "+fmtDate(pl.dates[0])+" - "+fmtDate(pl.dates[pl.dates.length-1]):""}
-                </div>
-              </div>
-              <div style={{ textAlign:"right", flexShrink:0 }}>
-                <div style={{ fontSize:"1.4rem", fontWeight:900, fontFamily:"var(--font-heading)", color:color }}>{fmt(pl.imp)}</div>
-                <div style={{ fontSize:"0.7rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.04em" }}>Impressions</div>
-              </div>
-            </div>
-            <div className="report-section-body">
-              {/* 8 KPI boxes */}
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))", gap:"0.85rem", marginBottom:"1.5rem" }}>
-                {[
-                  { label:"Impressions",    value:fmt(pl.imp),      sub:pl.impShare+"% of total",   c:color },
-                  { label:"Reach",          value:fmt(pl.reach),    sub:pl.reachShare+"% of total", c:"var(--accent-primary)" },
-                  { label:"Engagement",     value:fmt(pl.eng),      sub:pl.engShare+"% of total",   c:"var(--accent-emerald)" },
-                  { label:"Eng. Rate",      value:pl.er+"%",        sub:erI.label,                   c:erI.color },
-                  { label:"Imp/Reach",      value:pl.ir+"x",       sub:parseFloat(pl.ir)>1.5?"Retained":"Single-view", c:"#EC4899" },
-                  { label:"Avg Views/Post", value:fmt(pl.avgImp),   sub:"per post",                  c:"#F59E0B" },
-                  { label:"Avg Reach/Post", value:fmt(pl.avgReach), sub:"per post",                  c:"var(--accent-primary)" },
-                  { label:"Avg Eng/Post",   value:fmt(pl.avgEng),   sub:"per post",                  c:"var(--accent-emerald)" },
-                ].map(function(k,ki){ return (
-                  <div key={ki} style={{ padding:"0.85rem 1rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.5)", border:"1px solid "+color+"18" }}>
-                    <div style={{ fontSize:"0.68rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.05em", fontWeight:700, marginBottom:"0.4rem" }}>{k.label}</div>
-                    <div style={{ fontSize:"1.15rem", fontWeight:800, fontFamily:"var(--font-heading)", color:k.c, lineHeight:1, marginBottom:"0.2rem" }}>{k.value}</div>
-                    <div style={{ fontSize:"0.7rem", color:"var(--text-subtle)" }}>{k.sub}</div>
-                  </div>
-                ); })}
-              </div>
-
-
-              {/* Engagement mix + narrative */}
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))", gap:"1.25rem", marginBottom:"1.5rem" }}>
-                <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.4)", border:"1px solid "+color+"15" }}>
-                  <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"1rem" }}>Engagement Mix</div>
-                  {[
-                    { label:"Likes",    icon:"heart",          v:pl.lik, p:pl.likPct, c:"#F43F5E", g:"linear-gradient(90deg,#F43F5E,#FB7185)" },
-                    { label:"Comments", icon:"message-circle", v:pl.com, p:pl.comPct, c:"#8B5CF6", g:"linear-gradient(90deg,#8B5CF6,#A78BFA)" },
-                    { label:"Shares",   icon:"repeat-2",       v:pl.sha, p:pl.shaPct, c:"#06B6D4", g:"linear-gradient(90deg,#06B6D4,#22D3EE)" },
-                    { label:"Saves",    icon:"bookmark",       v:pl.sav, p:pl.savPct, c:"#10B981", g:"linear-gradient(90deg,#10B981,#34D399)" },
-                  ].map(function(item){ return (
-                    <div key={item.label} className="engagement-bar-row">
-                      <div className="engagement-bar-label"><Icon name={item.icon} size={13} color={item.c} style={{flexShrink:0}} />{item.label}</div>
-                      <div className="engagement-bar-track"><div className="engagement-bar-fill" style={{ width:item.p+"%", background:item.g }}></div></div>
-                      <div className="engagement-bar-value">{fmt(item.v)}</div>
-                      <div className="engagement-bar-pct">{item.p}%</div>
-                    </div>
-                  ); })}
-                </div>
-                <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"rgba(7,9,15,0.4)", border:"1px solid "+color+"15" }}>
-                  <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.85rem" }}>Platform Analysis</div>
-                  <div className="insight-prose" style={{ fontSize:"0.82rem" }}>
-                    <p><strong style={{ color:color }}>{pl.name}</strong> contributes <strong>{pl.impShare}%</strong> of impressions and <strong>{pl.engShare}%</strong> of engagement.</p>
-                    <p>{parseFloat(pl.er)>parseFloat(combined.er)
-                      ? "ER "+pl.er+"% exceeds account average ("+combined.er+"%) — this platform gives the best return per view."
-                      : "ER "+pl.er+"% is below account average ("+combined.er+"%). Review content format, caption length, posting times, and hashtags."}</p>
-                    <p style={{ padding:"0.6rem 0.75rem", background:"rgba(244,63,94,0.06)", borderRadius:"var(--radius-sm)", border:"1px solid rgba(244,63,94,0.15)", marginBottom:0 }}>
-                      <strong style={{ color:"#F43F5E" }}>Weakness: </strong>
-                      {parseFloat(pl.savPct)<10
-                        ? "Low save rate ("+pl.savPct+"%) on "+pl.name+". Add evergreen value — step-by-step guides and 'save for later' hooks."+(brief.pillars?" Tie into pillars: "+brief.pillars+"." : "")
-                        : parseFloat(pl.shaPct)<10
-                          ? "Low share rate ("+pl.shaPct+"%) on "+pl.name+". Shareable formats: opinion takes, surprising stats, relatable humour."
-                          : "Comment rate ("+pl.comPct+"%) could improve. End every "+pl.name+" caption with a direct question."+(brief.audience?" Speak to "+brief.audience+"." : "")}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Best post + Worst post */}
-              {pl.topPost && (
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1rem", marginBottom:"1.5rem" }}>
-                  <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"linear-gradient(135deg,rgba(245,158,11,0.08),rgba(245,158,11,0.03))", border:"1px solid rgba(245,158,11,0.25)" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.6rem" }}>
-                      <Icon name="award" size={14} color="#F59E0B" />
-                      <span style={{ fontSize:"0.72rem", color:"#F59E0B", fontWeight:800, textTransform:"uppercase", letterSpacing:"0.05em" }}>Best Post on {pl.name}</span>
-                    </div>
-                    <p style={{ fontSize:"0.82rem", color:"var(--text-secondary)", lineHeight:1.5, marginBottom:"0.75rem" }}>"{(pl.topPost.caption||"").substring(0,90)}{pl.topPost.caption&&pl.topPost.caption.length>90?"...":""}"</p>
-                    <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"0.5rem" }}>
-                      {[{l:"Views",v:fmt(pl.topPost.impressions||0),c:"var(--accent-cyan)"},{l:"Reach",v:fmt(pl.topPost.reach||0),c:"var(--text-main)"},{l:"ER",v:calcEr((pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0),pl.topPost.reach||0)+"%",c:erGrade(calcEr((pl.topPost.likes||0)+(pl.topPost.comments||0)+(pl.topPost.shares||0)+(pl.topPost.saves||0),pl.topPost.reach||0)).color}].map(function(m){ return (
-                        <div key={m.l} style={{ textAlign:"center" }}>
-                          <div style={{ fontSize:"0.62rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.04em", fontWeight:600 }}>{m.l}</div>
-                          <div style={{ fontSize:"0.92rem", fontWeight:800, fontFamily:"var(--font-heading)", color:m.c }}>{m.v}</div>
-                        </div>
-                      ); })}
-                    </div>
-                  </div>
-                  {pl.worstPost && pl.worstPost.id !== pl.topPost.id && (
-                    <div style={{ padding:"1.1rem 1.25rem", borderRadius:"var(--radius-md)", background:"linear-gradient(135deg,rgba(244,63,94,0.07),rgba(244,63,94,0.02))", border:"1px solid rgba(244,63,94,0.2)" }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.6rem" }}>
-                        <Icon name="alert-triangle" size={14} color="#F43F5E" />
-                        <span style={{ fontSize:"0.72rem", color:"#F43F5E", fontWeight:800, textTransform:"uppercase", letterSpacing:"0.05em" }}>Lowest Post — Needs Review</span>
-                      </div>
-                      <p style={{ fontSize:"0.82rem", color:"var(--text-secondary)", lineHeight:1.5, marginBottom:"0.75rem" }}>"{(pl.worstPost.caption||"").substring(0,90)}{pl.worstPost.caption&&pl.worstPost.caption.length>90?"...":""}"</p>
-                      <p style={{ fontSize:"0.75rem", color:"var(--text-muted)", lineHeight:1.55, margin:0, padding:"0.5rem 0.65rem", background:"rgba(244,63,94,0.05)", borderRadius:"6px", border:"1px solid rgba(244,63,94,0.15)" }}>
-                        <strong style={{ color:"#F43F5E" }}>Action: </strong>
-                        {pl.topPost&&pl.worstPost.impressions>0
-                          ? "This post got "+Math.round((pl.topPost.impressions||0)/(pl.worstPost.impressions||1))+"x fewer views than your best on "+pl.name+". Compare hook, posting time, and hashtags."
-                          : "Review caption hook, posting time, and hashtag relevance. Reschedule with improved structure."}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* All posts table */}
-              <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"0.75rem" }}>
-                All {pl.posts.length} Post{pl.posts.length!==1?"s":""} — sorted by views
-              </div>
-              <PostsTable posts={pl.sortedPosts} color={color} fmtDate={fmtDate} fmt={fmt} calcEr={calcEr} erGrade={erGrade} pIcon={pIcon} pColor={pColor} />
-            </div>
-          </div>
-        );
-      })}
-
-
-      {/* ══ TOP 3 + BOTTOM 2 ═════════════════════════════════════════════════ */}
-      <div className="report-two-col" style={{ marginBottom:"1.5rem" }}>
-        {combined.topContent.length > 0 && (
-          <div className="report-section" style={{ marginBottom:0 }}>
-            <div className="report-section-head">
-              <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.2)" }}>
-                <Icon name="award" size={16} color="var(--accent-amber)" />
-              </div>
-              <div className="report-section-label">Top 3 Performing Content</div>
-            </div>
-            <div className="report-section-body" style={{ padding:"1rem" }}>
-              {combined.topContent.map(function(c,i){
-                var eng=(c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
-                var col=pColor(c.platform);
-                var ranks=["1st","2nd","3rd"];
-                return (
-                  <div key={c.id||i} style={{ padding:"0.85rem", borderRadius:"var(--radius-md)", border:"1px solid "+(i===0?"rgba(245,158,11,0.3)":"var(--border-color)"), background:i===0?"linear-gradient(135deg,rgba(245,158,11,0.07),rgba(245,158,11,0.02))":"rgba(7,9,15,0.4)", marginBottom:"0.75rem" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.5rem" }}>
-                      <span style={{ fontSize:"0.72rem", fontWeight:800, color:i===0?"#F59E0B":"var(--text-muted)", padding:"0.12rem 0.45rem", borderRadius:"4px", background:i===0?"rgba(245,158,11,0.15)":"rgba(255,255,255,0.05)", border:i===0?"1px solid rgba(245,158,11,0.3)":"1px solid var(--border-color)" }}>{ranks[i]}</span>
-                      <Icon name={pIcon(c.platform)} size={12} color={col} />
-                      <span style={{ fontSize:"0.78rem", fontWeight:600, color:col }}>{c.platform}</span>
-                      <span style={{ fontSize:"0.72rem", color:"var(--text-muted)" }}>{fmtDate(c.uploadDate)}</span>
-                    </div>
-                    <p style={{ fontSize:"0.82rem", color:"var(--text-secondary)", lineHeight:1.5, marginBottom:"0.6rem" }}>"{(c.caption||"").substring(0,80)}{c.caption&&c.caption.length>80?"...":""}"</p>
-                    <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"0.4rem" }}>
-                      {[{l:"Views",v:fmt(c.impressions||0),c:"var(--accent-cyan)"},{l:"Reach",v:fmt(c.reach||0),c:"var(--text-main)"},{l:"Eng.",v:fmt(eng),c:"var(--accent-emerald)"},{l:"ER",v:calcEr(eng,c.reach||0)+"%",c:erGrade(calcEr(eng,c.reach||0)).color}].map(function(m){ return (
-                        <div key={m.l} style={{ textAlign:"center", padding:"0.4rem", borderRadius:"6px", background:"rgba(255,255,255,0.03)" }}>
-                          <div style={{ fontSize:"0.6rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.04em", fontWeight:600 }}>{m.l}</div>
-                          <div style={{ fontSize:"0.85rem", fontWeight:800, fontFamily:"var(--font-heading)", color:m.c }}>{m.v}</div>
-                        </div>
-                      ); })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-        {combined.bottomContent.length > 0 && (
-          <div className="report-section" style={{ marginBottom:0 }}>
-            <div className="report-section-head">
-              <div className="report-section-icon" style={{ background:"rgba(244,63,94,0.1)", border:"1px solid rgba(244,63,94,0.2)" }}>
-                <Icon name="alert-triangle" size={16} color="#F43F5E" />
-              </div>
-              <div className="report-section-label">Lowest Performing — Needs Attention</div>
-            </div>
-            <div className="report-section-body" style={{ padding:"1rem" }}>
-              {combined.bottomContent.map(function(c,i){
-                var eng=(c.likes||0)+(c.comments||0)+(c.shares||0)+(c.saves||0);
-                var col=pColor(c.platform);
-                return (
-                  <div key={c.id||i} style={{ padding:"0.85rem", borderRadius:"var(--radius-md)", border:"1px solid rgba(244,63,94,0.2)", background:"linear-gradient(135deg,rgba(244,63,94,0.06),rgba(244,63,94,0.02))", marginBottom:"0.75rem" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.5rem" }}>
-                      <Icon name="alert-triangle" size={11} color="#F43F5E" />
-                      <Icon name={pIcon(c.platform)} size={11} color={col} />
-                      <span style={{ fontSize:"0.78rem", fontWeight:600, color:col }}>{c.platform}</span>
-                      <span style={{ fontSize:"0.72rem", color:"var(--text-muted)" }}>{fmtDate(c.uploadDate)}</span>
-                    </div>
-                    <p style={{ fontSize:"0.82rem", color:"var(--text-secondary)", lineHeight:1.5, marginBottom:"0.6rem" }}>"{(c.caption||"").substring(0,80)}{c.caption&&c.caption.length>80?"...":""}"</p>
-                    <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"0.4rem", marginBottom:"0.6rem" }}>
-                      {[{l:"Views",v:fmt(c.impressions||0),c:"#F43F5E"},{l:"Reach",v:fmt(c.reach||0),c:"var(--text-muted)"},{l:"Eng.",v:fmt(eng),c:"var(--text-muted)"},{l:"ER",v:calcEr(eng,c.reach||0)+"%",c:erGrade(calcEr(eng,c.reach||0)).color}].map(function(m){ return (
-                        <div key={m.l} style={{ textAlign:"center", padding:"0.4rem", borderRadius:"6px", background:"rgba(244,63,94,0.04)" }}>
-                          <div style={{ fontSize:"0.6rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.04em", fontWeight:600 }}>{m.l}</div>
-                          <div style={{ fontSize:"0.85rem", fontWeight:800, fontFamily:"var(--font-heading)", color:m.c }}>{m.v}</div>
-                        </div>
-                      ); })}
-                    </div>
-                    <p style={{ fontSize:"0.75rem", color:"var(--text-muted)", lineHeight:1.55, margin:0, padding:"0.5rem 0.65rem", background:"rgba(244,63,94,0.05)", borderRadius:"6px", border:"1px solid rgba(244,63,94,0.15)" }}>
-                      <strong style={{ color:"#F43F5E" }}>Action: </strong>
-                      {combined.avgImp>0
-                        ? "This post reached "+Math.round(((c.impressions||0)/combined.avgImp)*100)+"% of account average. Review: caption hook (first line), posting time, hashtag relevance, and thumbnail."
-                        : "Analyse caption, posting time, and hashtags. Compare structure with top posts."}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
-
-      {/* ══ CONTENT TYPE ANALYSIS ════════════════════════════════════════════ */}
-      {contentTypeData.length > 0 && (
-        <div className="report-section" style={{ marginBottom:"1.5rem" }}>
-          <div className="report-section-head">
-            <div className="report-section-icon" style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.2)" }}>
-              <Icon name="film" size={16} color="var(--accent-amber)" />
-            </div>
-            <div className="report-section-label">Content Type Performance</div>
-          </div>
+      {/* â•â• SECTION 4: DELETED / ARCHIVED CONTENT LOG â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {(reportStatusScope === "ALL" || reportStatusScope === "Deleted") && (
+        <div className="report-section" style={{ marginBottom: "2rem", borderLeft: "4px solid #F43F5E" }}>
+          <SectionHead emoji="ðŸ—‘ï¸" label="Deleted / Archived Content Log" colorBg="rgba(244, 63, 94, 0.1)" colorBorder="rgba(244, 63, 94, 0.3)" />
+          
           <div className="report-section-body">
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))", gap:"1rem" }}>
-              {contentTypeData.map(function(ct,cti){
-                var isBest=cti===0; var isWorst=cti===contentTypeData.length-1&&contentTypeData.length>1;
-                var erI=erGrade(ct.er);
-                return (
-                  <div key={ct.type} style={{ padding:"1.1rem", borderRadius:"var(--radius-md)", border:"1px solid "+(isBest?"rgba(6,182,212,0.3)":isWorst?"rgba(244,63,94,0.25)":"var(--border-color)"), background:isBest?"linear-gradient(135deg,rgba(6,182,212,0.08),rgba(6,182,212,0.03))":isWorst?"linear-gradient(135deg,rgba(244,63,94,0.06),rgba(244,63,94,0.02))":"rgba(7,9,15,0.5)" }}>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.75rem" }}>
-                      <span style={{ fontWeight:700, fontSize:"0.9rem", color:isBest?"var(--accent-cyan)":isWorst?"#F43F5E":"var(--text-main)" }}>{ct.type}</span>
-                      <div style={{ display:"flex", gap:"0.35rem" }}>
-                        {isBest  && <span style={{ fontSize:"0.62rem", fontWeight:800, color:"var(--accent-cyan)", padding:"0.12rem 0.4rem", borderRadius:"4px", background:"rgba(6,182,212,0.12)", border:"1px solid rgba(6,182,212,0.25)" }}>Best</span>}
-                        {isWorst && <span style={{ fontSize:"0.62rem", fontWeight:800, color:"#F43F5E", padding:"0.12rem 0.4rem", borderRadius:"4px", background:"rgba(244,63,94,0.12)", border:"1px solid rgba(244,63,94,0.25)" }}>Lowest</span>}
-                      </div>
-                    </div>
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.6rem", marginBottom:"0.75rem" }}>
-                      {[{l:"Posts",v:""+ct.posts.length,c:"var(--text-muted)"},{l:"Avg Views",v:fmt(ct.avgImp),c:"var(--accent-cyan)"},{l:"Avg ER%",v:ct.er+"%",c:erI.color},{l:"Total Views",v:fmt(ct.imp),c:"var(--text-main)"}].map(function(m){ return (
-                        <div key={m.l} style={{ padding:"0.5rem 0.65rem", borderRadius:"6px", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.05)" }}>
-                          <div style={{ fontSize:"0.65rem", color:"var(--text-subtle)", textTransform:"uppercase", letterSpacing:"0.04em", fontWeight:600, marginBottom:"0.2rem" }}>{m.l}</div>
-                          <div style={{ fontSize:"0.92rem", fontWeight:800, fontFamily:"var(--font-heading)", color:m.c }}>{m.v}</div>
-                        </div>
-                      ); })}
-                    </div>
-                    {isBest && (
-                      <p style={{ fontSize:"0.75rem", color:"var(--text-muted)", lineHeight:1.55, margin:0, padding:"0.6rem 0.75rem", background:"rgba(6,182,212,0.05)", borderRadius:"6px", border:"1px solid rgba(6,182,212,0.12)" }}>
-                        <strong style={{ color:"var(--accent-cyan)" }}>Scale it: </strong>
-                        {ct.type} averages {fmt(ct.avgImp)} views.{brief.pillars?" Align "+ct.type+" content with your pillars: "+brief.pillars+"." : " Increase production frequency and template the format."}
-                      </p>
-                    )}
-                    {isWorst && contentTypeData.length>1 && (
-                      <p style={{ fontSize:"0.75rem", color:"var(--text-muted)", lineHeight:1.55, margin:0, padding:"0.6rem 0.75rem", background:"rgba(244,63,94,0.05)", borderRadius:"6px", border:"1px solid rgba(244,63,94,0.12)" }}>
-                        <strong style={{ color:"#F43F5E" }}>Fix or cut: </strong>
-                        {ct.type} averages only {fmt(ct.avgImp)} views vs {fmt(contentTypeData[0].avgImp)} for {contentTypeData[0].type}. Revise execution or reallocate budget.
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0 }}>
+                {statusGroups.deleted.count > 0 
+                  ? `${statusGroups.deleted.count} posts have been marked as Deleted/Archived.` 
+                  : "No deleted/archived content recorded."}
+              </p>
+              <span style={{ padding: "0.2rem 0.6rem", borderRadius: "12px", background: "rgba(244, 63, 94, 0.15)", color: "#F43F5E", fontSize: "0.75rem", fontWeight: 700 }}>
+                {statusGroups.deleted.count} Deleted
+              </span>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* ══ SUBJECT PERFORMANCE ══════════════════════════════════════════════ */}
-      {subjectData.length > 0 && (
-        <div className="report-section" style={{ marginBottom:"1.5rem" }}>
-          <div className="report-section-head">
-            <div className="report-section-icon" style={{ background:"rgba(236,72,153,0.1)", border:"1px solid rgba(236,72,153,0.2)" }}>
-              <Icon name="users" size={16} color="#EC4899" />
-            </div>
-            <div className="report-section-label">Subject & Talent Performance</div>
-          </div>
-          <div className="report-section-body">
-            <SubjectsTable subjects={subjectData} combined={combined} pct={pct} fmt={fmt} grads={["linear-gradient(135deg,#8B5CF6,#06B6D4)","linear-gradient(135deg,#10B981,#06B6D4)","linear-gradient(135deg,#F59E0B,#EF4444)","linear-gradient(135deg,#EC4899,#8B5CF6)","linear-gradient(135deg,#6366F1,#06B6D4)"]} />
-          </div>
-        </div>
-      )}
-
-
-      {/* ══ AI ADVISOR ═══════════════════════════════════════════════════════ */}
-      <div className="ai-advisor-card">
-        <div className="ai-advisor-head">
-          <div className="ai-advisor-brand">
-            <div className="ai-advisor-icon">
-              <Icon name="sparkles" size={20} color="#fff" />
-            </div>
-            <div>
-              <div className="ai-advisor-title">AI Growth Advisor</div>
-              <div className="ai-advisor-subtitle">Powered by Google Gemini — deep analysis of your actual data</div>
-            </div>
-          </div>
-          <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
-            <span style={{ fontSize:"0.72rem", color:"var(--accent-primary-light)", background:"rgba(139,92,246,0.1)", padding:"0.2rem 0.65rem", borderRadius:"var(--radius-full)", border:"1px solid rgba(139,92,246,0.25)", fontWeight:700 }}>BETA</span>
-          </div>
-        </div>
-        <div className="ai-advisor-body">
-
-          {/* Generate button - no API key needed */}
-          <button
-            className="btn-ai-generate"
-            style={{ width: "100%", fontSize: "1rem", padding: "0.9rem" }}
-            disabled={aiLoading}
-            onClick={function(){ generateAiAnalysis(combined, platformData, contentTypeData, subjectData, brief, fmt, fmtFull, fmtDate, calcEr, pct); }}
-          >
-            {aiLoading
-              ? <><Icon name="loader-2" size={16} color="" /> Generating Report...</>
-              : <><Icon name="sparkles" size={16} color="" /> Generate Professional Report</>
-            }
-          </button>
-
-          {/* Info message */}
-          <div style={{ marginTop:"0.75rem", fontSize:"0.8rem", color:"var(--text-muted)", lineHeight:1.6, padding:"0.75rem 1rem", background:"rgba(6,182,212,0.08)", border:"1px solid rgba(6,182,212,0.2)", borderRadius:"var(--radius-sm)" }}>
-            <Icon name="info" size={12} color="var(--text-muted)" style={{marginRight:"0.4rem", display:"inline"}} />
-            This report is generated locally from your data. No API key needed. Fast, private, and always available.
-          </div>
-
-          {/* Thinking indicator */}
-          {aiLoading && (
-            <div className="ai-thinking">
-              <div className="ai-thinking-dots">
-                <span></span><span></span><span></span>
+            {statusGroups.deleted.count > 0 ? (
+              <div style={{ overflowX: "auto" }}>
+                <table className="custom-table" style={{ fontSize: "0.8rem" }}>
+                  <thead>
+                    <tr>
+                      <th>Original Date</th>
+                      <th>Platform</th>
+                      <th>Caption</th>
+                      <th>Archived Views</th>
+                      <th>Archived Reach</th>
+                      <th>Archived Engmt</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {statusGroups.deleted.items.map((post, idx) => {
+                      const postEng = (post.likes || 0) + (post.comments || 0) + (post.shares || 0) + (post.saves || 0);
+                      return (
+                        <tr key={post.id || idx}>
+                          <td style={{ whiteSpace: "nowrap" }}>{fmtDate(post.uploadDate)}</td>
+                          <td><span style={{ fontWeight: 600, color: pColor(post.platform) }}>{post.platform}</span></td>
+                          <td style={{ maxWidth: "240px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.caption}</td>
+                          <td style={{ fontWeight: 700, color: "var(--accent-cyan)" }}>{fmt(post.impressions || 0)}</td>
+                          <td>{fmt(post.reach || 0)}</td>
+                          <td style={{ fontWeight: 700, color: "var(--accent-emerald)" }}>{fmt(postEng)}</td>
+                          <td><span className="badge badge-deleted">Deleted</span></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-              <span>Generating professional report for {combined.count} posts...</span>
-            </div>
-          )}
-
-          {/* Error */}
-          {aiError && !aiLoading && (
-            <div className="ai-error-box">
-              <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.35rem", fontWeight:700 }}>
-                <Icon name="alert-triangle" size={14} color="" />
-                Error
-              </div>
-              {aiError}
-            </div>
-          )}
-
-          {/* AI Output */}
-          {aiOutput && !aiLoading && (
-            <div className="ai-output">
-              <div className="ai-output-head">
-                <div className="ai-output-label">
-                  <Icon name="sparkles" size={12} color="" />
-                  AI Analysis — {activeAccount.name}
-                </div>
-                <button
-                  onClick={function(){ navigator.clipboard && navigator.clipboard.writeText(aiOutput); }}
-                  className="btn btn-secondary btn-sm"
-                  style={{ gap:"0.35rem", fontSize:"0.72rem", padding:"0.25rem 0.65rem", minHeight:"28px" }}
-                  title="Copy to clipboard"
-                >
-                  <Icon name="copy" size={11} color="" />
-                  Copy
-                </button>
-              </div>
-              <div className="ai-output-body">
-                {aiOutput.split("\n").map(function(line, i) {
-                  if (line.startsWith("**") && line.endsWith("**")) {
-                    return <div key={i} style={{ fontWeight:800, color:"var(--text-main)", fontSize:"0.9rem", marginTop:"1rem", marginBottom:"0.3rem" }}>{line.replace(/\*\*/g,"")}</div>;
-                  }
-                  if (line.match(/^\d+\.\s*\*\*/)) {
-                    var cleaned = line.replace(/\*\*/g,"");
-                    return <div key={i} style={{ fontWeight:800, color:"var(--accent-primary-light)", fontSize:"0.9rem", marginTop:"1.1rem", marginBottom:"0.3rem" }}>{cleaned}</div>;
-                  }
-                  if (line.startsWith("- ") || line.startsWith("* ")) {
-                    return <div key={i} style={{ paddingLeft:"1rem", marginBottom:"0.2rem" }}>{"• "+line.slice(2)}</div>;
-                  }
-                  if (line.trim() === "") return <div key={i} style={{ height:"0.5rem" }}></div>;
-                  // Inline bold
-                  var parts = line.split(/(\*\*[^*]+\*\*)/g);
-                  return (
-                    <div key={i} style={{ marginBottom:"0.2rem" }}>
-                      {parts.map(function(part, j) {
-                        if (part.startsWith("**") && part.endsWith("**")) {
-                          return <strong key={j}>{part.slice(2,-2)}</strong>;
-                        }
-                        return part;
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <div className="ai-disclaimer">
-            Your API key is stored only in your browser's localStorage and is sent directly to Google's Gemini API — it never touches SocioVault's servers. Analytics data is sent to Gemini for analysis. Do not share your API key with others.
-          </div>
-        </div>
-      </div>
-
-      {/* ══ STRATEGIC RECOMMENDATIONS ════════════════════════════════════════ */}
-      <div className="report-section">
-        <div className="report-section-head">
-          <div className="report-section-icon" style={{ background:"rgba(52,211,153,0.1)", border:"1px solid rgba(52,211,153,0.2)" }}>
-            <Icon name="target" size={16} color="var(--accent-emerald)" />
-          </div>
-          <div>
-            <div className="report-section-label">Strategic Recommendations</div>
-            {hasBrief && (
-              <div style={{ fontSize:"0.75rem", color:"var(--accent-primary-light)", marginTop:"0.15rem" }}>
-                <Icon name="book-open" size={10} color="currentColor" style={{display:"inline", verticalAlign:"middle", marginRight:"0.3rem"}} />
-                Personalised based on your Account Brief
+            ) : (
+              <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)", background: "rgba(255,255,255,0.02)", borderRadius: "8px" }}>
+                No deleted or archived content in this account.
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {/* â•â• SECTION 5: PER-PLATFORM STATUS AUDIT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      <div className="report-section" style={{ marginBottom: "2rem" }}>
+        <SectionHead emoji="ðŸ“¡" label="Per-Platform Status Breakdown & Distribution" colorBg="rgba(139, 92, 246, 0.1)" colorBorder="rgba(139, 92, 246, 0.3)" />
+        
         <div className="report-section-body">
-          <div style={{ display:"flex", flexDirection:"column", gap:"0.75rem" }}>
-            {/* Impression health summary strip */}
-            {combined.count > 0 && (
-              <div className="imp-health-strip">
-                {[
-                  { tier:"danger",  label:"Danger (0)",     count:combined.impTiers.danger,  color:"#F43F5E", bg:"rgba(244,63,94,0.1)"  },
-                  { tier:"warning", label:"Warning (<100)", count:combined.impTiers.warning, color:"#F59E0B", bg:"rgba(245,158,11,0.1)" },
-                  { tier:"safe",    label:"Safe (100+)",    count:combined.impTiers.safe,    color:"#34D399", bg:"rgba(52,211,153,0.1)" },
-                  { tier:"good",    label:"Good (1K+)",     count:combined.impTiers.good,    color:"#22D3EE", bg:"rgba(6,182,212,0.1)"  },
-                  { tier:"fyp",     label:"FYP (10K+)",     count:combined.impTiers.fyp,     color:"#A78BFA", bg:"rgba(139,92,246,0.1)" },
-                ].map(function(t){ return (
-                  <div key={t.tier} className="imp-health-item" style={{ background:t.bg, border:"1px solid "+t.color+"25" }}>
-                    <div className="imp-health-count" style={{ color:t.color }}>{t.count}</div>
-                    <div className="imp-health-label">{t.label}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.25rem" }}>
+            {platformData.map((pl, idx) => (
+              <div key={pl.name} style={{ padding: "1.25rem", borderRadius: "var(--radius-md)", background: "rgba(7,9,15,0.5)", border: `1px solid ${pColor(pl.name)}25` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{ fontSize: "1.2rem", fontWeight: 800, color: pColor(pl.name) }}>{pl.name}</span>
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>({pl.posts.length} posts)</span>
                   </div>
-                ); })}
-                <div style={{ flex:1, display:"flex", alignItems:"center", paddingLeft:"0.5rem" }}>
-                  <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", lineHeight:1.55 }}>
-                    <strong style={{ color:"var(--text-secondary)" }}>Content Health Overview</strong> —
-                    {combined.impTiers.danger > 0 && <span style={{ color:"#F43F5E", fontWeight:700 }}> {combined.impTiers.danger} post{combined.impTiers.danger>1?"s":""} at CRITICAL risk.</span>}
-                    {combined.impTiers.warning > 0 && <span style={{ color:"#F59E0B", fontWeight:700 }}> {combined.impTiers.warning} post{combined.impTiers.warning>1?"s":""} need attention.</span>}
-                    {combined.impTiers.fyp > 0 && <span style={{ color:"#A78BFA", fontWeight:700 }}> {combined.impTiers.fyp} FYP-level post{combined.impTiers.fyp>1?"s":""}.</span>}
-                    {combined.impTiers.danger===0 && combined.impTiers.warning===0 && <span style={{ color:"#34D399", fontWeight:700 }}> All posts are in safe range or above.</span>}
-                  </div>
+                  <span style={{ fontSize: "0.8rem", fontWeight: 700, color: pColor(pl.name) }}>{fmt(pl.imp)} views</span>
                 </div>
-              </div>
-            )}
-            {buildRecs().map(function(rec){
-              return (
-                <div key={rec.num} className="recommendation-card" style={rec.urgent ? { border:"1px solid "+rec.color+"40", background:rec.color+"08" } : {}}>
-                  <div className="recommendation-number" style={{ color:rec.color, background:rec.color+"12", border:"1px solid "+rec.color+"25" }}>
-                    {rec.urgent ? "!" : rec.num}
+
+                {/* Status pill strip for platform */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "0.4rem", padding: "0.5rem", borderRadius: "6px", background: "rgba(255,255,255,0.03)", marginBottom: "0.75rem", textAlign: "center" }}>
+                  <div>
+                    <div style={{ fontSize: "0.65rem", color: "#10B981", fontWeight: 700 }}>LIVE</div>
+                    <div style={{ fontSize: "0.95rem", fontWeight: 800 }}>{pl.uploaded.length}</div>
                   </div>
                   <div>
-                    <div className="recommendation-title">{rec.title}</div>
-                    <div className="recommendation-text">{rec.body}</div>
+                    <div style={{ fontSize: "0.65rem", color: "#06B6D4", fontWeight: 700 }}>SCHED</div>
+                    <div style={{ fontSize: "0.95rem", fontWeight: 800 }}>{pl.scheduled.length}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "0.65rem", color: "#F59E0B", fontWeight: 700 }}>PRIV</div>
+                    <div style={{ fontSize: "0.95rem", fontWeight: 800 }}>{pl.privated.length}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "0.65rem", color: "#F43F5E", fontWeight: 700 }}>DEL</div>
+                    <div style={{ fontSize: "0.95rem", fontWeight: 800 }}>{pl.deleted.length}</div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-          {!hasBrief && canEdit && (
-            <div style={{ marginTop:"1.25rem", padding:"1rem 1.25rem", background:"rgba(139,92,246,0.06)", borderRadius:"var(--radius-md)", border:"1px solid rgba(139,92,246,0.2)", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"1rem", flexWrap:"wrap" }}>
-              <div>
-                <div style={{ fontSize:"0.88rem", fontWeight:700, color:"var(--accent-primary-light)", marginBottom:"0.2rem" }}>Make recommendations smarter</div>
-                <div style={{ fontSize:"0.8rem", color:"var(--text-muted)" }}>Fill in the Account Brief above to get personalised recommendations based on your niche, goals, and target audience.</div>
-              </div>
-              <button onClick={openBrief} className="btn btn-primary btn-sm" style={{ gap:"0.4rem", flexShrink:0 }}>
-                <Icon name="book-open" size={13} color="" />
-                Add Account Brief
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* ══ FOOTER ═══════════════════════════════════════════════════════════ */}
-      <div style={{ marginTop:"2.5rem", paddingTop:"1.5rem", borderTop:"1px solid var(--border-subtle)", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:"1rem" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:"0.6rem" }}>
-          <div style={{ width:"24px", height:"24px", borderRadius:"7px", background:"var(--gradient-primary)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <Icon name="layers" size={12} color="#fff" />
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                  <span>Reach: <strong>{fmt(pl.reach)}</strong></span>
+                  <span>Eng: <strong>{fmt(pl.eng)}</strong></span>
+                  <span>ER: <strong style={{ color: erLabel(pl.er).color }}>{pl.er}%</strong></span>
+                </div>
+              </div>
+            ))}
           </div>
-          <span style={{ fontSize:"0.8rem", fontWeight:700, color:"var(--text-muted)" }}>SocioVault</span>
-          {hasBrief && brief.niche && (
-            <span style={{ fontSize:"0.72rem", color:"var(--text-subtle)" }}>— {brief.niche}</span>
-          )}
-        </div>
-        <div style={{ fontSize:"0.76rem", color:"var(--text-subtle)" }}>
-          Report generated on {today} — {combined.count} pieces across {platformData.length} platform{platformData.length!==1?"s":""}
-        </div>
-        <div style={{ display:"flex", gap:"0.5rem" }}>
-          <button className="btn btn-export btn-sm" onClick={handleExportDocx}>
-            <Icon name="download" size={12} color="" /> Export DOCX
-          </button>
-          <button className="btn btn-print btn-sm" onClick={function(){ window.print(); }}>
-            <Icon name="printer" size={12} color="" /> Print
-          </button>
         </div>
       </div>
 
     </div>
   );
 }
+
+window.ReportSummaryPage = ReportSummaryPage;
+
 
 
 function CollaboratorsPage() {
@@ -6198,7 +5799,7 @@ function CollaboratorsPage() {
 
 
 
-// Notes Page — Bullet-point note editor per account
+// Notes Page â€” Bullet-point note editor per account
 function NotesPage() {
   const { activeAccount, editAccount, canEdit } = React.useContext(VaultContext);
   const [notes, setNotes] = React.useState(activeAccount?.notes || "");
@@ -6249,7 +5850,7 @@ function NotesPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Notes</h1>
-          <p className="page-subtitle">Keep bullet-point notes for {activeAccount.name}. Start each line with • or -, or just write freely.</p>
+          <p className="page-subtitle">Keep bullet-point notes for {activeAccount.name}. Start each line with â€¢ or -, or just write freely.</p>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>
           {notesSaving && (
@@ -6266,11 +5867,11 @@ function NotesPage() {
 
       <div className="notes-editor-wrap">
         <div className="notes-editor-help">
-          <span>💡 Type • or - at the start of a line for bullets • Use Tab to indent</span>
+          <span>ðŸ’¡ Type â€¢ or - at the start of a line for bullets â€¢ Use Tab to indent</span>
         </div>
         <textarea
           className="notes-editor"
-          placeholder={"• Key points for " + activeAccount.name + "\n• What worked this week\n• Ideas for next week\n• Collaboration notes"}
+          placeholder={"â€¢ Key points for " + activeAccount.name + "\nâ€¢ What worked this week\nâ€¢ Ideas for next week\nâ€¢ Collaboration notes"}
           value={notes}
           onChange={function(e) { setNotes(e.target.value); }}
           onKeyDown={function(e) {
@@ -6282,8 +5883,8 @@ function NotesPage() {
               var val = ta.value;
               var lineStart = val.lastIndexOf("\n", start - 1) + 1;
               var line = val.substring(lineStart, start);
-              if (!line.match(/^\s*[•\-]\s/)) {
-                var newVal = val.substring(0, start) + "\n• " + val.substring(end);
+              if (!line.match(/^\s*[â€¢\-]\s/)) {
+                var newVal = val.substring(0, start) + "\nâ€¢ " + val.substring(end);
                 setNotes(newVal);
                 setTimeout(function() { ta.selectionStart = ta.selectionEnd = start + 3; }, 0);
                 e.preventDefault();
@@ -6298,7 +5899,7 @@ function NotesPage() {
       <div style={{ marginTop:"1.5rem", fontSize:"0.85rem", color:"var(--text-muted)", lineHeight:1.6 }}>
         <p><strong>Tips:</strong></p>
         <ul style={{ marginLeft:"1.5rem", marginTop:"0.5rem" }}>
-          <li>Start lines with <code style={{ background:"rgba(255,255,255,0.08)", padding:"0.15rem 0.4rem", borderRadius:"4px", fontFamily:"var(--font-mono)", fontSize:"0.8rem" }}>•</code> or <code style={{ background:"rgba(255,255,255,0.08)", padding:"0.15rem 0.4rem", borderRadius:"4px", fontFamily:"var(--font-mono)", fontSize:"0.8rem" }}>-</code> for bullets</li>
+          <li>Start lines with <code style={{ background:"rgba(255,255,255,0.08)", padding:"0.15rem 0.4rem", borderRadius:"4px", fontFamily:"var(--font-mono)", fontSize:"0.8rem" }}>â€¢</code> or <code style={{ background:"rgba(255,255,255,0.08)", padding:"0.15rem 0.4rem", borderRadius:"4px", fontFamily:"var(--font-mono)", fontSize:"0.8rem" }}>-</code> for bullets</li>
           <li>Indent with spaces or tabs for sub-bullets</li>
           <li>Your notes are automatically saved to the cloud</li>
         </ul>

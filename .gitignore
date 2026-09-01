@@ -1,0 +1,12 @@
+# Mirror directory - excluded from git tracking
+SocioVault/
+
+# Node modules
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build output
+dist/
