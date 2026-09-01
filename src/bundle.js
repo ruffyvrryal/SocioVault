@@ -1,4 +1,4 @@
-// Complete Standalone Application Bundle for Social Media Hub (with Subject Sorting & Pagination + Top Post Highlight Card)
+﻿// Complete Standalone Application Bundle for Social Media Hub (with Subject Sorting & Pagination + Top Post Highlight Card)
 
 // 1. INITIAL MOCK DATA
 window.INITIAL_DATA = {
@@ -1417,13 +1417,8 @@ function Navbar() {
   return (
     <>
       <nav className="navbar">
-        {/* ── Primary Row ── */}
         <div className="navbar-container">
-
-          {/* Left: Brand + Account Switcher */}
           <div style={{ display: "flex", alignItems: "center", gap: "0.9rem", minWidth: 0 }}>
-
-            {/* Brand Logo */}
             <div
               className="navbar-brand"
               onClick={() => { setActiveAccountId(null); setActivePage("account-vault"); }}
@@ -1435,11 +1430,9 @@ function Navbar() {
               <span>SocioVault</span>
             </div>
 
-            {/* Account Switcher */}
             {activeAccount && (
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0 }}>
                 <span style={{ color: "var(--border-hover)", fontSize: "1rem", opacity: 0.5 }}>/</span>
-
                 <select
                   className="form-select"
                   style={{
@@ -1458,30 +1451,24 @@ function Navbar() {
                     else setActiveAccountId(e.target.value);
                   }}
                 >
-                  <option value="VAULT_HUB">← Vault Hub</option>
+                  <option value="VAULT_HUB">Vault Hub</option>
                   {accessibleAccounts.map(acc => (
                     <option key={acc.id} value={acc.id}>
                       {acc.name} ({getUserRole(acc)})
                     </option>
                   ))}
                 </select>
-
-                <span className={`badge ${roleBadgeClass}`}
-                  style={{ fontSize: "0.65rem" }}>
+                <span className={`badge ${roleBadgeClass}`} style={{ fontSize: "0.65rem" }}>
                   {activeUserRole}
                 </span>
               </div>
             )}
           </div>
 
-          {/* Right: Actions & User Menu */}
           <div className="user-menu" style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-            
-            {/* Global Undo Action Button */}
             <button
               onClick={undo}
               disabled={!canUndo}
-              className={`btn btn-sm ${canUndo ? 'btn-secondary' : ''}`}
               title={canUndo ? `Undo: ${lastActionDescription} (Ctrl+Z)` : "No actions to undo"}
               style={{
                 display: "inline-flex",
@@ -1499,7 +1486,7 @@ function Navbar() {
                 transition: "all 0.2s ease"
               }}
             >
-              <span style={{ fontSize: "0.95rem" }}>↩️</span>
+              <span style={{ fontSize: "0.95rem" }}>&#8629;&#65039;</span>
               <span>Undo</span>
               {canUndo && (
                 <span style={{
@@ -1510,7 +1497,7 @@ function Navbar() {
                   color: "#fff",
                   fontWeight: 800
                 }}>
-                  {historyStack?.length || 0}
+                  {historyStack ? historyStack.length : 0}
                 </span>
               )}
             </button>
@@ -1520,7 +1507,7 @@ function Navbar() {
                 <img
                   src={user.photoURL}
                   alt={user.displayName}
-                  title={`${user.displayName} · ${user.email}`}
+                  title={user.displayName + " Â· " + user.email}
                   style={{
                     width:        "34px",
                     height:       "34px",
@@ -1535,7 +1522,7 @@ function Navbar() {
                 <button
                   onClick={logout}
                   className="btn btn-secondary btn-icon"
-                  title={`Sign out (${user.email})`}
+                  title={"Sign out (" + user.email + ")"}
                   style={{ minHeight: "36px", minWidth: "36px", padding: "0.4rem" }}
                 >
                   <Icon name="log-out" size={15} color="" />
@@ -1545,7 +1532,6 @@ function Navbar() {
           </div>
         </div>
 
-        {/* ── Navigation Row (only inside an account) ── */}
         {activeAccount && (
           <div className="navbar-nav-row">
             <div className="navbar-container">
@@ -1553,26 +1539,62 @@ function Navbar() {
                 {navItems.map(item => (
                   <div
                     key={item.id}
-                    className={`nav-link ${activePage === item.id ? 'active' : ''}`}
+                    className={"nav-link " + (activePage === item.id ? "active" : "")}
                     onClick={() => setActivePage(item.id)}
                   >
                     <Icon name={item.icon} size={13} color="currentColor" />
                     {item.label}
                   </div>
                 ))}
+              </div>
             </div>
-
           </div>
+        )}
+      </nav>
 
+      {undoToast && (
+        <div style={{
+          position: "fixed",
+          bottom: "1.5rem",
+          right: "1.5rem",
+          zIndex: 9999,
+          padding: "0.85rem 1.25rem",
+          borderRadius: "10px",
+          background: undoToast.type === "warning" ? "rgba(244, 63, 94, 0.95)" : "rgba(15, 23, 42, 0.95)",
+          border: undoToast.type === "warning" ? "1px solid #F43F5E" : "1px solid var(--accent-cyan)",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.75rem",
+          fontSize: "0.88rem",
+          fontWeight: 600
+        }}>
+          <span>{undoToast.type === "warning" ? "Warning" : "Done"}</span>
+          <span>{undoToast.message}</span>
+          {canUndo && (
+            <button
+              onClick={undo}
+              style={{
+                marginLeft: "0.5rem",
+                padding: "0.25rem 0.6rem",
+                borderRadius: "6px",
+                background: "#fff",
+                color: "#000",
+                fontWeight: 700,
+                fontSize: "0.78rem",
+                border: "none",
+                cursor: "pointer"
+              }}
+            >
+              Undo Now
+            </button>
+          )}
         </div>
-
       )}
-
-    </nav>
-
+    </>
   );
-
-};
+}
 
 function AccountCenterPage() {
   const { activeAccount, addPlatform, removePlatform, contents, canEdit, editAccount, setActivePage } = React.useContext(VaultContext);
