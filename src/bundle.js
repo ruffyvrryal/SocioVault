@@ -861,267 +861,139 @@ const undo = React.useCallback(async () => {
 
 
 // 3. COMPONENTS
-// LoginPage Component â€” Premium Sign-In
-// LoginPage Component â€” Premium Sign-In with Demo Switcher
 
-function LoginPage() {
+// 3. COMPONENTS
 
-  const { loginWithGoogle } = React.useContext(AuthContext);
-
+// LoginPage Component — Premium Sign-In with Demo Switcher
+window.LoginPage = function() {
+  const { loginWithGoogle } = React.useContext(window.AuthContext);
   const [emailInput, setEmailInput] = React.useState("");
-
   const [nameInput,  setNameInput]  = React.useState("");
 
-
-
   const handleCustomLogin = (e) => {
-
     e.preventDefault();
-
     if (!emailInput.trim()) return;
-
     loginWithGoogle(emailInput.trim(), nameInput.trim() || emailInput.split("@")[0]);
-
   };
 
-
-
   return (
-
     <div className="login-wrapper">
-
       <div className="login-card glass-card" style={{ padding: "2.5rem 2rem" }}>
 
-
-
         {/* Brand Icon */}
-
         <div className="login-brand-icon">
-
-          <Icon name="layers" size={28} color="#fff" />
-
+          <i data-lucide="layers" style={{ width: "28px", height: "28px", color: "#fff" }}></i>
         </div>
 
-
-
         {/* Title */}
-
         <h1 className="login-title">
-
           Socio<span style={{
-
             background: "var(--gradient-primary)",
-
             WebkitBackgroundClip: "text",
-
             backgroundClip: "text",
-
             WebkitTextFillColor: "transparent"
-
           }}>Vault</span>
-
         </h1>
-
         <p className="login-subtitle">
-
-          Your premium multi-account social media command centre â€”<br />
-
+          Your premium multi-account social media command centre —<br />
           content vault, analytics, hashtag studio &amp; reports.
-
         </p>
 
-
-
         {/* Google Sign In */}
-
         <button
-
           className="btn btn-google"
-
           style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
-
           onClick={() => loginWithGoogle("alex.creator@gmail.com", "Alex Rivera")}
-
         >
-
           <svg width="18" height="18" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-
             <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-
             <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.24v3.15C3.26 21.3 7.37 24 12 24z"/>
-
             <path fill="#FBBC05" d="M5.28 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.61H1.24C.45 8.18 0 10.03 0 12s.45 3.82 1.24 5.39l4.04-3.15z"/>
-
             <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.26 2.7 1.24 6.61l4.04 3.15c.95-2.85 3.6-4.96 6.72-4.96z"/>
-
           </svg>
-
           Continue with Google
-
         </button>
 
-
-
         {/* Divider */}
-
         <div className="login-divider">or sign in with email</div>
 
-
-
         {/* Email Form */}
-
         <form onSubmit={handleCustomLogin}>
-
           <div className="form-group" style={{ marginBottom: "1rem" }}>
-
             <label className="form-label">Full Name</label>
-
             <input
-
               type="text"
-
               className="form-input"
-
               placeholder="Alex Rivera"
-
               value={nameInput}
-
               onChange={e => setNameInput(e.target.value)}
-
             />
-
           </div>
-
           <div className="form-group" style={{ marginBottom: "1.25rem" }}>
-
             <label className="form-label">Email Address</label>
-
             <input
-
               type="email"
-
               className="form-input"
-
               placeholder="alex@example.com"
-
               required
-
               value={emailInput}
-
               onChange={e => setEmailInput(e.target.value)}
-
             />
-
           </div>
-
           <button type="submit" className="btn btn-primary" style={{ width: "100%", minHeight: "46px" }}>
-
-            <Icon name="log-in" size={16} color="" />
-
+            <i data-lucide="log-in" style={{ width: "16px", height: "16px" }}></i>
             Sign In / Register
-
           </button>
-
         </form>
 
-
-
         {/* Demo Quick-Login */}
-
         <div className="demo-section">
-
-          <p className="demo-section-label">âš¡ Demo Quick Sign-In</p>
-
+          <p className="demo-section-label">⚡ Demo Quick Sign-In</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
 
-
-
             <button
-
               onClick={() => loginWithGoogle("alex.creator@gmail.com", "Alex Rivera")}
-
               className="btn btn-secondary"
-
               style={{ justifyContent: "flex-start", gap: "0.65rem", fontSize: "0.84rem" }}
-
             >
-
               <span style={{
-
                 width: "24px", height: "24px", borderRadius: "6px",
-
                 background: "linear-gradient(135deg, #10B981, #06B6D4)",
-
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
-
                 fontSize: "0.72rem", fontWeight: 800, color: "#fff", flexShrink: 0
-
               }}>O</span>
-
-              <span><strong>Alex Rivera</strong> â€” Vault Owner</span>
-
+              <span><strong>Alex Rivera</strong> — Vault Owner</span>
             </button>
 
-
-
             <button
-
               onClick={() => loginWithGoogle("sarah.editor@gmail.com", "Sarah Jenkins")}
-
               className="btn btn-secondary"
-
               style={{ justifyContent: "flex-start", gap: "0.65rem", fontSize: "0.84rem" }}
-
             >
-
               <span style={{
-
                 width: "24px", height: "24px", borderRadius: "6px",
-
                 background: "linear-gradient(135deg, #06B6D4, #6366F1)",
-
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
-
                 fontSize: "0.72rem", fontWeight: 800, color: "#fff", flexShrink: 0
-
               }}>E</span>
-
-              <span><strong>Sarah Jenkins</strong> â€” Collaborator Editor</span>
-
+              <span><strong>Sarah Jenkins</strong> — Collaborator Editor</span>
             </button>
-
-
 
             <button
-
               onClick={() => loginWithGoogle("sponsor.client@gmail.com", "Sponsor Client")}
-
               className="btn btn-secondary"
-
               style={{ justifyContent: "flex-start", gap: "0.65rem", fontSize: "0.84rem" }}
-
             >
-
               <span style={{
-
                 width: "24px", height: "24px", borderRadius: "6px",
-
                 background: "linear-gradient(135deg, #F59E0B, #F97316)",
-
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
-
                 fontSize: "0.72rem", fontWeight: 800, color: "#fff", flexShrink: 0
-
               }}>V</span>
-
-              <span><strong>Sponsor Client</strong> â€” Read-Only Viewer</span>
-
+              <span><strong>Sponsor Client</strong> — Read-Only Viewer</span>
             </button>
-
-
 
           </div>
-
         </div>
 
       </div>
@@ -3735,8 +3607,6 @@ window.ContentTablePage = function() {
   );
 };
 
-
-// TIMEFRAME ANALYTICS PAGE (WITH STATUS SEPARATION - UPLOADED, SCHEDULED, PRIVATED, DELETED)
 // TimeframeAnalyticsPage Component - All-Time, Monthly, and Weekly Reporting with Status Separation
 window.TimeframeAnalyticsPage = function() {
   const { activeAccount, contents } = React.useContext(window.VaultContext);
@@ -3878,10 +3748,10 @@ window.TimeframeAnalyticsPage = function() {
 
   // Status-specific configuration for badges and styling
   const STATUS_CONFIG = {
-    "Uploaded": { label: "Uploaded (Published)", color: "#10B981", bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.35)", icon: "ðŸŸ¢" },
-    "Scheduled": { label: "Scheduled (Queued)", color: "#06B6D4", bg: "rgba(6, 182, 212, 0.15)", border: "rgba(6, 182, 212, 0.35)", icon: "â±ï¸" },
-    "Privated": { label: "Privated (Hidden)", color: "#F59E0B", bg: "rgba(245, 158, 11, 0.15)", border: "rgba(245, 158, 11, 0.35)", icon: "ðŸ”’" },
-    "Deleted": { label: "Deleted (Archived)", color: "#F43F5E", bg: "rgba(244, 63, 94, 0.15)", border: "rgba(244, 63, 94, 0.35)", icon: "ðŸ—‘ï¸" }
+    "Uploaded": { label: "Uploaded (Published)", color: "#10B981", bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.35)", icon: "🟢" },
+    "Scheduled": { label: "Scheduled (Queued)", color: "#06B6D4", bg: "rgba(6, 182, 212, 0.15)", border: "rgba(6, 182, 212, 0.35)", icon: "⏱️" },
+    "Privated": { label: "Privated (Hidden)", color: "#F59E0B", bg: "rgba(245, 158, 11, 0.15)", border: "rgba(245, 158, 11, 0.35)", icon: "🔒" },
+    "Deleted": { label: "Deleted (Archived)", color: "#F43F5E", bg: "rgba(244, 63, 94, 0.15)", border: "rgba(244, 63, 94, 0.35)", icon: "🗑️" }
   };
 
   // Render Chart.js - Different data based on timeframe
@@ -3977,7 +3847,7 @@ window.TimeframeAnalyticsPage = function() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">{activeAccount.name} â€” Timeframe Analytics</h1>
+          <h1 className="page-title">{activeAccount.name} — Timeframe Analytics</h1>
           <p className="page-subtitle">Granular performance separated by post status (Uploaded, Scheduled, Privated, Deleted)</p>
         </div>
 
@@ -4007,12 +3877,12 @@ window.TimeframeAnalyticsPage = function() {
         </div>
       </div>
 
-      {/* â•â• POST STATUS SEGREGATION TABS & QUICK BAR â•â• */}
+      {/* ══ POST STATUS SEGREGATION TABS & QUICK BAR ══ */}
       <div className="glass-card" style={{ padding: "1.25rem 1.5rem", marginBottom: "1.5rem", background: "rgba(15, 23, 42, 0.75)", border: "1px solid var(--border-color)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem", marginBottom: "1rem" }}>
           <div>
             <span style={{ fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--accent-cyan)" }}>
-              ðŸŽ¯ Post Status Separation
+              🎯 Post Status Separation
             </span>
             <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: "0.2rem 0 0 0", color: "var(--text-main)" }}>
               Filter & Isolate Analytics By Post Lifecycle
@@ -4026,7 +3896,7 @@ window.TimeframeAnalyticsPage = function() {
               className={`btn btn-sm ${selectedStatus === "ALL" ? "btn-primary" : "btn-secondary"}`}
               style={{ borderRadius: "8px", fontWeight: 700 }}
             >
-              ðŸŒ All Statuses ({statusStats.total})
+              🌐 All Statuses ({statusStats.total})
             </button>
             <button
               onClick={() => setSelectedStatus("Uploaded")}
@@ -4039,7 +3909,7 @@ window.TimeframeAnalyticsPage = function() {
                 border: "1px solid rgba(16, 185, 129, 0.3)"
               }}
             >
-              ðŸŸ¢ Uploaded ({statusStats.counts.Uploaded})
+              🟢 Uploaded ({statusStats.counts.Uploaded})
             </button>
             <button
               onClick={() => setSelectedStatus("Scheduled")}
@@ -4052,7 +3922,7 @@ window.TimeframeAnalyticsPage = function() {
                 border: "1px solid rgba(6, 182, 212, 0.3)"
               }}
             >
-              â±ï¸ Scheduled ({statusStats.counts.Scheduled})
+              ⏱️ Scheduled ({statusStats.counts.Scheduled})
             </button>
             <button
               onClick={() => setSelectedStatus("Privated")}
@@ -4065,7 +3935,7 @@ window.TimeframeAnalyticsPage = function() {
                 border: "1px solid rgba(245, 158, 11, 0.3)"
               }}
             >
-              ðŸ”’ Privated ({statusStats.counts.Privated})
+              🔒 Privated ({statusStats.counts.Privated})
             </button>
             <button
               onClick={() => setSelectedStatus("Deleted")}
@@ -4078,7 +3948,7 @@ window.TimeframeAnalyticsPage = function() {
                 border: "1px solid rgba(244, 63, 94, 0.3)"
               }}
             >
-              ðŸ—‘ï¸ Deleted ({statusStats.counts.Deleted})
+              🗑️ Deleted ({statusStats.counts.Deleted})
             </button>
           </div>
         </div>
@@ -4209,7 +4079,7 @@ window.TimeframeAnalyticsPage = function() {
           <span className="stat-value" style={{ color: "var(--accent-primary)" }}>
             {erRate}%
           </span>
-          <span className="stat-change positive">(Total Engagement / Reach) Ã— 100</span>
+          <span className="stat-change positive">(Total Engagement / Reach) × 100</span>
         </div>
       </div>
 
@@ -4239,22 +4109,22 @@ window.TimeframeAnalyticsPage = function() {
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>â¤ï¸ Likes</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>❤️ Likes</span>
               <strong style={{ fontSize: "0.95rem" }}>{totalLikes.toLocaleString()}</strong>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>ðŸ’¬ Comments</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>💬 Comments</span>
               <strong style={{ fontSize: "0.95rem" }}>{totalComments.toLocaleString()}</strong>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>ðŸ” Shares</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>🔁 Shares</span>
               <strong style={{ fontSize: "0.95rem" }}>{totalShares.toLocaleString()}</strong>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid var(--border-color)" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>ðŸ“Œ Saves</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>📌 Saves</span>
               <strong style={{ fontSize: "0.95rem" }}>{totalSaves.toLocaleString()}</strong>
             </div>
 
@@ -4266,13 +4136,13 @@ window.TimeframeAnalyticsPage = function() {
         </div>
       </div>
 
-      {/* â•â• DEDICATED SEPARATED STATUS SUMMARY (When viewing ALL) â•â• */}
+      {/* ══ DEDICATED SEPARATED STATUS SUMMARY (When viewing ALL) ══ */}
       {selectedStatus === "ALL" && (
         <div style={{ marginTop: "2.5rem" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
             <div>
               <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", margin: 0 }}>
-                ðŸ“‘ Separated Post Status Breakdown
+                📑 Separated Post Status Breakdown
               </h2>
               <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: "0.25rem 0 0 0" }}>
                 Individual performance & inventory metrics segregated by post status
@@ -4284,7 +4154,7 @@ window.TimeframeAnalyticsPage = function() {
             {[
               {
                 status: "Uploaded",
-                title: "ðŸŸ¢ Uploaded (Live)",
+                title: "🟢 Uploaded (Live)",
                 desc: "Active published content with live audience metrics",
                 items: accountContents.filter(c => (c.status || "Uploaded") === "Uploaded"),
                 color: "#10B981",
@@ -4292,7 +4162,7 @@ window.TimeframeAnalyticsPage = function() {
               },
               {
                 status: "Scheduled",
-                title: "â±ï¸ Scheduled (Queue)",
+                title: "⏱️ Scheduled (Queue)",
                 desc: "Upcoming content waiting for automated or planned release",
                 items: accountContents.filter(c => c.status === "Scheduled"),
                 color: "#06B6D4",
@@ -4300,7 +4170,7 @@ window.TimeframeAnalyticsPage = function() {
               },
               {
                 status: "Privated",
-                title: "ðŸ”’ Privated (Hidden)",
+                title: "🔒 Privated (Hidden)",
                 desc: "Content hidden from public view / unlisted posts",
                 items: accountContents.filter(c => c.status === "Privated"),
                 color: "#F59E0B",
@@ -4308,7 +4178,7 @@ window.TimeframeAnalyticsPage = function() {
               },
               {
                 status: "Deleted",
-                title: "ðŸ—‘ï¸ Deleted (Archived)",
+                title: "🗑️ Deleted (Archived)",
                 desc: "Removed or archived posts with historical record retention",
                 items: accountContents.filter(c => c.status === "Deleted"),
                 color: "#F43F5E",
@@ -4375,7 +4245,7 @@ window.TimeframeAnalyticsPage = function() {
                     className="btn btn-secondary btn-sm"
                     style={{ width: "100%", fontSize: "0.8rem", color: sec.color, borderColor: `${sec.color}40` }}
                   >
-                    {sec.btnText} â†’
+                    {sec.btnText} →
                   </button>
                 </div>
               );
@@ -4388,7 +4258,7 @@ window.TimeframeAnalyticsPage = function() {
       {timeframe === "monthly" && (
         <div style={{ marginTop: "2.5rem" }}>
           <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "1rem" }}>
-            ðŸ“Š Compare Two Months ({selectedStatus === "ALL" ? "All Statuses" : selectedStatus})
+            📊 Compare Two Months ({selectedStatus === "ALL" ? "All Statuses" : selectedStatus})
           </h2>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "2rem", marginBottom: "1.5rem" }}>
@@ -4396,7 +4266,7 @@ window.TimeframeAnalyticsPage = function() {
             <div className="glass-card" style={{ padding: "1.5rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
                 <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "linear-gradient(135deg, #3B82F6, #06B6D4)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: "1.1rem" }}>
-                  1ï¸âƒ£
+                  1️⃣
                 </div>
                 <div>
                   <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>First Month</label>
@@ -4450,7 +4320,7 @@ window.TimeframeAnalyticsPage = function() {
             <div className="glass-card" style={{ padding: "1.5rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
                 <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "linear-gradient(135deg, #A855F7, #06B6D4)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: "1.1rem" }}>
-                  2ï¸âƒ£
+                  2️⃣
                 </div>
                 <div>
                   <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>Second Month</label>
@@ -4503,7 +4373,7 @@ window.TimeframeAnalyticsPage = function() {
             {/* Comparison Insights */}
             <div className="glass-card" style={{ padding: "1.5rem", background: "linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(59, 130, 246, 0.1))", borderLeft: "4px solid rgba(34, 197, 94, 0.5)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-                <div style={{ fontSize: "1.5rem" }}>ðŸ“ˆ</div>
+                <div style={{ fontSize: "1.5rem" }}>📈</div>
                 <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>Change Analysis</h3>
               </div>
 
@@ -4520,15 +4390,15 @@ window.TimeframeAnalyticsPage = function() {
                 return (
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>ðŸ“Š Impressions</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>📊 Impressions</span>
                       <strong style={{ color: impDiff >= 0 ? "var(--accent-emerald)" : "#F43F5E" }}>{impDiff >= 0 ? "+" : ""}{impDiff.toLocaleString()} ({impPercent}%)</strong>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>ðŸ‘¥ Reach</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>👥 Reach</span>
                       <strong style={{ color: reachDiff >= 0 ? "var(--accent-emerald)" : "#F43F5E" }}>{reachDiff >= 0 ? "+" : ""}{reachDiff.toLocaleString()} ({reachPercent}%)</strong>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>ðŸ’¬ Engagement</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>💬 Engagement</span>
                       <strong style={{ color: engDiff >= 0 ? "var(--accent-emerald)" : "#F43F5E" }}>{engDiff >= 0 ? "+" : ""}{engDiff.toLocaleString()} ({engPercent}%)</strong>
                     </div>
                   </div>
@@ -4542,7 +4412,7 @@ window.TimeframeAnalyticsPage = function() {
       {/* Content Type Analytics Section */}
       <div style={{ marginTop: "2.5rem" }}>
         <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "1.5rem" }}>
-          ðŸŽ¬ Content Type Performance ({selectedStatus === "ALL" ? "All Statuses" : selectedStatus})
+          🎬 Content Type Performance ({selectedStatus === "ALL" ? "All Statuses" : selectedStatus})
         </h2>
 
         {(() => {
@@ -4579,8 +4449,8 @@ window.TimeframeAnalyticsPage = function() {
           }, [filteredContents]);
 
           const contentTypeIcons = {
-            "Reels": "ðŸ“¹", "Carousel": "ðŸŽ ", "Vlog": "ðŸŽ¥", "Video": "ðŸŽ¬", "Image": "ðŸ“·",
-            "Story": "ðŸ“–", "Live": "ðŸ”´", "Post": "ðŸ“", "Short": "â±ï¸", "Thread": "ðŸ§µ"
+            "Reels": "📹", "Carousel": "🎠", "Vlog": "🎥", "Video": "🎬", "Image": "📷",
+            "Story": "📖", "Live": "🔴", "Post": "📝", "Short": "⏱️", "Thread": "🧵"
           };
 
           return (
@@ -4597,7 +4467,7 @@ window.TimeframeAnalyticsPage = function() {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.25rem" }}>
-                      <div style={{ fontSize: "2rem" }}>{contentTypeIcons[stat.type] || "ðŸ“„"}</div>
+                      <div style={{ fontSize: "2rem" }}>{contentTypeIcons[stat.type] || "📄"}</div>
                       <div>
                         <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-main)", margin: 0 }}>{stat.type}</h3>
                         <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.25rem 0 0 0" }}>{stat.count} content{stat.count !== 1 ? "s" : ""}</p>
@@ -4667,7 +4537,7 @@ window.TimeframeAnalyticsPage = function() {
         {/* Top Performing Post by Platform Section */}
         <div style={{ marginTop: "2.5rem" }}>
           <h2 style={{ fontSize: "1.25rem", fontWeight: 800, marginBottom: "1.25rem", color: "var(--text-main)" }}>
-            ðŸ† Top Performing Posts by Platform ({selectedStatus === "ALL" ? "All Statuses" : selectedStatus})
+            🏆 Top Performing Posts by Platform ({selectedStatus === "ALL" ? "All Statuses" : selectedStatus})
           </h2>
 
           {(() => {
@@ -4823,459 +4693,347 @@ window.TimeframeAnalyticsPage = function() {
   );
 };
 
-
-
-
+// HashtagAnalyticsPage Component - Performance Studio for Hashtags
 window.HashtagAnalyticsPage = function() {
   const { activeAccount, contents } = React.useContext(window.VaultContext);
-  const [searchHashtag,  setSearchHashtag]  = React.useState("");
-  const [hashtagSortBy,  setHashtagSortBy]  = React.useState("impressions");
-  const [activePlatform, setActivePlatform] = React.useState("All");
+  const [searchHashtag, setSearchHashtag] = React.useState("");
+  const [hashtagSortBy, setHashtagSortBy] = React.useState("impressions");
 
   if (!activeAccount) {
     return <div className="page-container"><p>No active account selected.</p></div>;
   }
 
-  const accountContents = React.useMemo(function() {
-    return contents.filter(function(c) { return c.accountId === activeAccount.id; });
+  const accountContents = React.useMemo(() => {
+    return contents.filter(c => c.accountId === activeAccount.id);
   }, [contents, activeAccount.id]);
 
-  const allPlatforms = React.useMemo(function() {
-    const ps = new Set();
-    accountContents.forEach(function(c) { if (c.platform) ps.add(c.platform); });
-    return Array.from(ps).sort();
+  // Aggregate stats per Hashtag
+  const hashtagStats = React.useMemo(() => {
+    const map = {};
+
+    accountContents.forEach(item => {
+      if (!item.hashtags || !Array.isArray(item.hashtags)) return;
+
+      const engagement = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
+
+      item.hashtags.forEach(tag => {
+        const cleanTag = tag.trim().toLowerCase();
+        if (!cleanTag) return;
+
+        if (!map[cleanTag]) {
+          map[cleanTag] = {
+            tag: cleanTag.startsWith("#") ? cleanTag : "#" + cleanTag,
+            contentCount: 0,
+            impressions: 0,
+            reach: 0,
+            engagement: 0,
+            erSum: 0
+          };
+        }
+
+        map[cleanTag].contentCount += 1;
+        map[cleanTag].impressions += item.impressions || 0;
+        map[cleanTag].reach += item.reach || 0;
+        map[cleanTag].engagement += engagement;
+      });
+    });
+
+    return Object.values(map).map(h => ({
+      ...h,
+      avgEr: h.reach > 0 ? ((h.engagement / h.reach) * 100).toFixed(2) : "0.00"
+    })).sort((a, b) => b.impressions - a.impressions);
   }, [accountContents]);
 
-  const PCOLORS = {"Instagram":"#E1306C","YouTube":"#FF4444","TikTok":"#25F4EE","X (Twitter)":"#60A5FA","Facebook":"#4B8FE4","Threads":"#E8EAED"};
-  const PICONS  = {"Instagram":"instagram","YouTube":"youtube","TikTok":"music-2","X (Twitter)":"twitter","Facebook":"facebook","Threads":"at-sign"};
-  function pColor(p) { return PCOLORS[p] || "var(--accent-primary)"; }
-  function pIcon(p)  { return PICONS[p]  || "globe"; }
-  function fmt(n) {
-    if (!n) return "0";
-    if (n >= 1000000) return (n/1000000).toFixed(2)+"M";
-    if (n >= 1000)    return (n/1000).toFixed(1)+"K";
-    return n.toLocaleString();
-  }
+  const filteredHashtags = React.useMemo(() => {
+    return hashtagStats.filter(h => h.tag.toLowerCase().includes(searchHashtag.toLowerCase()));
+  }, [hashtagStats, searchHashtag]);
 
-  // Build hashtag stats for each scope (All + per-platform)
-  const allPlatformStats = React.useMemo(function() {
-    const scopes = ["All"].concat(allPlatforms);
-    const result = {};
-    scopes.forEach(function(scope) {
-      const src = scope === "All"
-        ? accountContents
-        : accountContents.filter(function(c) { return c.platform === scope; });
-      const map = {};
-      src.forEach(function(item) {
-        if (!item.hashtags || !Array.isArray(item.hashtags)) return;
-        const eng = (item.likes||0)+(item.comments||0)+(item.shares||0)+(item.saves||0);
-        item.hashtags.forEach(function(tag) {
-          const clean = tag.trim().toLowerCase();
-          if (!clean) return;
-          if (!map[clean]) {
-            map[clean] = { tag: clean.startsWith("#") ? clean : "#"+clean,
-              contentCount:0, impressions:0, reach:0, engagement:0,
-              likes:0, comments:0, shares:0, saves:0, pset: new Set() };
-          }
-          map[clean].contentCount += 1;
-          map[clean].impressions  += item.impressions||0;
-          map[clean].reach        += item.reach||0;
-          map[clean].engagement   += eng;
-          map[clean].likes        += item.likes||0;
-          map[clean].comments     += item.comments||0;
-          map[clean].shares       += item.shares||0;
-          map[clean].saves        += item.saves||0;
-          if (item.platform) map[clean].pset.add(item.platform);
-        });
-      });
-      result[scope] = Object.values(map).map(function(h) {
-        return Object.assign({}, h, {
-          platforms: Array.from(h.pset),
-          avgImp: h.contentCount > 0 ? Math.round(h.impressions/h.contentCount) : 0,
-          avgEr:  h.reach > 0 ? ((h.engagement/h.reach)*100).toFixed(2) : "0.00"
-        });
-      }).sort(function(a,b) { return b.impressions - a.impressions; });
-    });
-    return result;
-  }, [accountContents, allPlatforms]);
-
-  const activeStats = React.useMemo(function() {
-    return allPlatformStats[activePlatform] || [];
-  }, [allPlatformStats, activePlatform]);
-
-  const displayStats = React.useMemo(function() {
-    const filtered = activeStats.filter(function(h) {
-      return h.tag.toLowerCase().includes(searchHashtag.toLowerCase());
-    });
-    return filtered.slice().sort(function(a,b) {
-      if (hashtagSortBy === "reach")         return b.reach - a.reach;
-      if (hashtagSortBy === "engagement")    return b.engagement - a.engagement;
-      if (hashtagSortBy === "contentCount")  return b.contentCount - a.contentCount;
-      if (hashtagSortBy === "avgEr")         return parseFloat(b.avgEr) - parseFloat(a.avgEr);
-      if (hashtagSortBy === "avgImpressions") return b.avgImp - a.avgImp;
-      if (hashtagSortBy === "alphabetical")  return a.tag.localeCompare(b.tag);
-      return b.impressions - a.impressions;
-    });
-  }, [activeStats, searchHashtag, hashtagSortBy]);
-
-  const top3 = React.useMemo(function() {
-    return activeStats.slice().sort(function(a,b) { return b.avgImp - a.avgImp; }).slice(0, 3);
-  }, [activeStats]);
-
-  const scopeColor = activePlatform === "All" ? "var(--accent-primary)" : pColor(activePlatform);
-  const scopeIcon  = activePlatform === "All" ? "hash" : pIcon(activePlatform);
+  // Calculate top 3 hashtags by avg impressions per content
+  const top3Hashtags = React.useMemo(() => {
+    const withAvg = hashtagStats.map(h => ({
+      ...h,
+      avgImpressionsPerContent: h.contentCount > 0 ? (h.impressions / h.contentCount) : 0
+    }));
+    return withAvg.sort((a, b) => b.avgImpressionsPerContent - a.avgImpressionsPerContent).slice(0, 3);
+  }, [hashtagStats]);
 
   return (
     <div className="page-container">
-
       <div className="page-header">
         <div>
-          <h1 className="page-title">{activeAccount.name} â€” Hashtag Studio</h1>
-          <p className="page-subtitle">Analyze hashtag performance per platform or across all platforms combined</p>
+          <h1 className="page-title">{activeAccount.name} - Hashtag Studio</h1>
+          <p className="page-subtitle">Track performance, total viewers, content count, and engagement rate per hashtag</p>
         </div>
       </div>
 
-      {/* â”€â”€ PLATFORM TABS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"2rem", flexWrap:"wrap" }}>
-        {["All"].concat(allPlatforms).map(function(plat) {
-          const isActive = activePlatform === plat;
-          const c  = plat === "All" ? "var(--accent-primary)" : pColor(plat);
-          const ic = plat === "All" ? "layers" : pIcon(plat);
-          const count = (allPlatformStats[plat] || []).length;
-          return (
-            <button key={plat}
-              onClick={function() { setActivePlatform(plat); setSearchHashtag(""); }}
-              style={{
-                display:"inline-flex", alignItems:"center", gap:"0.5rem",
-                padding:"0.5rem 1rem", borderRadius:"var(--radius-sm)",
-                cursor:"pointer", fontSize:"0.85rem",
-                fontWeight: isActive ? 700 : 500,
-                border: isActive ? "1px solid "+c+"70" : "1px solid var(--border-color)",
-                background: isActive ? c+"18" : "rgba(255,255,255,0.03)",
-                color: isActive ? c : "var(--text-muted)",
-                boxShadow: isActive ? "0 0 12px "+c+"20" : "none",
-                transition:"all 0.2s ease"
+      {/* Top 3 Hashtags Premium Cards */}
+      {top3Hashtags.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem", marginBottom: "2.5rem" }}>
+          {top3Hashtags.map((hashtag, index) => (
+            <div key={hashtag.tag} style={{
+              background: index === 0 
+                ? "linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(59, 130, 246, 0.15))" 
+                : index === 1 
+                ? "linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(59, 130, 246, 0.15))"
+                : "linear-gradient(135deg, rgba(244, 63, 94, 0.15), rgba(249, 115, 22, 0.15))",
+              borderRadius: "var(--radius-md)",
+              border: index === 0 ? "2px solid rgba(34, 197, 94, 0.4)" : index === 1 ? "2px solid rgba(168, 85, 247, 0.4)" : "2px solid rgba(244, 63, 94, 0.4)",
+              padding: "1.75rem",
+              position: "relative",
+              overflow: "hidden",
+              backdropFilter: "blur(10px)"
+            }}>
+              {/* Badge */}
+              <div style={{
+                position: "absolute",
+                top: "-8px",
+                left: "15px",
+                background: index === 0 ? "linear-gradient(135deg, #22C55E, #3B82F6)" : index === 1 ? "linear-gradient(135deg, #A855F7, #3B82F6)" : "linear-gradient(135deg, #F43F5E, #F97316)",
+                color: "#fff",
+                padding: "0.35rem 0.75rem",
+                borderRadius: "var(--radius-sm)",
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                letterSpacing: "0.05em",
+                textTransform: "uppercase"
               }}>
-              <Icon name={ic} size={13} color="" />
-              {plat}
-              <span style={{
-                fontSize:"0.7rem", fontWeight:700,
-                padding:"0.1rem 0.4rem", borderRadius:"10px",
-                background: isActive ? c+"25" : "rgba(255,255,255,0.06)",
-                color: isActive ? c : "var(--text-subtle)"
-              }}>{count}</span>
-            </button>
-          );
-        })}
+                #{index + 1} Top Hashtag
+              </div>
+
+              {/* Icon/Medal */}
+              <div style={{
+                width: "56px",
+                height: "56px",
+                borderRadius: "12px",
+                background: index === 0 ? "linear-gradient(135deg, #22C55E, #16A34A)" : index === 1 ? "linear-gradient(135deg, #A855F7, #7C3AED)" : "linear-gradient(135deg, #F43F5E, #DC2626)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 800,
+                color: "#fff",
+                fontSize: "1.8rem",
+                marginBottom: "1rem"
+              }}>
+                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+              </div>
+
+              {/* Hashtag Name */}
+              <h3 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "0.5rem", color: "#fff", wordBreak: "break-word" }}>
+                {hashtag.tag}
+              </h3>
+
+              {/* Main Metric - Avg Views Per Content */}
+              <div style={{ marginBottom: "1.25rem" }}>
+                <div style={{ fontSize: "0.85rem", color: "rgba(255, 255, 255, 0.7)", marginBottom: "0.35rem", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
+                  Avg Views per Post
+                </div>
+                <div style={{ fontSize: "2rem", fontWeight: 800, background: index === 0 ? "linear-gradient(135deg, #22C55E, #3B82F6)" : index === 1 ? "linear-gradient(135deg, #A855F7, #3B82F6)" : "linear-gradient(135deg, #F43F5E, #F97316)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                  {hashtag.avgImpressionsPerContent.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                </div>
+              </div>
+
+              {/* Stats Row */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", paddingTop: "1rem", borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                <div>
+                  <div style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.6)", marginBottom: "0.25rem", textTransform: "uppercase" }}>
+                    Total Views
+                  </div>
+                  <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
+                    {(hashtag.impressions / 1000).toFixed(1)}K
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.6)", marginBottom: "0.25rem", textTransform: "uppercase" }}>
+                    Featured In
+                  </div>
+                  <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>
+                    {hashtag.contentCount} posts
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Search Input */}
+      <div className="glass-card" style={{ marginBottom: "1.5rem", padding: "1rem" }}>
+        <input 
+          type="text" 
+          className="form-input"
+          placeholder="Search hashtag (e.g. #tech, #ai)..."
+          value={searchHashtag}
+          onChange={e => setSearchHashtag(e.target.value)}
+        />
       </div>
 
-      {/* â”€â”€ SCOPE SUMMARY STRIP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      {activeStats.length > 0 && (
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))", gap:"0.85rem", marginBottom:"2rem" }}>
-          {[
-            { label:"Unique Hashtags",   value:""+activeStats.length,
-              color:scopeColor },
-            { label:"Total Uses",
-              value:fmt(activeStats.reduce(function(s,h){return s+h.contentCount;},0)),
-              color:"var(--accent-cyan)" },
-            { label:"Total Impressions",
-              value:fmt(activeStats.reduce(function(s,h){return s+h.impressions;},0)),
-              color:"var(--accent-cyan)" },
-            { label:"Total Engagement",
-              value:fmt(activeStats.reduce(function(s,h){return s+h.engagement;},0)),
-              color:"var(--accent-emerald)" },
-            { label:"Best Avg Views",
-              value: top3[0] ? fmt(top3[0].avgImp) : "-",
-              color:"#F59E0B" },
-          ].map(function(k, i) {
-            return (
-              <div key={i} style={{ padding:"0.85rem 1rem", borderRadius:"var(--radius-md)",
-                background:"rgba(7,9,15,0.6)", border:"1px solid var(--border-color)",
-                position:"relative", overflow:"hidden" }}>
-                <div style={{ position:"absolute", top:0, left:0, right:0, height:"2px",
-                  background:"linear-gradient(90deg,"+k.color+","+k.color+"44)" }}></div>
-                <div style={{ fontSize:"0.68rem", color:"var(--text-subtle)", textTransform:"uppercase",
-                  letterSpacing:"0.05em", fontWeight:700, marginBottom:"0.35rem" }}>{k.label}</div>
-                <div style={{ fontSize:"1.25rem", fontWeight:800, fontFamily:"var(--font-heading)",
-                  color:k.color, lineHeight:1 }}>{k.value}</div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* â”€â”€ TOP 3 CARDS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      {top3.length > 0 && (
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))", gap:"1.25rem", marginBottom:"2.5rem" }}>
-          {top3.map(function(hashtag, index) {
-            const bgs  = ["linear-gradient(135deg,rgba(34,197,94,0.15),rgba(59,130,246,0.15))","linear-gradient(135deg,rgba(168,85,247,0.15),rgba(59,130,246,0.15))","linear-gradient(135deg,rgba(244,63,94,0.15),rgba(249,115,22,0.15))"];
-            const bds  = ["2px solid rgba(34,197,94,0.4)","2px solid rgba(168,85,247,0.4)","2px solid rgba(244,63,94,0.4)"];
-            const bBg  = ["linear-gradient(135deg,#22C55E,#3B82F6)","linear-gradient(135deg,#A855F7,#3B82F6)","linear-gradient(135deg,#F43F5E,#F97316)"];
-            const iBg  = ["linear-gradient(135deg,#22C55E,#16A34A)","linear-gradient(135deg,#A855F7,#7C3AED)","linear-gradient(135deg,#F43F5E,#DC2626)"];
-            return (
-              <div key={hashtag.tag} style={{ background:bgs[index], borderRadius:"var(--radius-md)",
-                border:bds[index], padding:"1.75rem", position:"relative", overflow:"hidden",
-                backdropFilter:"blur(10px)" }}>
-                <div style={{ position:"absolute", top:"-8px", left:"15px", background:bBg[index],
-                  color:"#fff", padding:"0.35rem 0.75rem", borderRadius:"var(--radius-sm)",
-                  fontSize:"0.75rem", fontWeight:700, letterSpacing:"0.05em", textTransform:"uppercase" }}>
-                  #{index+1} Top Hashtag
-                </div>
-                <div style={{ width:"56px", height:"56px", borderRadius:"12px", background:iBg[index],
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  fontWeight:800, color:"#fff", fontSize:"1.8rem", marginBottom:"1rem", marginTop:"0.5rem" }}>
-                  {index+1}
-                </div>
-                <h3 style={{ fontSize:"1.25rem", fontWeight:700, marginBottom:"0.5rem", color:"#fff", wordBreak:"break-word" }}>
-                  {hashtag.tag}
-                </h3>
-                {activePlatform === "All" && hashtag.platforms.length > 0 && (
-                  <div style={{ display:"flex", gap:"0.3rem", flexWrap:"wrap", marginBottom:"0.85rem" }}>
-                    {hashtag.platforms.map(function(p) {
-                      return (
-                        <span key={p} style={{ display:"inline-flex", alignItems:"center", gap:"0.25rem",
-                          fontSize:"0.7rem", fontWeight:600, padding:"0.15rem 0.45rem",
-                          borderRadius:"var(--radius-full)", background:"rgba(255,255,255,0.1)",
-                          color:"rgba(255,255,255,0.8)" }}>
-                          <Icon name={pIcon(p)} size={9} color="" />{p}
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
-                <div style={{ marginBottom:"1.25rem" }}>
-                  <div style={{ fontSize:"0.85rem", color:"rgba(255,255,255,0.7)", marginBottom:"0.35rem",
-                    textTransform:"uppercase", letterSpacing:"0.05em", fontWeight:600 }}>Avg Views per Post</div>
-                  <div style={{ fontSize:"2rem", fontWeight:800, background:bBg[index],
-                    WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
-                    {hashtag.avgImp.toLocaleString()}
-                  </div>
-                </div>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"0.75rem",
-                  paddingTop:"1rem", borderTop:"1px solid rgba(255,255,255,0.1)" }}>
-                  {[
-                    { l:"Total Views", v:fmt(hashtag.impressions) },
-                    { l:"Posts",       v:""+hashtag.contentCount  },
-                    { l:"Avg ER",      v:hashtag.avgEr+"%"        },
-                  ].map(function(m) {
-                    return (
-                      <div key={m.l}>
-                        <div style={{ fontSize:"0.7rem", color:"rgba(255,255,255,0.6)", marginBottom:"0.2rem",
-                          textTransform:"uppercase", letterSpacing:"0.04em" }}>{m.l}</div>
-                        <div style={{ fontSize:"1rem", fontWeight:700 }}>{m.v}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* â”€â”€ HASHTAG TABLE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <div className="glass-card" style={{ padding:"1.5rem" }}>
-
-        {/* Table controls */}
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start",
-          marginBottom:"1.25rem", gap:"1rem", flexWrap:"wrap" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:"0.65rem" }}>
-            <div style={{ width:"28px", height:"28px", borderRadius:"8px",
-              background:scopeColor+"18", border:"1px solid "+scopeColor+"30",
-              display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <Icon name={scopeIcon} size={13} color={scopeColor} />
-            </div>
-            <div>
-              <div style={{ fontSize:"1rem", fontWeight:700, color:"var(--text-main)" }}>
-                {activePlatform === "All" ? "All Platforms" : activePlatform} â€” Hashtag Performance Table
-              </div>
-              {activePlatform !== "All" && (
-                <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", marginTop:"0.1rem" }}>
-                  Only content from <strong style={{ color:scopeColor }}>{activePlatform}</strong>
-                </div>
-              )}
-            </div>
-            <span style={{ fontSize:"0.75rem", color:"var(--text-muted)", background:"rgba(255,255,255,0.05)",
-              padding:"0.2rem 0.55rem", borderRadius:"var(--radius-full)", border:"1px solid var(--border-color)" }}>
-              {displayStats.length} tag{displayStats.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-          <div style={{ display:"flex", gap:"0.65rem", alignItems:"center", flexWrap:"wrap" }}>
-            <div style={{ position:"relative" }}>
-              <Icon name="search" size={13} color="var(--text-subtle)" style={{ position:"absolute", left:"0.85rem", top:"50%", transform:"translateY(-50%)", pointerEvents:"none" }} />
-              <input type="text" className="form-input" placeholder="Search hashtag..."
-                value={searchHashtag}
-                onChange={function(e) { setSearchHashtag(e.target.value); }}
-                style={{ paddingLeft:"2.3rem", width:"170px", minHeight:"36px", fontSize:"0.85rem" }} />
-            </div>
-            <select className="form-select" value={hashtagSortBy}
-              onChange={function(e) { setHashtagSortBy(e.target.value); }}
-              style={{ width:"auto", minHeight:"36px", fontSize:"0.85rem", border:"1.5px solid var(--accent-cyan)" }}>
+      {/* Hashtags Performance Data Table */}
+      <div className="table-container">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", gap: "1.5rem", flexWrap: "wrap" }}>
+          <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0, minWidth: "200px" }}>Hashtag Performance Table</h2>
+          
+          {/* Sort Dropdown */}
+          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", minWidth: "auto" }}>
+            <label style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-muted)", whiteSpace: "nowrap" }}>Sort by:</label>
+            <select 
+              className="form-select"
+              value={hashtagSortBy}
+              onChange={(e) => setHashtagSortBy(e.target.value)}
+              style={{ 
+                padding: "0.65rem 1rem", 
+                fontSize: "0.9rem",
+                fontWeight: 500,
+                background: "linear-gradient(135deg, var(--bg-tertiary) 0%, rgba(59, 130, 246, 0.05) 100%)",
+                border: "1.5px solid var(--accent-cyan)",
+                borderRadius: "10px",
+                color: "var(--text-primary)",
+                cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(6, 182, 212, 0.1)",
+                transition: "all 0.2s ease",
+                appearance: "none",
+                backgroundImage: "url(\"data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgb(6, 182, 212)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e\")",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 0.75rem center",
+                backgroundSize: "1.2em 1.2em",
+                paddingRight: "2.5rem"
+              }}
+            >
               <option value="impressions">Total Impressions</option>
               <option value="reach">Total Reach</option>
               <option value="engagement">Total Engagement</option>
-              <option value="contentCount">Post Count</option>
-              <option value="avgEr">Avg ER %</option>
-              <option value="avgImpressions">Avg Views / Post</option>
+              <option value="contentCount">Content Count</option>
+              <option value="avgEr">Avg Engagement Rate %</option>
+              <option value="avgImpressions">Avg Impressions per Post</option>
               <option value="alphabetical">Alphabetical (A-Z)</option>
             </select>
           </div>
         </div>
 
-        {/* Table */}
-        <div style={{ overflowX:"auto" }}>
-          <table className="custom-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Hashtag</th>
-                {activePlatform === "All" && <th>Platforms</th>}
-                <th>Posts</th>
-                <th style={{ color:"var(--accent-cyan)" }}>Total Views</th>
-                <th>Total Reach</th>
-                <th style={{ color:"var(--accent-emerald)" }}>Total Eng.</th>
-                <th style={{ color:"#FB7185" }}>Likes</th>
-                <th style={{ color:"#A78BFA" }}>Comments</th>
-                <th style={{ color:"#22D3EE" }}>Shares</th>
-                <th style={{ color:"#34D399" }}>Saves</th>
-                <th style={{ color:"#F59E0B" }}>Avg Views/Post</th>
-                <th style={{ color:"var(--accent-primary)" }}>Avg ER %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayStats.length === 0 && (
-                <tr>
-                  <td colSpan={activePlatform === "All" ? 13 : 12}
-                    style={{ textAlign:"center", padding:"2.5rem", color:"var(--text-muted)" }}>
-                    {searchHashtag ? "No hashtags match \""+searchHashtag+"\"" : "No hashtag data for "+activePlatform}
+        <table className="custom-table">
+          <thead>
+            <tr>
+              <th>Hashtag Tag</th>
+              <th>Contents Used</th>
+              <th>Total Viewers (Impressions)</th>
+              <th>Total Reach</th>
+              <th>Total Engagement</th>
+              <th>Avg Engagement Rate %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(() => {
+              // Sort the hashtags based on selected criteria
+              const sortedHashtags = [...filteredHashtags].sort((a, b) => {
+                switch(hashtagSortBy) {
+                  case "impressions":
+                    return b.impressions - a.impressions;
+                  case "reach":
+                    return b.reach - a.reach;
+                  case "engagement":
+                    return b.engagement - a.engagement;
+                  case "contentCount":
+                    return b.contentCount - a.contentCount;
+                  case "avgEr":
+                    return parseFloat(b.avgEr) - parseFloat(a.avgEr);
+                  case "avgImpressions":
+                    return (b.contentCount > 0 ? b.impressions / b.contentCount : 0) - (a.contentCount > 0 ? a.impressions / a.contentCount : 0);
+                  case "alphabetical":
+                    return a.tag.localeCompare(b.tag);
+                  default:
+                    return b.impressions - a.impressions;
+                }
+              });
+
+              return sortedHashtags.map(h => (
+                <tr key={h.tag}>
+                  <td>
+                    <span className="chip" style={{ fontSize: "0.85rem", padding: "0.3rem 0.75rem" }}>
+                      {h.tag}
+                    </span>
+                  </td>
+                  <td style={{ fontWeight: 600 }}>{h.contentCount} posts</td>
+                  <td style={{ fontWeight: 700, color: "var(--accent-cyan)" }}>
+                    {h.impressions.toLocaleString()}
+                  </td>
+                  <td>{h.reach.toLocaleString()}</td>
+                  <td style={{ color: "var(--accent-emerald)", fontWeight: 600 }}>
+                    {h.engagement.toLocaleString()}
+                  </td>
+                  <td style={{ fontWeight: 700, color: "var(--accent-primary)" }}>
+                    {h.avgEr}%
                   </td>
                 </tr>
-              )}
-              {displayStats.map(function(h, idx) {
-                const isTop = idx === 0;
-                return (
-                  <tr key={h.tag} style={isTop ? { background:scopeColor+"08" } : {}}>
-                    <td style={{ fontWeight:700, color:isTop ? scopeColor : "var(--text-subtle)", fontSize:"0.8rem" }}>
-                      {isTop ? "Best" : "#"+(idx+1)}
-                    </td>
-                    <td>
-                      <span className="chip" style={{ background:"rgba(139,92,246,0.12)", color:"var(--accent-primary-light)",
-                        border:"1px solid rgba(139,92,246,0.25)", fontSize:"0.82rem", padding:"0.25rem 0.65rem" }}>
-                        {h.tag}
-                      </span>
-                    </td>
-                    {activePlatform === "All" && (
-                      <td>
-                        <div style={{ display:"flex", gap:"0.25rem", flexWrap:"wrap" }}>
-                          {h.platforms.map(function(p) {
-                            return (
-                              <span key={p} style={{ display:"inline-flex", alignItems:"center", gap:"0.2rem",
-                                fontSize:"0.7rem", padding:"0.12rem 0.4rem", borderRadius:"var(--radius-full)",
-                                background:pColor(p)+"15", border:"1px solid "+pColor(p)+"30",
-                                color:pColor(p), fontWeight:600, whiteSpace:"nowrap" }}>
-                                <Icon name={pIcon(p)} size={9} color="" />{p}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </td>
-                    )}
-                    <td style={{ fontWeight:600, color:"var(--text-secondary)" }}>{h.contentCount}</td>
-                    <td style={{ fontWeight:700, color:"var(--accent-cyan)" }}>{fmt(h.impressions)}</td>
-                    <td style={{ color:"var(--text-secondary)" }}>{fmt(h.reach)}</td>
-                    <td style={{ fontWeight:700, color:"var(--accent-emerald)" }}>{fmt(h.engagement)}</td>
-                    <td style={{ color:"#FB7185", fontSize:"0.82rem" }}>{fmt(h.likes)}</td>
-                    <td style={{ color:"#A78BFA", fontSize:"0.82rem" }}>{fmt(h.comments)}</td>
-                    <td style={{ color:"#22D3EE", fontSize:"0.82rem" }}>{fmt(h.shares)}</td>
-                    <td style={{ color:"#34D399", fontSize:"0.82rem" }}>{fmt(h.saves)}</td>
-                    <td style={{ fontWeight:700, color:"#F59E0B" }}>{fmt(h.avgImp)}</td>
-                    <td style={{ fontWeight:700, color:"var(--accent-primary)" }}>{h.avgEr}%</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+              ));
+            })()}
 
-        {/* Quick platform switcher (shown on All view) */}
-        {activePlatform === "All" && allPlatforms.length > 1 && displayStats.length > 0 && (
-          <div style={{ marginTop:"1.5rem", paddingTop:"1.25rem", borderTop:"1px solid var(--border-subtle)" }}>
-            <div style={{ fontSize:"0.75rem", color:"var(--text-muted)", fontWeight:700, textTransform:"uppercase",
-              letterSpacing:"0.05em", marginBottom:"0.85rem" }}>View by Platform</div>
-            <div style={{ display:"flex", gap:"0.6rem", flexWrap:"wrap" }}>
-              {allPlatforms.map(function(p) {
-                const pCount = (allPlatformStats[p] || []).length;
-                const c = pColor(p);
-                return (
-                  <button key={p}
-                    onClick={function() { setActivePlatform(p); setSearchHashtag(""); }}
-                    style={{ display:"inline-flex", alignItems:"center", gap:"0.45rem",
-                      padding:"0.45rem 0.85rem", borderRadius:"var(--radius-sm)",
-                      border:"1px solid "+c+"30", background:c+"0C",
-                      cursor:"pointer", transition:"all 0.2s", color:c, fontSize:"0.82rem", fontWeight:600 }}>
-                    <Icon name={pIcon(p)} size={12} color="" />
-                    {p}
-                    <span style={{ fontSize:"0.72rem", fontWeight:800, color:"var(--text-muted)" }}>{pCount} tags</span>
-                    <Icon name="arrow-right" size={10} color="var(--text-subtle)" />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+            {filteredHashtags.length === 0 && (
+              <tr>
+                <td colSpan="6" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
+                  No hashtag metrics found in your content table.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 };
 
-
-function getSubjectPhotoData(subjectPhotos, subjectName) {
-  if (!subjectPhotos || !subjectName) return { url: "", zoom: 1, offsetX: 0, offsetY: 0 };
-  const raw = subjectPhotos[subjectName] || subjectPhotos[subjectName.replace(/\./g, '_')];
-  if (!raw) return { url: "", zoom: 1, offsetX: 0, offsetY: 0 };
-  if (typeof raw === "string") return { url: raw, zoom: 1, offsetX: 0, offsetY: 0 };
-  return {
-    url: raw.url || "",
-    zoom: raw.zoom ?? 1,
-    offsetX: raw.offsetX ?? 0,
-    offsetY: raw.offsetY ?? 0
-  };
-}
-
-function SubjectAnalyticsPage() {
-  const { activeAccount, contents } = React.useContext(VaultContext);
+// SubjectAnalyticsPage Component - Performance Metrics per Featured Subject / Person
+window.SubjectAnalyticsPage = function() {
+  const { activeAccount, contents } = React.useContext(window.VaultContext);
   const [searchSubject, setSearchSubject] = React.useState("");
   const [sortBy, setSortBy] = React.useState("impressions");
   const [sortOrder, setSortOrder] = React.useState("desc");
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 25;
 
-  if (!activeAccount) return <div className="page-container"><p>No active account selected.</p></div>;
+  if (!activeAccount) {
+    return <div className="page-container"><p>No active account selected.</p></div>;
+  }
 
-  const accountContents = contents.filter(c => c.accountId === activeAccount.id);
+  const accountContents = React.useMemo(() => {
+    return contents.filter(c => c.accountId === activeAccount.id);
+  }, [contents, activeAccount.id]);
 
   React.useEffect(() => { setCurrentPage(1); }, [searchSubject, sortBy, sortOrder]);
 
+  // Aggregate stats per Subject
   const subjectStats = React.useMemo(() => {
     const map = {};
+
     accountContents.forEach(item => {
       if (!item.subjects || !Array.isArray(item.subjects)) return;
+
       const engagement = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
+
       item.subjects.forEach(sub => {
         const name = sub.trim();
         if (!name) return;
+
         if (!map[name]) {
-          map[name] = { name, contentCount: 0, impressions: 0, reach: 0, engagement: 0, topPost: null };
+          map[name] = {
+            name,
+            contentCount: 0,
+            impressions: 0,
+            reach: 0,
+            engagement: 0,
+            topPost: null
+          };
         }
+
         map[name].contentCount += 1;
         map[name].impressions += item.impressions || 0;
         map[name].reach += item.reach || 0;
         map[name].engagement += engagement;
+
         if (!map[name].topPost || (item.impressions || 0) > (map[name].topPost.impressions || 0)) {
           map[name].topPost = item;
         }
       });
     });
+
     return Object.values(map).map(s => ({
       ...s,
       avgEr: s.reach > 0 ? ((s.engagement / s.reach) * 100).toFixed(2) : "0.00"
@@ -5416,6 +5174,7 @@ function SubjectAnalyticsPage() {
         </div>
       )}
 
+      {/* Search and Sort Input */}
       <div className="glass-card" style={{ marginBottom: "1.5rem", padding: "1rem" }}>
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
           <input 
@@ -5439,56 +5198,108 @@ function SubjectAnalyticsPage() {
             </select>
 
             <select className="form-select" style={{ width: "auto" }} value={sortOrder} onChange={e => setSortOrder(e.target.value)}>
-              <option value="desc">High to Low (Z-A)</option>
-              <option value="asc">Low to High (A-Z)</option>
+              <option value="desc">High → Low (Z-A)</option>
+              <option value="asc">Low → High (A-Z)</option>
             </select>
           </div>
         </div>
       </div>
 
+      {/* Subject Cards Overview */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1.25rem", marginBottom: "2rem" }}>
         {paginatedSubjects.map(s => (
-            <div key={s.name} className="glass-card" style={{ borderLeft: "4px solid var(--accent-cyan)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-                <div style={{
-                  width: "42px",
-                  height: "42px",
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-emerald))",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 700,
-                  color: "#fff",
-                  fontSize: "1.1rem"
-                }}>
-                  {s.name.charAt(0)}
-                </div>
-
-                <div>
-                  <h3 style={{ fontSize: "1.15rem", fontWeight: 700 }}>{s.name}</h3>
-                  <span className="chip chip-subject" style={{ fontSize: "0.75rem" }}>
-                    Featured in {s.contentCount} posts
-                  </span>
-                </div>
+          <div key={s.name} className="glass-card" style={{ borderLeft: "4px solid var(--accent-cyan)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+              <div style={{
+                width: "42px",
+                height: "42px",
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-emerald))",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+                color: "#fff",
+                fontSize: "1.1rem"
+              }}>
+                {s.name.charAt(0)}
               </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.88rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-muted)" }}>Total Views:</span>
-                  <strong style={{ color: "var(--accent-cyan)" }}>{s.impressions.toLocaleString()}</strong>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-muted)" }}>Total Reach:</span>
-                  <strong>{s.reach.toLocaleString()}</strong>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-muted)" }}>Avg Engagement Rate:</span>
-                  <strong style={{ color: "var(--accent-emerald)" }}>{s.avgEr}%</strong>
-                </div>
+              <div>
+                <h3 style={{ fontSize: "1.15rem", fontWeight: 700 }}>{s.name}</h3>
+                <span className="chip chip-subject" style={{ fontSize: "0.75rem" }}>
+                  Featured in {s.contentCount} posts
+                </span>
               </div>
             </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.88rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--text-muted)" }}>Total Views:</span>
+                <strong style={{ color: "var(--accent-cyan)" }}>{s.impressions.toLocaleString()}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--text-muted)" }}>Total Reach:</span>
+                <strong>{s.reach.toLocaleString()}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--text-muted)" }}>Avg Engagement Rate:</span>
+                <strong style={{ color: "var(--accent-emerald)" }}>{s.avgEr}%</strong>
+              </div>
+            </div>
+          </div>
         ))}
+      </div>
+
+      {/* Formatted Subject Data Table */}
+      <div className="table-container">
+        <table className="custom-table">
+          <thead>
+            <tr>
+              <th>Featured Person / Subject</th>
+              <th>Contents Featured</th>
+              <th>Total Views (Impressions)</th>
+              <th>Total Reach</th>
+              <th>Total Engagement</th>
+              <th>Avg Engagement Rate %</th>
+              <th>Top Performing Post Caption</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedSubjects.map(s => (
+              <tr key={s.name}>
+                <td>
+                  <span className="chip chip-subject" style={{ fontSize: "0.85rem", padding: "0.3rem 0.75rem" }}>
+                    👤 {s.name}
+                  </span>
+                </td>
+                <td style={{ fontWeight: 600 }}>{s.contentCount} contents</td>
+                <td style={{ fontWeight: 700, color: "var(--accent-cyan)" }}>
+                  {s.impressions.toLocaleString()}
+                </td>
+                <td>{s.reach.toLocaleString()}</td>
+                <td style={{ color: "var(--accent-emerald)", fontWeight: 600 }}>
+                  {s.engagement.toLocaleString()}
+                </td>
+                <td style={{ fontWeight: 700, color: "var(--accent-primary)" }}>
+                  {s.avgEr}%
+                </td>
+                <td style={{ maxWidth: "240px" }}>
+                  <div style={{ fontSize: "0.85rem", fontStyle: "italic", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    "{s.topPost ? s.topPost.caption : 'N/A'}"
+                  </div>
+                </td>
+              </tr>
+            ))}
+
+            {sortedSubjects.length === 0 && (
+              <tr>
+                <td colSpan="7" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
+                  No subject records found in your content table.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
 
       {totalPages > 1 && (
@@ -5521,195 +5332,9 @@ function SubjectAnalyticsPage() {
       )}
     </div>
   );
-}
+};
 
-
-// Paginated Subjects/Talent Table Component (25 subjects per page)
-function SubjectsTable({ subjects, combined, pct, fmt, grads }) {
-  const [currentPage, setCurrentPage] = React.useState(1);
-  const subjectsPerPage = 25;
-  
-  const totalPages = Math.ceil(subjects.length / subjectsPerPage);
-  const startIndex = (currentPage - 1) * subjectsPerPage;
-  const endIndex = startIndex + subjectsPerPage;
-  const paginatedSubjects = subjects.slice(startIndex, endIndex);
-
-  const handlePreviousPage = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1);
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-  };
-
-  return (
-    <div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        {paginatedSubjects.map(function(s, si){
-          var actualIndex = startIndex + si;
-          var initials = s.name.split(" ").map(function(n){return n[0]||"";}).join("").toUpperCase().slice(0,2);
-          var sharePct = pct(s.imp, combined.imp||1);
-          var barPct = subjects[0].imp > 0 ? (s.imp / subjects[0].imp) * 100 : 0;
-          var isTop = actualIndex === 0;
-          var isLow = actualIndex === subjects.length - 1 && subjects.length > 1;
-          return (
-            <div key={s.name} className="subject-person-row" style={{ background:isLow?"rgba(244,63,94,0.03)":"" }}>
-              <div className="subject-avatar" style={{ background:grads[actualIndex % grads.length] }}>{initials}</div>
-              <div className="subject-info">
-                <div style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                  <div className="subject-name">{s.name}</div>
-                  {isTop && <span style={{ fontSize:"0.62rem", fontWeight:800, color:"#F59E0B", padding:"0.1rem 0.35rem", borderRadius:"4px", background:"rgba(245,158,11,0.12)", border:"1px solid rgba(245,158,11,0.25)" }}>Top</span>}
-                  {isLow && <span style={{ fontSize:"0.62rem", fontWeight:800, color:"#F43F5E", padding:"0.1rem 0.35rem", borderRadius:"4px", background:"rgba(244,63,94,0.12)", border:"1px solid rgba(244,63,94,0.25)" }}>Lowest</span>}
-                </div>
-                <div className="subject-meta">{s.count} appearance{s.count!==1?"s":""} â€” {sharePct}% of total impressions</div>
-              </div>
-              <div style={{ textAlign:"right", marginRight:"1rem", flexShrink:0 }}>
-                <div style={{ fontSize:"1.05rem", fontWeight:800, fontFamily:"var(--font-heading)", color:isLow?"#F43F5E":"var(--text-main)" }}>{fmt(s.imp)}</div>
-                <div style={{ fontSize:"0.72rem", color:"var(--text-muted)" }}>impressions</div>
-              </div>
-              <div className="subject-bar-wrap">
-                <div className="progress-bar-track">
-                  <div className="progress-bar-fill" style={{ width:barPct+"%", background:isLow?"linear-gradient(90deg,#F43F5E,#F97316)":grads[actualIndex % grads.length] }}></div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div style={{ marginTop: "1rem", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0.75rem 1rem", borderRadius:"var(--radius-sm)", background:"rgba(255,255,255,0.03)", border:"1px solid var(--border-color)" }}>
-          <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", fontWeight:600 }}>
-            Page {currentPage} of {totalPages} â€¢ Showing {paginatedSubjects.length} of {subjects.length} subjects
-          </div>
-          <div style={{ display:"flex", gap:"0.5rem" }}>
-            <button
-              onClick={handlePreviousPage}
-              disabled={currentPage === 1}
-              className="btn btn-secondary btn-sm"
-              style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
-            >
-              â† Previous
-            </button>
-            <button
-              onClick={handleNextPage}
-              disabled={currentPage === totalPages}
-              className="btn btn-secondary btn-sm"
-              style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
-            >
-              Next â†’
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Talent Gap Analysis */}
-      {subjects.length > 1 && (
-        <div style={{ marginTop:"1rem", padding:"0.85rem 1rem", background:"rgba(244,63,94,0.05)", borderRadius:"var(--radius-sm)", border:"1px solid rgba(244,63,94,0.15)" }}>
-          <p style={{ fontSize:"0.8rem", color:"var(--text-muted)", lineHeight:1.6, margin:0 }}>
-            <strong style={{ color:"#F43F5E" }}>Talent gap: </strong>
-            {subjects[0].name} drives {pct(subjects[0].imp,combined.imp||1)}% of impressions vs {subjects[subjects.length-1].name} at {pct(subjects[subjects.length-1].imp,combined.imp||1)}%.
-            Increase {subjects[0].name} frequency and test collaborations to cross-pollinate audiences.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Paginated Posts Table Component (30 posts per page)
-function PostsTable({ posts, color, fmtDate, fmt, calcEr, erGrade, pIcon, pColor }) {
-  const [currentPage, setCurrentPage] = React.useState(1);
-  const postsPerPage = 30;
-  
-  const totalPages = Math.ceil(posts.length / postsPerPage);
-  const startIndex = (currentPage - 1) * postsPerPage;
-  const endIndex = startIndex + postsPerPage;
-  const paginatedPosts = posts.slice(startIndex, endIndex);
-
-  const handlePreviousPage = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1);
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-  };
-
-  return (
-    <div>
-      <div style={{ borderRadius:"var(--radius-md)", border:"1px solid "+color+"20", overflowX:"auto", marginBottom:"1rem" }}>
-        <table className="custom-table" style={{ fontSize:"0.79rem" }}>
-          <thead>
-            <tr>
-              <th>Health / #</th><th>Date</th><th>Caption</th>
-              <th style={{ color:"var(--accent-cyan)" }}>Views</th>
-              <th>Reach</th>
-              <th style={{ color:"var(--accent-emerald)" }}>Eng.</th>
-              <th>Likes</th><th>Cmts</th><th>Shares</th><th>Saves</th>
-              <th style={{ color:"var(--accent-primary)" }}>ER%</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedPosts.map(function(post,pi){
-              var actualIndex = startIndex + pi;
-              var pe=(post.likes||0)+(post.comments||0)+(post.shares||0)+(post.saves||0);
-              var er=calcEr(pe,post.reach||0);
-              var isBest=actualIndex===0; var isWorst=actualIndex===posts.length-1&&posts.length>1;
-              return (
-                <tr key={post.id||pi} style={{ background:isBest?color+"0A":isWorst?"rgba(244,63,94,0.04)":"" }}>
-                  <td style={{ fontWeight:700, color:isBest?color:isWorst?"#F43F5E":"var(--text-subtle)", fontSize:"0.8rem" }}>{isBest?"Best":isWorst?"Low":"#"+(actualIndex+1)}</td>
-                  <td style={{ whiteSpace:"nowrap", color:"var(--text-muted)" }}>{fmtDate(post.uploadDate)}</td>
-                  <td><span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block", maxWidth:"170px" }} title={post.caption||""}>{(post.caption||"-").substring(0,55)}{post.caption&&post.caption.length>55?"...":""}</span></td>
-                  <td style={{ fontWeight:700, color:"var(--accent-cyan)" }}>{fmt(post.impressions||0)}</td>
-                  <td>{fmt(post.reach||0)}</td>
-                  <td style={{ fontWeight:700, color:"var(--accent-emerald)" }}>{fmt(pe)}</td>
-                  <td>{fmt(post.likes||0)}</td>
-                  <td>{fmt(post.comments||0)}</td>
-                  <td>{fmt(post.shares||0)}</td>
-                  <td>{fmt(post.saves||0)}</td>
-                  <td style={{ fontWeight:700, color:erGrade(er).color }}>{er}%</td>
-                  <td><span className={"badge badge-"+((post.status||"uploaded").toLowerCase())}>{post.status||"-"}</span></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0.75rem 1rem", borderRadius:"var(--radius-sm)", background:"rgba(255,255,255,0.03)", border:"1px solid var(--border-color)" }}>
-          <div style={{ fontSize:"0.78rem", color:"var(--text-muted)", fontWeight:600 }}>
-            Page {currentPage} of {totalPages} â€¢ Showing {paginatedPosts.length} of {posts.length} posts
-          </div>
-          <div style={{ display:"flex", gap:"0.5rem" }}>
-            <button
-              onClick={handlePreviousPage}
-              disabled={currentPage === 1}
-              className="btn btn-secondary btn-sm"
-              style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
-            >
-              â† Previous
-            </button>
-            <button
-              onClick={handleNextPage}
-              disabled={currentPage === totalPages}
-              className="btn btn-secondary btn-sm"
-              style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
-            >
-              Next â†’
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ReportSummaryPage - Separated Post Status Analytics Report
-// ReportSummaryPage â€” Separated Status Analytics Report (Uploaded, Scheduled, Privated, Deleted)
+// ReportSummaryPage — Separated Status Analytics Report (Uploaded, Scheduled, Privated, Deleted)
 function ReportSummaryPage() {
   const { activeAccount, contents, editAccount, canEdit } = React.useContext(window.VaultContext);
   const [reportStatusScope, setReportStatusScope] = React.useState("ALL"); // 'ALL', 'Uploaded', 'Scheduled', 'Privated', 'Deleted'
@@ -5746,7 +5371,7 @@ function ReportSummaryPage() {
     [contents, activeAccount.id]
   );
 
-  // â”€â”€â”€ HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── HELPERS ────────────────────────────────────────────────────────────────
   const fmt = n => {
     if (!n && n !== 0) return "0";
     if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + "M";
@@ -5755,7 +5380,7 @@ function ReportSummaryPage() {
   };
   const fmtFull = n => (n || 0).toLocaleString();
   const fmtDate = d => {
-    if (!d) return "â€”";
+    if (!d) return "—";
     const [y, m, day] = d.split("-");
     return new Date(+y, +m - 1, +day).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
@@ -5776,7 +5401,7 @@ function ReportSummaryPage() {
     return { label: "Needs Improvement", color: "#F43F5E" };
   };
 
-  // â”€â”€â”€ SEPARATED METRICS BY STATUS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── SEPARATED METRICS BY STATUS ────────────────────────────────────────────
   const statusGroups = React.useMemo(() => {
     const uploadedList = accountContents.filter(c => (c.status || "Uploaded") === "Uploaded");
     const scheduledList = accountContents.filter(c => c.status === "Scheduled");
@@ -5824,10 +5449,10 @@ function ReportSummaryPage() {
     };
 
     return {
-      uploaded: computeGroup(uploadedList, "Uploaded (Published)", "#10B981", "ðŸŸ¢"),
-      scheduled: computeGroup(scheduledList, "Scheduled (Pipeline)", "#06B6D4", "â±ï¸"),
-      privated: computeGroup(privatedList, "Privated (Hidden)", "#F59E0B", "ðŸ”’"),
-      deleted: computeGroup(deletedList, "Deleted (Archived)", "#F43F5E", "ðŸ—‘ï¸"),
+      uploaded: computeGroup(uploadedList, "Uploaded (Published)", "#10B981", "🟢"),
+      scheduled: computeGroup(scheduledList, "Scheduled (Pipeline)", "#06B6D4", "⏱️"),
+      privated: computeGroup(privatedList, "Privated (Hidden)", "#F59E0B", "🔒"),
+      deleted: computeGroup(deletedList, "Deleted (Archived)", "#F43F5E", "🗑️"),
       totalCount: accountContents.length
     };
   }, [accountContents]);
@@ -5865,7 +5490,7 @@ function ReportSummaryPage() {
     };
   }, [accountContents, reportStatusScope]);
 
-  // â”€â”€â”€ PER-PLATFORM STATUS METRICS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── PER-PLATFORM STATUS METRICS ────────────────────────────────────────────
   const platformData = React.useMemo(() => {
     const map = {};
     accountContents.forEach(c => {
@@ -5926,7 +5551,7 @@ function ReportSummaryPage() {
     }).sort((a, b) => b.imp - a.imp);
   }, [accountContents, combined]);
 
-  // â”€â”€â”€ SUBJECT METRICS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── SUBJECT METRICS ────────────────────────────────────────────────────────
   const subjectData = React.useMemo(() => {
     const map = {};
     accountContents.forEach(c => {
@@ -5945,10 +5570,10 @@ function ReportSummaryPage() {
   const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   const erInfo = erLabel(combined.er);
 
-  // â”€â”€â”€ DOCX EXPORT (SEPARATED BY STATUS) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── DOCX EXPORT (SEPARATED BY STATUS) ──────────────────────────────────────
   const handleExportDocx = () => {
     if (!window.docx) {
-      alert("DOCX library not loaded â€” please check your internet connection and refresh.");
+      alert("DOCX library not loaded — please check your internet connection and refresh.");
       return;
     }
     const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle } = window.docx;
@@ -5985,12 +5610,12 @@ function ReportSummaryPage() {
         spacing: { after: 100 }
       }),
       new Paragraph({
-        children: [new TextRun({ text: `${activeAccount.name} â€” Multi-Status Segregated Audit`, bold: true, size: 28, color: "06B6D4" })],
+        children: [new TextRun({ text: `${activeAccount.name} — Multi-Status Segregated Audit`, bold: true, size: 28, color: "06B6D4" })],
         alignment: AlignmentType.CENTER,
         spacing: { after: 80 }
       }),
       new Paragraph({
-        children: [new TextRun({ text: `Generated: ${today}  Â·  Post Statuses Segregated: Uploaded, Scheduled, Privated, Deleted`, size: 18, color: "6B7280", italics: true })],
+        children: [new TextRun({ text: `Generated: ${today}  ·  Post Statuses Segregated: Uploaded, Scheduled, Privated, Deleted`, size: 18, color: "6B7280", italics: true })],
         alignment: AlignmentType.CENTER,
         spacing: { after: 400 }
       }),
@@ -5998,10 +5623,10 @@ function ReportSummaryPage() {
       // Executive Summary & Status Breakdown
       H1("EXECUTIVE SUMMARY & STATUS DISTRIBUTION", "06B6D4"),
       P(`${activeAccount.name} has a total inventory of ${statusGroups.totalCount} content pieces across ${platformData.length} platform(s). Content is partitioned into 4 distinct lifecycles: Uploaded (${statusGroups.uploaded.count}), Scheduled (${statusGroups.scheduled.count}), Privated (${statusGroups.privated.count}), and Deleted (${statusGroups.deleted.count}).`),
-      B("Uploaded (Published)", `${statusGroups.uploaded.count} posts (${pct(statusGroups.uploaded.count, statusGroups.totalCount)}%) â€” ${fmtFull(statusGroups.uploaded.imp)} impressions`),
-      B("Scheduled (Queue)", `${statusGroups.scheduled.count} posts (${pct(statusGroups.scheduled.count, statusGroups.totalCount)}%) â€” Upcoming scheduled pipeline`),
-      B("Privated (Hidden)", `${statusGroups.privated.count} posts (${pct(statusGroups.privated.count, statusGroups.totalCount)}%) â€” ${fmtFull(statusGroups.privated.imp)} historical impressions`),
-      B("Deleted (Archived)", `${statusGroups.deleted.count} posts (${pct(statusGroups.deleted.count, statusGroups.totalCount)}%) â€” ${fmtFull(statusGroups.deleted.imp)} archived impressions`),
+      B("Uploaded (Published)", `${statusGroups.uploaded.count} posts (${pct(statusGroups.uploaded.count, statusGroups.totalCount)}%) — ${fmtFull(statusGroups.uploaded.imp)} impressions`),
+      B("Scheduled (Queue)", `${statusGroups.scheduled.count} posts (${pct(statusGroups.scheduled.count, statusGroups.totalCount)}%) — Upcoming scheduled pipeline`),
+      B("Privated (Hidden)", `${statusGroups.privated.count} posts (${pct(statusGroups.privated.count, statusGroups.totalCount)}%) — ${fmtFull(statusGroups.privated.imp)} historical impressions`),
+      B("Deleted (Archived)", `${statusGroups.deleted.count} posts (${pct(statusGroups.deleted.count, statusGroups.totalCount)}%) — ${fmtFull(statusGroups.deleted.imp)} archived impressions`),
 
       // Chapter 1: Uploaded Content Performance
       H1("CHAPTER 1: UPLOADED (PUBLISHED) LIVE PERFORMANCE", "10B981"),
@@ -6009,15 +5634,15 @@ function ReportSummaryPage() {
       B("Live Posts Published", `${statusGroups.uploaded.count}`),
       B("Total Live Impressions", `${fmtFull(statusGroups.uploaded.imp)} views`),
       B("Total Live Reach", `${fmtFull(statusGroups.uploaded.reach)} unique viewers`),
-      B("Total Engagement", `${fmtFull(statusGroups.uploaded.eng)} (Likes ${fmtFull(statusGroups.uploaded.lik)} Â· Comments ${fmtFull(statusGroups.uploaded.com)} Â· Shares ${fmtFull(statusGroups.uploaded.sha)} Â· Saves ${fmtFull(statusGroups.uploaded.sav)})`),
+      B("Total Engagement", `${fmtFull(statusGroups.uploaded.eng)} (Likes ${fmtFull(statusGroups.uploaded.lik)} · Comments ${fmtFull(statusGroups.uploaded.com)} · Shares ${fmtFull(statusGroups.uploaded.sha)} · Saves ${fmtFull(statusGroups.uploaded.sav)})`),
       B("Live Engagement Rate", `${statusGroups.uploaded.er}% (${erLabel(statusGroups.uploaded.er).label})`),
       B("Average Views / Live Post", `${fmtFull(statusGroups.uploaded.avgImp)}`),
-      B("Impression / Reach Ratio", `${statusGroups.uploaded.ir}Ã—`),
+      B("Impression / Reach Ratio", `${statusGroups.uploaded.ir}×`),
 
       H2("Top Performing Live Content (Uploaded)", "10B981"),
       ...statusGroups.uploaded.items.slice(0, 5).map((c, i) => {
         const eng = (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0);
-        return B(`#${i + 1} [${c.platform}] ${fmtDate(c.uploadDate)}`, `"${(c.caption || "").substring(0, 70)}â€¦" Â· ${fmtFull(c.impressions || 0)} views Â· ${fmtFull(eng)} engagements Â· ER ${erOf(eng, c.reach || 0)}%`);
+        return B(`#${i + 1} [${c.platform}] ${fmtDate(c.uploadDate)}`, `"${(c.caption || "").substring(0, 70)}…" · ${fmtFull(c.impressions || 0)} views · ${fmtFull(eng)} engagements · ER ${erOf(eng, c.reach || 0)}%`);
       }),
 
       // Chapter 2: Scheduled Content Pipeline
@@ -6025,7 +5650,7 @@ function ReportSummaryPage() {
       P(`This section details the upcoming scheduled content queued across all accounts and platforms.`),
       B("Total Queued Posts", `${statusGroups.scheduled.count}`),
       ...statusGroups.scheduled.items.map((c, i) => {
-        return B(`Queue #${i + 1} [${c.platform}] Scheduled: ${fmtDate(c.uploadDate)}`, `"${(c.caption || "").substring(0, 80)}â€¦" Â· Tags: ${(c.hashtags || []).join(" ")}`);
+        return B(`Queue #${i + 1} [${c.platform}] Scheduled: ${fmtDate(c.uploadDate)}`, `"${(c.caption || "").substring(0, 80)}…" · Tags: ${(c.hashtags || []).join(" ")}`);
       }),
 
       // Chapter 3: Privated Content
@@ -6033,7 +5658,7 @@ function ReportSummaryPage() {
       P(`Audit of content removed from public visibility but maintained in internal records.`),
       B("Total Privated Posts", `${statusGroups.privated.count}`),
       ...statusGroups.privated.items.map((c, i) => {
-        return B(`Hidden #${i + 1} [${c.platform}]`, `"${(c.caption || "").substring(0, 80)}â€¦" Â· Historical Views: ${fmtFull(c.impressions || 0)}`);
+        return B(`Hidden #${i + 1} [${c.platform}]`, `"${(c.caption || "").substring(0, 80)}…" · Historical Views: ${fmtFull(c.impressions || 0)}`);
       }),
 
       // Chapter 4: Deleted Content History
@@ -6041,7 +5666,7 @@ function ReportSummaryPage() {
       P(`Historical registry of deleted content items.`),
       B("Total Deleted Posts", `${statusGroups.deleted.count}`),
       ...statusGroups.deleted.items.map((c, i) => {
-        return B(`Archived #${i + 1} [${c.platform}]`, `"${(c.caption || "").substring(0, 80)}â€¦" Â· Archived Views: ${fmtFull(c.impressions || 0)}`);
+        return B(`Archived #${i + 1} [${c.platform}]`, `"${(c.caption || "").substring(0, 80)}…" · Archived Views: ${fmtFull(c.impressions || 0)}`);
       }),
 
       // Chapter 5: Platform Breakdown
@@ -6050,7 +5675,7 @@ function ReportSummaryPage() {
 
     platformData.forEach((pl, idx) => {
       children.push(H2(`PLATFORM ${idx + 1}: ${pl.name.toUpperCase()}`, pColor(pl.name).replace("#", "")));
-      children.push(B("Status Breakdown", `Uploaded: ${pl.uploaded.length} Â· Scheduled: ${pl.scheduled.length} Â· Privated: ${pl.privated.length} Â· Deleted: ${pl.deleted.length}`));
+      children.push(B("Status Breakdown", `Uploaded: ${pl.uploaded.length} · Scheduled: ${pl.scheduled.length} · Privated: ${pl.privated.length} · Deleted: ${pl.deleted.length}`));
       children.push(B("Total Platform Impressions", `${fmtFull(pl.imp)} (${pl.impShare}% of all platforms)`));
       children.push(B("Engagement Rate", `${pl.er}% (${erLabel(pl.er).label})`));
     });
@@ -6062,7 +5687,7 @@ function ReportSummaryPage() {
     children.push(B("3. Status Hygiene", `Review ${statusGroups.privated.count} privated and ${statusGroups.deleted.count} deleted posts to learn why they were taken down.`));
 
     children.push(new Paragraph({
-      children: [new TextRun({ text: `\nGenerated by SocioVault Multi-Status Analytics Engine Â· ${today}`, size: 16, color: "484F58", italics: true })],
+      children: [new TextRun({ text: `\nGenerated by SocioVault Multi-Status Analytics Engine · ${today}`, size: 16, color: "484F58", italics: true })],
       alignment: AlignmentType.CENTER,
       spacing: { before: 600 }
     }));
@@ -6078,45 +5703,45 @@ function ReportSummaryPage() {
     });
   };
 
-  // â”€â”€â”€ LOCAL REPORT GENERATOR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── LOCAL REPORT GENERATOR ────────────────────────────────────────────────
   const generateStatusAnalysis = () => {
     setReportLoading(true);
     setTimeout(() => {
-      let output = `ðŸ“Š SOCIOVAULT SEPARATED STATUS PERFORMANCE AUDIT\n`;
+      let output = `📊 SOCIOVAULT SEPARATED STATUS PERFORMANCE AUDIT\n`;
       output += `Account: ${activeAccount.name}\n`;
       output += `Generated: ${new Date().toLocaleString()}\n`;
-      output += `â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n\n`;
+      output += `════════════════════════════════════════════════════════════════\n\n`;
 
       output += `1. LIFECYCLE DISTRIBUTION\n`;
       output += `----------------------------------------------------------------\n`;
-      output += `â€¢ Total Content: ${statusGroups.totalCount} items\n`;
-      output += `â€¢ ðŸŸ¢ Uploaded (Live): ${statusGroups.uploaded.count} posts (${pct(statusGroups.uploaded.count, statusGroups.totalCount)}%)\n`;
-      output += `â€¢ â±ï¸ Scheduled (Queue): ${statusGroups.scheduled.count} posts (${pct(statusGroups.scheduled.count, statusGroups.totalCount)}%)\n`;
-      output += `â€¢ ðŸ”’ Privated (Hidden): ${statusGroups.privated.count} posts (${pct(statusGroups.privated.count, statusGroups.totalCount)}%)\n`;
-      output += `â€¢ ðŸ—‘ï¸ Deleted (Archived): ${statusGroups.deleted.count} posts (${pct(statusGroups.deleted.count, statusGroups.totalCount)}%)\n\n`;
+      output += `• Total Content: ${statusGroups.totalCount} items\n`;
+      output += `• 🟢 Uploaded (Live): ${statusGroups.uploaded.count} posts (${pct(statusGroups.uploaded.count, statusGroups.totalCount)}%)\n`;
+      output += `• ⏱️ Scheduled (Queue): ${statusGroups.scheduled.count} posts (${pct(statusGroups.scheduled.count, statusGroups.totalCount)}%)\n`;
+      output += `• 🔒 Privated (Hidden): ${statusGroups.privated.count} posts (${pct(statusGroups.privated.count, statusGroups.totalCount)}%)\n`;
+      output += `• 🗑️ Deleted (Archived): ${statusGroups.deleted.count} posts (${pct(statusGroups.deleted.count, statusGroups.totalCount)}%)\n\n`;
 
       output += `2. UPLOADED (LIVE) PERFORMANCE\n`;
       output += `----------------------------------------------------------------\n`;
-      output += `â€¢ Total Live Impressions: ${fmtFull(statusGroups.uploaded.imp)}\n`;
-      output += `â€¢ Total Live Reach: ${fmtFull(statusGroups.uploaded.reach)}\n`;
-      output += `â€¢ Live Engagement Rate: ${statusGroups.uploaded.er}% (${erLabel(statusGroups.uploaded.er).label})\n`;
-      output += `â€¢ Average Views / Post: ${fmtFull(statusGroups.uploaded.avgImp)}\n\n`;
+      output += `• Total Live Impressions: ${fmtFull(statusGroups.uploaded.imp)}\n`;
+      output += `• Total Live Reach: ${fmtFull(statusGroups.uploaded.reach)}\n`;
+      output += `• Live Engagement Rate: ${statusGroups.uploaded.er}% (${erLabel(statusGroups.uploaded.er).label})\n`;
+      output += `• Average Views / Post: ${fmtFull(statusGroups.uploaded.avgImp)}\n\n`;
 
       output += `3. SCHEDULED PIPELINE\n`;
       output += `----------------------------------------------------------------\n`;
-      output += `â€¢ Queued posts waiting for release: ${statusGroups.scheduled.count}\n\n`;
+      output += `• Queued posts waiting for release: ${statusGroups.scheduled.count}\n\n`;
 
       output += `4. PRIVATED & DELETED CONTENT AUDIT\n`;
       output += `----------------------------------------------------------------\n`;
-      output += `â€¢ Privated Posts: ${statusGroups.privated.count} (Historical Views: ${fmtFull(statusGroups.privated.imp)})\n`;
-      output += `â€¢ Deleted Posts: ${statusGroups.deleted.count} (Archived Views: ${fmtFull(statusGroups.deleted.imp)})\n\n`;
+      output += `• Privated Posts: ${statusGroups.privated.count} (Historical Views: ${fmtFull(statusGroups.privated.imp)})\n`;
+      output += `• Deleted Posts: ${statusGroups.deleted.count} (Archived Views: ${fmtFull(statusGroups.deleted.imp)})\n\n`;
 
       setReportOutput(output);
       setReportLoading(false);
     }, 300);
   };
 
-  // â”€â”€â”€ REUSABLE SUB-COMPONENTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── REUSABLE SUB-COMPONENTS ───────────────────────────────────────────────
   const MetricPill = ({ value, color, bg }) => (
     <span style={{ display: "inline-flex", alignItems: "center", padding: "0.15rem 0.6rem", borderRadius: "6px", background: bg || `${color}18`, border: `1px solid ${color}30`, fontSize: "0.82rem", fontWeight: 700, color, fontFamily: "var(--font-heading)", whiteSpace: "nowrap" }}>
       {value}
@@ -6126,7 +5751,7 @@ function ReportSummaryPage() {
   const EngBar = ({ label, icon, value, pctVal, color, gradient }) => (
     <div className="engagement-bar-row">
       <div className="engagement-bar-label">
-        <span style={{ color, marginRight: "4px" }}>â€¢</span>
+        <span style={{ color, marginRight: "4px" }}>•</span>
         {label}
       </div>
       <div className="engagement-bar-track">
@@ -6156,42 +5781,42 @@ function ReportSummaryPage() {
   return (
     <div className="page-container">
 
-      {/* â•â• HERO â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* ══ HERO ══════════════════════════════════════════════════════════════ */}
       <div className="report-hero">
         <div className="report-hero-content">
           <div className="report-title-eyebrow">
-            ðŸ“Š Separated Post Status Report & Analytics
+            📊 Separated Post Status Report & Analytics
           </div>
           <h1 className="report-hero-title">{activeAccount.name}</h1>
           <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: "0.5rem" }}>
             {activeAccount.description || "Segmented reports for Uploaded, Scheduled, Privated, and Deleted posts"}
           </p>
           <div className="report-hero-meta">
-            <div className="report-hero-meta-item"><span>ðŸ“… {combined.dateFrom ? `${fmtDate(combined.dateFrom)} â€” ${fmtDate(combined.dateTo)}` : "All-Time"}</span></div>
-            <div className="report-hero-meta-item"><span>ðŸ“‘ {accountContents.length} total posts</span></div>
-            <div className="report-hero-meta-item"><span>ðŸ“¡ {platformData.length} platform{platformData.length !== 1 ? "s" : ""}</span></div>
-            <div className="report-hero-meta-item"><span>ðŸ•’ Generated {today}</span></div>
+            <div className="report-hero-meta-item"><span>📅 {combined.dateFrom ? `${fmtDate(combined.dateFrom)} — ${fmtDate(combined.dateTo)}` : "All-Time"}</span></div>
+            <div className="report-hero-meta-item"><span>📑 {accountContents.length} total posts</span></div>
+            <div className="report-hero-meta-item"><span>📡 {platformData.length} platform{platformData.length !== 1 ? "s" : ""}</span></div>
+            <div className="report-hero-meta-item"><span>🕒 Generated {today}</span></div>
           </div>
         </div>
         <div style={{ position: "absolute", top: "1.5rem", right: "1.5rem", display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
           <button className="btn btn-export btn-sm" onClick={handleExportDocx} title="Export segregated report as .docx">
-            ðŸ“¥ Export Segregated DOCX
+            📥 Export Segregated DOCX
           </button>
           <button className="btn btn-secondary btn-sm" onClick={generateStatusAnalysis}>
-            âš¡ Generate Audit Text
+            ⚡ Generate Audit Text
           </button>
           <button className="btn btn-print btn-sm" onClick={() => window.print()}>
-            ðŸ–¨ï¸ Print
+            🖨️ Print
           </button>
         </div>
       </div>
 
-      {/* â•â• POST STATUS SCOPE SWITCHER â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* ══ POST STATUS SCOPE SWITCHER ═══════════════════════════════════════ */}
       <div className="glass-card" style={{ padding: "1.25rem 1.5rem", marginBottom: "1.5rem", background: "rgba(15, 23, 42, 0.8)", border: "1px solid var(--border-color)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
           <div>
             <div style={{ fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--accent-cyan)" }}>
-              ðŸ“‘ Report View Mode
+              📑 Report View Mode
             </div>
             <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: "0.2rem 0 0 0" }}>
               Select Status View Scope
@@ -6204,7 +5829,7 @@ function ReportSummaryPage() {
               className={`btn btn-sm ${reportStatusScope === "ALL" ? "btn-primary" : "btn-secondary"}`}
               style={{ fontWeight: 700, borderRadius: "8px" }}
             >
-              ðŸŒ Full Separated Report ({statusGroups.totalCount})
+              🌐 Full Separated Report ({statusGroups.totalCount})
             </button>
             <button
               onClick={() => setReportStatusScope("Uploaded")}
@@ -6217,7 +5842,7 @@ function ReportSummaryPage() {
                 border: "1px solid rgba(16, 185, 129, 0.3)"
               }}
             >
-              ðŸŸ¢ Uploaded ({statusGroups.uploaded.count})
+              🟢 Uploaded ({statusGroups.uploaded.count})
             </button>
             <button
               onClick={() => setReportStatusScope("Scheduled")}
@@ -6230,7 +5855,7 @@ function ReportSummaryPage() {
                 border: "1px solid rgba(6, 182, 212, 0.3)"
               }}
             >
-              â±ï¸ Scheduled ({statusGroups.scheduled.count})
+              ⏱️ Scheduled ({statusGroups.scheduled.count})
             </button>
             <button
               onClick={() => setReportStatusScope("Privated")}
@@ -6243,7 +5868,7 @@ function ReportSummaryPage() {
                 border: "1px solid rgba(245, 158, 11, 0.3)"
               }}
             >
-              ðŸ”’ Privated ({statusGroups.privated.count})
+              🔒 Privated ({statusGroups.privated.count})
             </button>
             <button
               onClick={() => setReportStatusScope("Deleted")}
@@ -6256,17 +5881,17 @@ function ReportSummaryPage() {
                 border: "1px solid rgba(244, 63, 94, 0.3)"
               }}
             >
-              ðŸ—‘ï¸ Deleted ({statusGroups.deleted.count})
+              🗑️ Deleted ({statusGroups.deleted.count})
             </button>
           </div>
         </div>
       </div>
 
-      {/* â•â• AUDIT TEXT OUTPUT (IF GENERATED) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* ══ AUDIT TEXT OUTPUT (IF GENERATED) ════════════════════════════════ */}
       {reportOutput && (
         <div className="glass-card" style={{ padding: "1.5rem", marginBottom: "1.5rem", background: "rgba(7, 9, 15, 0.9)", border: "1px solid var(--accent-cyan)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-            <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--accent-cyan)", margin: 0 }}>âš¡ Status Audit Summary Output</h3>
+            <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--accent-cyan)", margin: 0 }}>⚡ Status Audit Summary Output</h3>
             <button className="btn btn-secondary btn-sm" onClick={() => setReportOutput("")}>Close</button>
           </div>
           <pre style={{ whiteSpace: "pre-wrap", fontFamily: "JetBrains Mono, monospace", fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>
@@ -6275,13 +5900,13 @@ function ReportSummaryPage() {
         </div>
       )}
 
-      {/* â•â• STATUS SUMMARY CARDS STRIP â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* ══ STATUS SUMMARY CARDS STRIP ══════════════════════════════════════ */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
         {[
-          { key: "Uploaded", title: "ðŸŸ¢ Uploaded (Live)", count: statusGroups.uploaded.count, pct: pct(statusGroups.uploaded.count, statusGroups.totalCount), imp: statusGroups.uploaded.imp, er: statusGroups.uploaded.er, color: "#10B981" },
-          { key: "Scheduled", title: "â±ï¸ Scheduled (Queue)", count: statusGroups.scheduled.count, pct: pct(statusGroups.scheduled.count, statusGroups.totalCount), imp: statusGroups.scheduled.imp, er: statusGroups.scheduled.er, color: "#06B6D4" },
-          { key: "Privated", title: "ðŸ”’ Privated (Hidden)", count: statusGroups.privated.count, pct: pct(statusGroups.privated.count, statusGroups.totalCount), imp: statusGroups.privated.imp, er: statusGroups.privated.er, color: "#F59E0B" },
-          { key: "Deleted", title: "ðŸ—‘ï¸ Deleted (Archived)", count: statusGroups.deleted.count, pct: pct(statusGroups.deleted.count, statusGroups.totalCount), imp: statusGroups.deleted.imp, er: statusGroups.deleted.er, color: "#F43F5E" }
+          { key: "Uploaded", title: "🟢 Uploaded (Live)", count: statusGroups.uploaded.count, pct: pct(statusGroups.uploaded.count, statusGroups.totalCount), imp: statusGroups.uploaded.imp, er: statusGroups.uploaded.er, color: "#10B981" },
+          { key: "Scheduled", title: "⏱️ Scheduled (Queue)", count: statusGroups.scheduled.count, pct: pct(statusGroups.scheduled.count, statusGroups.totalCount), imp: statusGroups.scheduled.imp, er: statusGroups.scheduled.er, color: "#06B6D4" },
+          { key: "Privated", title: "🔒 Privated (Hidden)", count: statusGroups.privated.count, pct: pct(statusGroups.privated.count, statusGroups.totalCount), imp: statusGroups.privated.imp, er: statusGroups.privated.er, color: "#F59E0B" },
+          { key: "Deleted", title: "🗑️ Deleted (Archived)", count: statusGroups.deleted.count, pct: pct(statusGroups.deleted.count, statusGroups.totalCount), imp: statusGroups.deleted.imp, er: statusGroups.deleted.er, color: "#F43F5E" }
         ].map(st => (
           <div
             key={st.key}
@@ -6309,10 +5934,10 @@ function ReportSummaryPage() {
         ))}
       </div>
 
-      {/* â•â• SECTION 1: UPLOADED (PUBLISHED) REPORT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* ══ SECTION 1: UPLOADED (PUBLISHED) REPORT ═══════════════════════════ */}
       {(reportStatusScope === "ALL" || reportStatusScope === "Uploaded") && (
         <div className="report-section" style={{ marginBottom: "2rem", borderLeft: "4px solid #10B981" }}>
-          <SectionHead emoji="ðŸŸ¢" label="Live Published Content (Uploaded) â€” Deep Performance" colorBg="rgba(16, 185, 129, 0.1)" colorBorder="rgba(16, 185, 129, 0.3)" />
+          <SectionHead emoji="🟢" label="Live Published Content (Uploaded) — Deep Performance" colorBg="rgba(16, 185, 129, 0.1)" colorBorder="rgba(16, 185, 129, 0.3)" />
           
           <div className="report-section-body">
             {/* Live KPI Grid */}
@@ -6323,7 +5948,7 @@ function ReportSummaryPage() {
                 { label: "Live Engagement", value: fmt(statusGroups.uploaded.eng), sub: "likes+comments+shares+saves", color: "#10B981", g: "linear-gradient(90deg,#10B981,#34D399)" },
                 { label: "Live ER Rate", value: statusGroups.uploaded.er + "%", sub: erLabel(statusGroups.uploaded.er).label, color: erLabel(statusGroups.uploaded.er).color, g: "linear-gradient(90deg,#10B981,#34D399)" },
                 { label: "Avg Views / Post", value: fmt(statusGroups.uploaded.avgImp), sub: "per published post", color: "#F59E0B", g: "linear-gradient(90deg,#F59E0B,#FCD34D)" },
-                { label: "Imp / Reach Ratio", value: statusGroups.uploaded.ir + "Ã—", sub: "retention index", color: "#EC4899", g: "linear-gradient(90deg,#EC4899,#F9A8D4)" }
+                { label: "Imp / Reach Ratio", value: statusGroups.uploaded.ir + "×", sub: "retention index", color: "#EC4899", g: "linear-gradient(90deg,#EC4899,#F9A8D4)" }
               ].map((k, i) => (
                 <div key={i} className="report-kpi-card">
                   <div className="kpi-accent-bar" style={{ background: k.g }}></div>
@@ -6390,10 +6015,10 @@ function ReportSummaryPage() {
         </div>
       )}
 
-      {/* â•â• SECTION 2: SCHEDULED CONTENT PIPELINE â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* ══ SECTION 2: SCHEDULED CONTENT PIPELINE ═══════════════════════════ */}
       {(reportStatusScope === "ALL" || reportStatusScope === "Scheduled") && (
         <div className="report-section" style={{ marginBottom: "2rem", borderLeft: "4px solid #06B6D4" }}>
-          <SectionHead emoji="â±ï¸" label="Scheduled Content Pipeline & Upcoming Queue" colorBg="rgba(6, 182, 212, 0.1)" colorBorder="rgba(6, 182, 212, 0.3)" />
+          <SectionHead emoji="⏱️" label="Scheduled Content Pipeline & Upcoming Queue" colorBg="rgba(6, 182, 212, 0.1)" colorBorder="rgba(6, 182, 212, 0.3)" />
           
           <div className="report-section-body">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
@@ -6413,7 +6038,7 @@ function ReportSummaryPage() {
                   <div key={item.id || idx} style={{ padding: "1.1rem", borderRadius: "var(--radius-md)", background: "rgba(6, 182, 212, 0.05)", border: "1px solid rgba(6, 182, 212, 0.2)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
                       <span style={{ fontWeight: 700, color: pColor(item.platform) }}>{item.platform}</span>
-                      <span style={{ fontSize: "0.75rem", color: "var(--accent-cyan)", fontWeight: 700 }}>ðŸ“… {fmtDate(item.uploadDate)}</span>
+                      <span style={{ fontSize: "0.75rem", color: "var(--accent-cyan)", fontWeight: 700 }}>📅 {fmtDate(item.uploadDate)}</span>
                     </div>
                     <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", lineHeight: 1.4, marginBottom: "0.75rem" }}>
                       "{item.caption}"
@@ -6437,10 +6062,10 @@ function ReportSummaryPage() {
         </div>
       )}
 
-      {/* â•â• SECTION 3: PRIVATED CONTENT AUDIT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* ══ SECTION 3: PRIVATED CONTENT AUDIT ════════════════════════════════ */}
       {(reportStatusScope === "ALL" || reportStatusScope === "Privated") && (
         <div className="report-section" style={{ marginBottom: "2rem", borderLeft: "4px solid #F59E0B" }}>
-          <SectionHead emoji="ðŸ”’" label="Privated & Hidden Content Audit" colorBg="rgba(245, 158, 11, 0.1)" colorBorder="rgba(245, 158, 11, 0.3)" />
+          <SectionHead emoji="🔒" label="Privated & Hidden Content Audit" colorBg="rgba(245, 158, 11, 0.1)" colorBorder="rgba(245, 158, 11, 0.3)" />
           
           <div className="report-section-body">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
@@ -6495,10 +6120,10 @@ function ReportSummaryPage() {
         </div>
       )}
 
-      {/* â•â• SECTION 4: DELETED / ARCHIVED CONTENT LOG â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* ══ SECTION 4: DELETED / ARCHIVED CONTENT LOG ════════════════════════ */}
       {(reportStatusScope === "ALL" || reportStatusScope === "Deleted") && (
         <div className="report-section" style={{ marginBottom: "2rem", borderLeft: "4px solid #F43F5E" }}>
-          <SectionHead emoji="ðŸ—‘ï¸" label="Deleted / Archived Content Log" colorBg="rgba(244, 63, 94, 0.1)" colorBorder="rgba(244, 63, 94, 0.3)" />
+          <SectionHead emoji="🗑️" label="Deleted / Archived Content Log" colorBg="rgba(244, 63, 94, 0.1)" colorBorder="rgba(244, 63, 94, 0.3)" />
           
           <div className="report-section-body">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
@@ -6553,9 +6178,9 @@ function ReportSummaryPage() {
         </div>
       )}
 
-      {/* â•â• SECTION 5: PER-PLATFORM STATUS AUDIT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* ══ SECTION 5: PER-PLATFORM STATUS AUDIT ═════════════════════════════ */}
       <div className="report-section" style={{ marginBottom: "2rem" }}>
-        <SectionHead emoji="ðŸ“¡" label="Per-Platform Status Breakdown & Distribution" colorBg="rgba(139, 92, 246, 0.1)" colorBorder="rgba(139, 92, 246, 0.3)" />
+        <SectionHead emoji="📡" label="Per-Platform Status Breakdown & Distribution" colorBg="rgba(139, 92, 246, 0.1)" colorBorder="rgba(139, 92, 246, 0.3)" />
         
         <div className="report-section-body">
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.25rem" }}>
@@ -6606,32 +6231,38 @@ function ReportSummaryPage() {
 
 window.ReportSummaryPage = ReportSummaryPage;
 
+// CollaboratorsPage Component - Share Link & Permission Manager
+window.CollaboratorsPage = function() {
+  const { user } = React.useContext(window.AuthContext);
+  const { 
+    activeAccount, 
+    addCollaborator, 
+    updateCollaboratorRole, 
+    removeCollaborator, 
+    isOwner 
+  } = React.useContext(window.VaultContext);
 
-
-function CollaboratorsPage() {
-  const { activeAccount, addCollaborator, removeCollaborator, isOwner } = React.useContext(VaultContext);
   const [inviteEmail, setInviteEmail] = React.useState("");
   const [inviteRole, setInviteRole] = React.useState("editor");
   const [copied, setCopied] = React.useState(false);
-  const [inviting, setInviting] = React.useState(false);
 
-  if (!activeAccount) return <div className="page-container"><p>No active account selected.</p></div>;
+  if (!activeAccount) {
+    return <div className="page-container"><p>No active account selected.</p></div>;
+  }
 
   const shareLink = `${window.location.origin}${window.location.pathname}?vaultToken=${activeAccount.shareToken}`;
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(shareLink).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    });
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
   };
 
-  const handleInvite = async (e) => {
+  const handleAddCollab = (e) => {
     e.preventDefault();
-    setInviting(true);
-    await addCollaborator(activeAccount.id, inviteEmail.trim().toLowerCase(), inviteRole);
+    if (!inviteEmail.trim()) return;
+    addCollaborator(activeAccount.id, inviteEmail.trim().toLowerCase(), inviteRole);
     setInviteEmail("");
-    setInviting(false);
   };
 
   return (
@@ -6639,111 +6270,157 @@ function CollaboratorsPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">{activeAccount.name} - Vault Sharing & Collaborators</h1>
-          <p className="page-subtitle">Invite teammates and share read/edit access to this vault</p>
+          <p className="page-subtitle">Share access with friends, assign Editor or Viewer permissions, and manage collaborator access</p>
         </div>
       </div>
 
-      {/* Share Link Card */}
-      <div className="glass-card" style={{ marginBottom: "1.5rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-          <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, var(--accent-cyan), var(--accent-primary))", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Icon name="link" size={18} color="#fff" />
-          </div>
-          <div>
-            <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "0.1rem" }}> Shareable Vault Link</h3>
-            <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Anyone with this link who is on the collaborators list can access this vault</p>
-          </div>
+      {!isOwner && (
+        <div className="glass-card" style={{ borderLeft: "4px solid var(--accent-cyan)", marginBottom: "1.5rem" }}>
+          <p style={{ color: "var(--accent-cyan)", fontWeight: 600 }}>
+            🤝 Shared Vault: You are currently accessing this vault as a collaborator. Only the Vault Owner ({activeAccount.ownerEmail}) can add or delete collaborators.
+          </p>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-          <input type="text" className="form-input" readOnly value={shareLink} style={{ flex: 1, fontSize: "0.82rem" }} onClick={e => e.target.select()} />
-          <button onClick={handleCopy} className={`btn ${copied ? "btn-secondary" : "btn-primary"}`} style={{ whiteSpace: "nowrap", minWidth: "110px" }}>
-            {copied ? "[OK] Copied!" : " Copy Link"}
+      )}
+
+      {/* Share Link Generator Box */}
+      <div className="glass-card" style={{ marginBottom: "2rem" }}>
+        <h3 style={{ fontSize: "1.15rem", fontWeight: 700, marginBottom: "0.5rem" }}>
+          🔗 Shareable Vault Link
+        </h3>
+        <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: "1rem" }}>
+          Send this unique link to friends so they can open this vault directly.
+        </p>
+
+        <div style={{ display: "flex", gap: "0.75rem" }}>
+          <input 
+            type="text" 
+            className="form-input" 
+            readOnly 
+            value={shareLink}
+            style={{ color: "var(--accent-cyan)", fontWeight: 500 }}
+          />
+          <button onClick={handleCopyLink} className="btn btn-primary" style={{ whiteSpace: "nowrap" }}>
+            <i data-lucide={copied ? "check" : "copy"} style={{ width: "16px", height: "16px" }}></i>
+            {copied ? "Link Copied!" : "Copy Link"}
           </button>
         </div>
-        <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.75rem", background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "0.6rem 0.75rem" }}>
-          i <strong>How it works:</strong> First add the collaborator's email below, then share this link with them. When they open the link and log in, the vault will automatically appear in their account.
-        </p>
       </div>
 
-      {/* Invite Form */}
+      {/* Invite Collaborator by Email Form */}
       {isOwner && (
-        <div className="glass-card" style={{ marginBottom: "1.5rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, var(--accent-emerald), var(--accent-cyan))", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Icon name="user-plus" size={18} color="#fff" />
+        <div className="glass-card" style={{ marginBottom: "2rem" }}>
+          <h3 style={{ fontSize: "1.15rem", fontWeight: 700, marginBottom: "1rem" }}>
+            ✉️ Invite Friend or Collaborator by Email
+          </h3>
+
+          <form onSubmit={handleAddCollab} style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+            <div style={{ flex: 2, minWidth: "240px" }}>
+              <input 
+                type="email" 
+                className="form-input"
+                placeholder="friend@gmail.com"
+                required
+                value={inviteEmail}
+                onChange={e => setInviteEmail(e.target.value)}
+              />
             </div>
-            <h3 style={{ fontSize: "1.05rem", fontWeight: 700 }}>+ Invite Collaborator</h3>
-          </div>
-          <form onSubmit={handleInvite} style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <input
-              type="email"
-              className="form-input"
-              placeholder="collaborator@gmail.com"
-              required
-              value={inviteEmail}
-              onChange={e => setInviteEmail(e.target.value)}
-              style={{ flex: 1, minWidth: "200px" }}
-            />
-            <select className="form-select" value={inviteRole} onChange={e => setInviteRole(e.target.value)} style={{ width: "auto" }}>
-              <option value="editor">Editor (can add/edit content)</option>
-              <option value="viewer">Viewer (read-only)</option>
-            </select>
-            <button type="submit" className="btn btn-primary" disabled={inviting} style={{ minWidth: "120px" }}>
-              {inviting ? "Sending..." : "Grant Access"}
+
+            <div style={{ flex: 1, minWidth: "150px" }}>
+              <select className="form-select" value={inviteRole} onChange={e => setInviteRole(e.target.value)}>
+                <option value="editor">Editor (Can add, edit & delete content)</option>
+                <option value="viewer">Viewer (Read-only access)</option>
+              </select>
+            </div>
+
+            <button type="submit" className="btn btn-primary">
+              Grant Access
             </button>
           </form>
         </div>
       )}
 
-      {/* Collaborators Table */}
-      <div className="glass-card">
-        <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "1rem" }}> Vault Members ({1 + (activeAccount.collaborators || []).length})</h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-          {/* Owner row */}
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.75rem 1rem", background: "rgba(255,255,255,0.04)", borderRadius: "10px", border: "1px solid var(--border-color)" }}>
-            <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, var(--accent-primary), var(--accent-cyan))", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: "0.9rem" }}>
-              {activeAccount.ownerEmail.charAt(0).toUpperCase()}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: "0.92rem" }}> {activeAccount.ownerEmail}</div>
-              <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Account Owner</div>
-            </div>
-            <span className="badge badge-uploaded">Owner</span>
-          </div>
-          {/* Collaborator rows */}
-          {(activeAccount.collaborators || []).map(c => (
-            <div key={c.email} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.75rem 1rem", background: "rgba(255,255,255,0.03)", borderRadius: "10px", border: "1px solid var(--border-color)" }}>
-              <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, var(--accent-emerald), var(--accent-cyan))", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: "0.9rem" }}>
-                {c.email.charAt(0).toUpperCase()}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: "0.92rem" }}> {c.email}</div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Joined {c.joinedAt || "-"}</div>
-              </div>
-              <span className="badge badge-scheduled">{c.role}</span>
-              {isOwner && (
-                <button onClick={() => confirm(`Remove ${c.email} from this vault?`) && removeCollaborator(activeAccount.id, c.email)} className="btn btn-danger btn-icon" title="Remove collaborator">
-                  <Icon name="user-x" size={14} color="" />
-                </button>
-              )}
-            </div>
-          ))}
-          {(activeAccount.collaborators || []).length === 0 && (
-            <div style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)", fontSize: "0.88rem" }}>
-              No collaborators yet. Invite someone using the form above.
-            </div>
-          )}
-        </div>
+      {/* Current Collaborators Table */}
+      <h3 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "1rem" }}>
+        Active Vault Members & Rules ({activeAccount.collaborators.length + 1})
+      </h3>
+
+      <div className="table-container">
+        <table className="custom-table">
+          <thead>
+            <tr>
+              <th>Collaborator Email</th>
+              <th>Role / Permission</th>
+              <th>Joined Date</th>
+              {isOwner && <th>Manage Rules</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {/* Owner Row */}
+            <tr>
+              <td>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: 600 }}>
+                  👑 {activeAccount.ownerEmail}
+                  <span style={{ fontSize: "0.75rem", color: "var(--accent-emerald)" }}>(Vault Owner)</span>
+                </div>
+              </td>
+              <td>
+                <span className="badge badge-uploaded">Owner (Full Control)</span>
+              </td>
+              <td style={{ color: "var(--text-muted)" }}>Primary Owner</td>
+              {isOwner && <td>-</td>}
+            </tr>
+
+            {/* Collaborators Rows */}
+            {activeAccount.collaborators.map(collab => (
+              <tr key={collab.email}>
+                <td style={{ fontWeight: 500 }}>
+                  👤 {collab.email}
+                </td>
+                <td>
+                  {isOwner ? (
+                    <select 
+                      className="form-select"
+                      style={{ padding: "0.3rem 0.6rem", fontSize: "0.82rem", width: "auto" }}
+                      value={collab.role}
+                      onChange={e => updateCollaboratorRole(activeAccount.id, collab.email, e.target.value)}
+                    >
+                      <option value="editor">Editor (Full Edit)</option>
+                      <option value="viewer">Viewer (Read-Only)</option>
+                    </select>
+                  ) : (
+                    <span className={`badge ${collab.role === 'editor' ? 'badge-scheduled' : 'badge-privated'}`}>
+                      {collab.role}
+                    </span>
+                  )}
+                </td>
+                <td style={{ color: "var(--text-muted)" }}>{collab.joinedAt || "Recent"}</td>
+                {isOwner && (
+                  <td>
+                    <button 
+                      onClick={() => {
+                        if (confirm(`Remove collaborator ${collab.email} from this vault?`)) {
+                          removeCollaborator(activeAccount.id, collab.email);
+                        }
+                      }}
+                      className="btn btn-danger btn-icon"
+                      title="Remove Collaborator"
+                    >
+                      <i data-lucide="user-x" style={{ width: "16px", height: "16px" }}></i>
+                    </button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
-}
+};
 
-
-
-// Notes Page â€” Bullet-point note editor per account
-function NotesPage() {
-  const { activeAccount, editAccount, canEdit } = React.useContext(VaultContext);
+// NotesPage Component — Bullet-Point Note Editor per Account
+window.NotesPage = function() {
+  const { activeAccount, editAccount, canEdit } = React.useContext(window.VaultContext);
   const [notes, setNotes] = React.useState(activeAccount?.notes || "");
   const [notesSaving, setNotesSaving] = React.useState(false);
 
@@ -6753,16 +6430,16 @@ function NotesPage() {
     }
   }, [activeAccount?.id]);
 
-  var notesRef = React.useRef(null);
-  var activeAccountRef = React.useRef(null);
-  var canEditRef = React.useRef(null);
+  const notesRef = React.useRef(null);
+  const activeAccountRef = React.useRef(null);
+  const canEditRef = React.useRef(null);
 
   notesRef.current = notes;
   activeAccountRef.current = activeAccount;
   canEditRef.current = canEdit;
 
   React.useEffect(function() {
-    var timeout = setTimeout(async function() {
+    const timeout = setTimeout(async function() {
       if (!activeAccountRef.current || !canEditRef.current || notesRef.current === (activeAccountRef.current.notes || "")) return;
       setNotesSaving(true);
       try {
@@ -6778,30 +6455,30 @@ function NotesPage() {
   if (!activeAccount) {
     return (
       <div className="page-container">
-        <div className="glass-card" style={{ textAlign:"center", padding:"4rem 2rem" }}>
-          <p style={{ color:"var(--text-muted)" }}>No active account selected.</p>
+        <div className="glass-card" style={{ textAlign: "center", padding: "4rem 2rem" }}>
+          <p style={{ color: "var(--text-muted)" }}>No active account selected.</p>
         </div>
       </div>
     );
   }
 
-  var lines = notes.split("\n").map(function(line) { return line.trim(); }).filter(function(l) { return l; }).length;
+  const lines = notes.split("\n").map(function(line) { return line.trim(); }).filter(Boolean).length;
 
   return (
     <div className="page-container">
       <div className="page-header">
         <div>
           <h1 className="page-title">Notes</h1>
-          <p className="page-subtitle">Keep bullet-point notes for {activeAccount.name}. Start each line with â€¢ or -, or just write freely.</p>
+          <p className="page-subtitle">Keep bullet-point notes for {activeAccount.name}. Start each line with • or -, or just write freely.</p>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           {notesSaving && (
-            <div style={{ display:"flex", alignItems:"center", gap:"0.35rem", fontSize:"0.8rem", color:"var(--text-muted)" }}>
-              <Icon name="loader-2" size={14} style={{animation: "spin 0.8s linear infinite"}} />
-              Saving...
+            <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+              <span style={{ animation: "spin 0.8s linear infinite", display: "inline-block" }}>🔄</span>
+              <span>Saving...</span>
             </div>
           )}
-          <span style={{ fontSize:"0.78rem", color:"var(--text-subtle)", paddingLeft:"1rem", borderLeft:"1px solid var(--border-subtle)" }}>
+          <span style={{ fontSize: "0.78rem", color: "var(--text-subtle)", paddingLeft: "1rem", borderLeft: "1px solid var(--border-subtle)" }}>
             {lines} line{lines !== 1 ? "s" : ""}
           </span>
         </div>
@@ -6809,24 +6486,23 @@ function NotesPage() {
 
       <div className="notes-editor-wrap">
         <div className="notes-editor-help">
-          <span>ðŸ’¡ Type â€¢ or - at the start of a line for bullets â€¢ Use Tab to indent</span>
+          <span>💡 Type • or - at the start of a line for bullets • Use Tab to indent</span>
         </div>
         <textarea
           className="notes-editor"
-          placeholder={"â€¢ Key points for " + activeAccount.name + "\nâ€¢ What worked this week\nâ€¢ Ideas for next week\nâ€¢ Collaboration notes"}
+          placeholder={"• Key points for " + activeAccount.name + "\n• What worked this week\n• Ideas for next week\n• Collaboration notes"}
           value={notes}
           onChange={function(e) { setNotes(e.target.value); }}
           onKeyDown={function(e) {
             if (e.key === "Enter" && e.ctrlKey) {
-              // Ctrl+Enter to add bullet
-              var ta = e.currentTarget;
-              var start = ta.selectionStart;
-              var end = ta.selectionEnd;
-              var val = ta.value;
-              var lineStart = val.lastIndexOf("\n", start - 1) + 1;
-              var line = val.substring(lineStart, start);
-              if (!line.match(/^\s*[â€¢\-]\s/)) {
-                var newVal = val.substring(0, start) + "\nâ€¢ " + val.substring(end);
+              const ta = e.currentTarget;
+              const start = ta.selectionStart;
+              const end = ta.selectionEnd;
+              const val = ta.value;
+              const lineStart = val.lastIndexOf("\n", start - 1) + 1;
+              const line = val.substring(lineStart, start);
+              if (!line.match(/^\s*[•\-]\s/)) {
+                const newVal = val.substring(0, start) + "\n• " + val.substring(end);
                 setNotes(newVal);
                 setTimeout(function() { ta.selectionStart = ta.selectionEnd = start + 3; }, 0);
                 e.preventDefault();
@@ -6838,20 +6514,20 @@ function NotesPage() {
         />
       </div>
 
-      <div style={{ marginTop:"1.5rem", fontSize:"0.85rem", color:"var(--text-muted)", lineHeight:1.6 }}>
+      <div style={{ marginTop: "1.5rem", fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: 1.6 }}>
         <p><strong>Tips:</strong></p>
-        <ul style={{ marginLeft:"1.5rem", marginTop:"0.5rem" }}>
-          <li>Start lines with <code style={{ background:"rgba(255,255,255,0.08)", padding:"0.15rem 0.4rem", borderRadius:"4px", fontFamily:"var(--font-mono)", fontSize:"0.8rem" }}>â€¢</code> or <code style={{ background:"rgba(255,255,255,0.08)", padding:"0.15rem 0.4rem", borderRadius:"4px", fontFamily:"var(--font-mono)", fontSize:"0.8rem" }}>-</code> for bullets</li>
+        <ul style={{ marginLeft: "1.5rem", marginTop: "0.5rem" }}>
+          <li>Start lines with <code style={{ background: "rgba(255,255,255,0.08)", padding: "0.15rem 0.4rem", borderRadius: "4px", fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}>•</code> or <code style={{ background: "rgba(255,255,255,0.08)", padding: "0.15rem 0.4rem", borderRadius: "4px", fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}>-</code> for bullets</li>
           <li>Indent with spaces or tabs for sub-bullets</li>
           <li>Your notes are automatically saved to the cloud</li>
         </ul>
       </div>
     </div>
   );
-}
-
+};
 
 // 4. MAIN APP CONTROLLER
+
 function AppContent() {
   const { user, authLoading } = React.useContext(AuthContext);
   const { activeAccountId, activePage, dataLoading } = React.useContext(VaultContext);
@@ -6945,5 +6621,3 @@ function MainApp() {
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<MainApp />);
-
-
