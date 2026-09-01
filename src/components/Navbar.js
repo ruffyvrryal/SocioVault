@@ -14,7 +14,8 @@ window.Navbar = function() {
     undo,
     historyStack,
     lastActionDescription,
-    undoToast
+    undoToast,
+    isSyncingTikTok
   } = React.useContext(window.VaultContext);
 
   const navItems = [
@@ -103,12 +104,31 @@ window.Navbar = function() {
           {/* Right: Actions & User Menu */}
           <div className="user-menu" style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
             
-            {/* ── Global Undo Action Button ── */}
+            {/* Live TikTok Syncing Indicator */}
+            {isSyncingTikTok && (
+              <div style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                padding: "0.35rem 0.7rem",
+                borderRadius: "8px",
+                fontSize: "0.78rem",
+                fontWeight: 700,
+                background: "rgba(37,244,238,0.15)",
+                border: "1px solid rgba(37,244,238,0.4)",
+                color: "#25F4EE"
+              }}>
+                <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>🔄</span>
+                <span>Live Syncing TikTok...</span>
+              </div>
+            )}
+
+            {/* ── Global Undo Action Button (Always Clickable) ── */}
             <button
+              type="button"
               onClick={undo}
-              disabled={!canUndo}
               className={`btn btn-sm ${canUndo ? 'btn-secondary' : ''}`}
-              title={canUndo ? `Undo: ${lastActionDescription} (Ctrl+Z)` : "No actions to undo"}
+              title={canUndo ? `Undo: ${lastActionDescription} (Ctrl+Z)` : "Click to view undo status (Ctrl+Z)"}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -117,28 +137,26 @@ window.Navbar = function() {
                 borderRadius: "8px",
                 fontSize: "0.8rem",
                 fontWeight: 700,
-                opacity: canUndo ? 1 : 0.4,
-                cursor: canUndo ? "pointer" : "not-allowed",
-                background: canUndo ? "linear-gradient(135deg, rgba(139,92,246,0.15), rgba(6,182,212,0.15))" : "rgba(255,255,255,0.03)",
-                border: `1px solid ${canUndo ? "var(--accent-primary)" : "var(--border-color)"}`,
+                cursor: "pointer",
+                background: canUndo ? "linear-gradient(135deg, rgba(139,92,246,0.25), rgba(6,182,212,0.25))" : "rgba(255,255,255,0.05)",
+                border: `1px solid ${canUndo ? "var(--accent-primary)" : "rgba(255,255,255,0.12)"}`,
                 color: canUndo ? "#fff" : "var(--text-muted)",
+                boxShadow: canUndo ? "0 0 12px rgba(139,92,246,0.3)" : "none",
                 transition: "all 0.2s ease"
               }}
             >
               <span style={{ fontSize: "0.95rem" }}>↩️</span>
               <span>Undo</span>
-              {canUndo && (
-                <span style={{
-                  padding: "0.1rem 0.35rem",
-                  borderRadius: "10px",
-                  fontSize: "0.65rem",
-                  background: "var(--accent-primary)",
-                  color: "#fff",
-                  fontWeight: 800
-                }}>
-                  {historyStack.length}
-                </span>
-              )}
+              <span style={{
+                padding: "0.1rem 0.4rem",
+                borderRadius: "10px",
+                fontSize: "0.68rem",
+                background: canUndo ? "var(--accent-primary)" : "rgba(255,255,255,0.1)",
+                color: canUndo ? "#fff" : "var(--text-muted)",
+                fontWeight: 800
+              }}>
+                {historyStack ? historyStack.length : 0}
+              </span>
             </button>
 
             {user && (
@@ -201,8 +219,8 @@ window.Navbar = function() {
           zIndex: 9999,
           padding: "0.85rem 1.25rem",
           borderRadius: "10px",
-          background: undoToast.type === "warning" ? "rgba(244, 63, 94, 0.95)" : "rgba(15, 23, 42, 0.95)",
-          border: `1px solid ${undoToast.type === "warning" ? "#F43F5E" : "var(--accent-cyan)"}`,
+          background: undoToast.type === "warning" ? "rgba(244, 63, 94, 0.95)" : (undoToast.type === "info" ? "rgba(30, 41, 59, 0.95)" : "rgba(15, 23, 42, 0.95)"),
+          border: `1px solid ${undoToast.type === "warning" ? "#F43F5E" : (undoToast.type === "info" ? "var(--accent-primary)" : "var(--accent-emerald)")}`,
           boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
           color: "#fff",
           display: "flex",
@@ -210,9 +228,9 @@ window.Navbar = function() {
           gap: "0.75rem",
           fontSize: "0.88rem",
           fontWeight: 600,
-          animation: "slideUp 0.3s ease-out"
+          animation: "fadeIn 0.2s ease"
         }}>
-          <span>{undoToast.type === "warning" ? "⚠️" : "✨"}</span>
+          <span>{undoToast.type === "warning" ? "⚠️" : (undoToast.type === "info" ? "ℹ️" : "✨")}</span>
           <span>{undoToast.message}</span>
           {canUndo && (
             <button

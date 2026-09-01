@@ -1,4 +1,4 @@
-// AddContentPage Component - Dedicated page for logging content entries with TikTok API Auto-Input
+// AddContentPage Component - Dedicated page for logging content entries with TikTok API Auto-Input & Real-Time Sync
 window.AddContentPage = function() {
   const { activeAccount, addContent, canEdit, setActivePage, fetchTikTokData } = React.useContext(window.VaultContext);
 
@@ -26,6 +26,7 @@ window.AddContentPage = function() {
   const [tiktokLoading, setTiktokLoading] = React.useState(false);
   const [tiktokError, setTiktokError] = React.useState("");
   const [tiktokSuccess, setTiktokSuccess] = React.useState(null);
+  const [helpModalOpen, setHelpModalOpen] = React.useState(false);
 
   if (!activeAccount) {
     return <div className="page-container"><p>No active account selected.</p></div>;
@@ -112,7 +113,11 @@ window.AddContentPage = function() {
       comments: Number(comments) || 0,
       shares: Number(shares) || 0,
       saves: Number(saves) || 0,
-      status
+      status,
+      originalUrl: tiktokSuccess?.originalUrl || (platform === "TikTok" ? tiktokInput : undefined),
+      videoId: tiktokSuccess?.videoId || undefined,
+      thumbnailUrl: tiktokSuccess?.thumbnailUrl || undefined,
+      lastSyncedAt: new Date().toISOString()
     });
 
     setActivePage("content-table");
@@ -120,247 +125,236 @@ window.AddContentPage = function() {
 
   return (
     <div className="page-container">
+      {/* Header with Title */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">Add Content Log</h1>
-          <p className="page-subtitle">Auto-fetch post data via TikTok API or manually log performance metrics for {activeAccount.name}</p>
+          <h1 className="page-title">Add Content Entry</h1>
+          <p className="page-subtitle">Log new content details manually or auto-import in seconds via TikTok API</p>
         </div>
       </div>
 
-      {!canEdit && (
-        <div className="glass-card" style={{ borderLeft: "4px solid var(--accent-amber)", marginBottom: "1.5rem" }}>
-          <p style={{ color: "var(--accent-amber)", fontWeight: 600 }}>
-            🔒 Viewing Mode: You are a Viewer in this shared vault. Only Owners and Editors can log new content.
-          </p>
-        </div>
-      )}
-
-      {/* ══ TIKTOK API AUTO-INPUT PANEL ══ */}
-      {canEdit && (
+      <div style={{ maxWidth: "850px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+        
+        {/* ── TIKTOK API AUTO-INPUT PANEL ── */}
         <div className="glass-card" style={{
-          maxWidth: "800px",
-          margin: "0 auto 1.5rem auto",
-          background: "linear-gradient(135deg, rgba(37, 244, 238, 0.08), rgba(254, 44, 85, 0.08))",
-          border: "1px solid rgba(37, 244, 238, 0.3)"
+          background: "linear-gradient(135deg, rgba(37,244,238,0.08), rgba(254,44,85,0.08))",
+          border: "1px solid rgba(37,244,238,0.25)",
+          borderRadius: "16px",
+          padding: "1.5rem"
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.75rem" }}>
-            <div style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "8px",
-              background: "linear-gradient(135deg, #00F2FE, #FE2C55)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "1.2rem"
-            }}>
-              🎵
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.85rem", flexWrap: "wrap", gap: "0.5rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <div style={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "10px",
+                background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "1.1rem"
+              }}>
+                🎵
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "#fff" }}>
+                  TikTok API Auto-Input & Real-Time Sync
+                </h3>
+                <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                  Paste any TikTok link to auto-fill caption, hashtags, views, likes & metrics
+                </span>
+              </div>
             </div>
-            <div>
-              <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0, color: "var(--text-main)" }}>
-                Auto-Input with TikTok API
-              </h3>
-              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: 0 }}>
-                Paste any TikTok video URL or Video ID to fetch title, hashtags, author, and metrics automatically
-              </p>
-            </div>
+
+            {/* Tutorial / Help Button */}
+            <button
+              type="button"
+              onClick={() => setHelpModalOpen(true)}
+              className="btn btn-sm btn-secondary"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                fontSize: "0.78rem",
+                fontWeight: 700,
+                borderColor: "rgba(37,244,238,0.4)",
+                color: "#25F4EE",
+                background: "rgba(37,244,238,0.1)"
+              }}
+              title="How to use TikTok API & Real-Time Sync"
+            >
+              <span>❓</span>
+              <span>API Guide & Tutorial</span>
+            </button>
           </div>
 
-          <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", marginTop: "1rem" }}>
+          <form onSubmit={handleFetchTikTok} style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <input
               type="text"
               className="form-input"
-              style={{ flex: 1, minWidth: "260px" }}
-              placeholder="e.g. https://www.tiktok.com/@alex_tok/video/7234567890123456789"
+              style={{ flex: 1, minWidth: "260px", background: "rgba(15, 23, 42, 0.6)" }}
+              placeholder="Paste TikTok URL (e.g. https://www.tiktok.com/@user/video/... or https://vt.tiktok.com/...)"
               value={tiktokInput}
               onChange={e => setTiktokInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleFetchTikTok();
-                }
-              }}
+              disabled={tiktokLoading}
             />
             <button
-              type="button"
-              onClick={handleFetchTikTok}
-              disabled={tiktokLoading}
+              type="submit"
               className="btn btn-primary"
+              disabled={tiktokLoading || !tiktokInput.trim()}
               style={{
                 background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
-                color: "#fff",
+                color: "#000",
+                fontWeight: 800,
                 border: "none",
-                fontWeight: 700,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.4rem"
+                minWidth: "160px"
               }}
             >
-              {tiktokLoading ? "⏳ Fetching..." : "⚡ Auto-Fill Data"}
+              {tiktokLoading ? "⏳ Fetching..." : "⚡ Auto-Fill Post"}
             </button>
-          </div>
+          </form>
 
-          {/* Quick Sample Links */}
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "0.6rem", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Try sample:</span>
-            <button
-              type="button"
-              onClick={() => { setTiktokInput("https://www.tiktok.com/@alex_tok/video/7281928491029384719"); }}
-              style={{ fontSize: "0.72rem", color: "var(--accent-cyan)", background: "none", border: "none", textDecoration: "underline", cursor: "pointer" }}
-            >
-              @alex_tok/video/7281928491...
-            </button>
-            <button
-              type="button"
-              onClick={() => { setTiktokInput("https://www.tiktok.com/@techtrends/video/7391029384710293841"); }}
-              style={{ fontSize: "0.72rem", color: "var(--accent-cyan)", background: "none", border: "none", textDecoration: "underline", cursor: "pointer" }}
-            >
-              @techtrends/video/739102...
-            </button>
-          </div>
-
+          {/* Feedback Messages */}
           {tiktokError && (
-            <div style={{ marginTop: "0.75rem", padding: "0.6rem 0.85rem", borderRadius: "6px", background: "rgba(244, 63, 94, 0.15)", border: "1px solid rgba(244, 63, 94, 0.3)", color: "#F43F5E", fontSize: "0.82rem" }}>
+            <div style={{ marginTop: "0.85rem", padding: "0.6rem 0.85rem", borderRadius: "8px", background: "rgba(244, 63, 94, 0.15)", border: "1px solid rgba(244, 63, 94, 0.3)", color: "#F43F5E", fontSize: "0.82rem" }}>
               ⚠️ {tiktokError}
             </div>
           )}
 
           {tiktokSuccess && (
-            <div style={{ marginTop: "0.75rem", padding: "0.75rem 1rem", borderRadius: "8px", background: "rgba(16, 185, 129, 0.12)", border: "1px solid rgba(16, 185, 129, 0.3)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
+            <div style={{ marginTop: "0.85rem", padding: "0.75rem 1rem", borderRadius: "8px", background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", color: "#10B981", fontSize: "0.82rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
               <div>
-                <span style={{ color: "#10B981", fontWeight: 700, fontSize: "0.85rem" }}>
-                  ✅ Successfully imported from TikTok!
-                </span>
-                <p style={{ margin: "0.2rem 0 0 0", fontSize: "0.78rem", color: "var(--text-secondary)" }}>
-                  Captured: {tiktokSuccess.caption.substring(0, 60)}... ({tiktokSuccess.impressions.toLocaleString()} views, {tiktokSuccess.likes.toLocaleString()} likes)
-                </p>
+                ✨ <strong>Success!</strong> Auto-filled video: <em>"{tiktokSuccess.caption?.substring(0, 35)}..."</em> ({tiktokSuccess.impressions?.toLocaleString()} views, {tiktokSuccess.likes?.toLocaleString()} likes).
               </div>
-              <span style={{ fontSize: "0.72rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "#10B981", color: "#fff", fontWeight: 700 }}>
-                All fields filled ↓
-              </span>
+              <span className="badge badge-uploaded" style={{ fontSize: "0.7rem" }}>Real-Time Live Ready</span>
             </div>
           )}
         </div>
-      )}
 
-      {/* ══ CONTENT LOG FORM ══ */}
-      <div className="glass-card" style={{ maxWidth: "800px", margin: "0 auto" }}>
-        <form onSubmit={handleSubmit}>
-          
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" }}>
-            <div className="form-group">
-              <label className="form-label">Upload / Scheduled Date</label>
-              <input 
-                type="date" 
-                className="form-input" 
+        {/* ── MANUAL / DETAILED LOGGING FORM ── */}
+        <div className="glass-card" style={{ padding: "2rem" }}>
+          <form onSubmit={handleSubmit}>
+            
+            {/* Row 1: Date, Time & Platform */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.25rem", marginBottom: "1.25rem" }}>
+              <div className="form-group">
+                <label className="form-label">Upload Date</label>
+                <input 
+                  type="date" 
+                  className="form-input" 
+                  required 
+                  value={uploadDate} 
+                  onChange={e => setUploadDate(e.target.value)} 
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Upload Time</label>
+                <input 
+                  type="time" 
+                  className="form-input" 
+                  value={uploadTime} 
+                  onChange={e => setUploadTime(e.target.value)} 
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Platform</label>
+                <select 
+                  className="form-select" 
+                  value={platform} 
+                  onChange={e => setPlatform(e.target.value)}
+                >
+                  <option value="TikTok">TikTok</option>
+                  <option value="Instagram">Instagram</option>
+                  <option value="YouTube">YouTube</option>
+                  <option value="X (Twitter)">X (Twitter)</option>
+                  <option value="Facebook">Facebook</option>
+                  <option value="Threads">Threads</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Row 2: Content Type & Status */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", marginBottom: "1.25rem" }}>
+              <div className="form-group">
+                <label className="form-label">Content Type</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="e.g. Video, Reels, Carousel, Short..." 
+                  value={contentType} 
+                  onChange={e => setContentType(e.target.value)} 
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Post Status</label>
+                <select 
+                  className="form-select" 
+                  value={status} 
+                  onChange={e => setStatus(e.target.value)}
+                >
+                  <option value="Uploaded">Uploaded (Live Post)</option>
+                  <option value="Scheduled">Scheduled</option>
+                  <option value="Privated">Privated</option>
+                  <option value="Deleted">Deleted</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Row 3: Caption Textarea */}
+            <div className="form-group" style={{ marginBottom: "1.25rem" }}>
+              <label className="form-label">Caption / Post Description</label>
+              <textarea 
+                className="form-textarea" 
+                rows="3" 
+                placeholder="Enter post caption or story text..." 
                 required 
-                value={uploadDate} 
-                disabled={!canEdit} 
-                onChange={e => setUploadDate(e.target.value)} 
-              />
+                value={caption} 
+                onChange={e => setCaption(e.target.value)}
+              ></textarea>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Upload Time</label>
-              <input 
-                type="time" 
-                className="form-input" 
-                disabled={!canEdit} 
-                value={uploadTime}
-                onChange={e => setUploadTime(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" }}>
-            <div className="form-group">
-              <label className="form-label">Platform</label>
-              <select 
-                className="form-select" 
-                value={platform} 
-                disabled={!canEdit} 
-                onChange={e => setPlatform(e.target.value)}
-              >
-                <option value="TikTok">TikTok</option>
-                <option value="Instagram">Instagram</option>
-                <option value="YouTube">YouTube</option>
-                <option value="X (Twitter)">X (Twitter)</option>
-                <option value="Facebook">Facebook</option>
-                <option value="Threads">Threads</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Content Type</label>
+            {/* Row 4: Hashtags */}
+            <div className="form-group" style={{ marginBottom: "1.25rem" }}>
+              <label className="form-label">Hashtags (separated by spaces or commas)</label>
               <input 
                 type="text" 
                 className="form-input" 
-                placeholder="e.g. Video, Reels, Vlog, Carousel..." 
-                disabled={!canEdit} 
-                value={contentType} 
-                onChange={e => setContentType(e.target.value)} 
+                placeholder="#tiktok #trending #social" 
+                value={hashtagsInput} 
+                onChange={e => setHashtagsInput(e.target.value)} 
               />
             </div>
-          </div>
 
-          <div className="form-group">
-            <label className="form-label">Caption / Post Text</label>
-            <textarea 
-              className="form-textarea" 
-              rows="3" 
-              placeholder="Enter post caption or video title..." 
-              required 
-              disabled={!canEdit} 
-              value={caption} 
-              onChange={e => setCaption(e.target.value)}
-            ></textarea>
-          </div>
+            {/* Row 5: Multi-Subject Selector */}
+            <div className="form-group" style={{ marginBottom: "1.5rem" }}>
+              <label className="form-label">Subjects / People Featured</label>
+              <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="Type person's name (e.g. Sarah, Jordan, Alex)..." 
+                  value={subjectInput} 
+                  onChange={e => setSubjectInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddSubject();
+                    }
+                  }} 
+                />
+                <button type="button" onClick={handleAddSubject} className="btn btn-secondary">
+                  Add Subject
+                </button>
+              </div>
 
-          <div className="form-group">
-            <label className="form-label">Hashtags (space or comma separated)</label>
-            <input 
-              type="text" 
-              className="form-input" 
-              placeholder="e.g. #tiktok #tech #gadgets #viral" 
-              disabled={!canEdit} 
-              value={hashtagsInput} 
-              onChange={e => setHashtagsInput(e.target.value)} 
-            />
-          </div>
-
-          {/* Multi-Subject Featured Input */}
-          <div className="form-group">
-            <label className="form-label">Subject / People Featured (Input multiple people inside this content)</label>
-            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
-              <input 
-                type="text" 
-                className="form-input" 
-                placeholder="Type person's name (e.g. Sarah, Alex, Jordan)..." 
-                disabled={!canEdit} 
-                value={subjectInput} 
-                onChange={e => setSubjectInput(e.target.value)} 
-                onKeyDown={e => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddSubject();
-                  }
-                }} 
-              />
-              <button 
-                type="button" 
-                onClick={handleAddSubject} 
-                className="btn btn-secondary" 
-                disabled={!canEdit}
-              >
-                Add Person
-              </button>
-            </div>
-
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-              {subjectsList.map(name => (
-                <span key={name} className="chip chip-subject" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
-                  👤 {name}
-                  {canEdit && (
+              {/* Subject Chips */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                {subjectsList.map(name => (
+                  <span key={name} className="chip chip-subject" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                    👤 {name}
                     <button 
                       type="button" 
                       onClick={() => handleRemoveSubject(name)} 
@@ -369,113 +363,66 @@ window.AddContentPage = function() {
                     >
                       ✕
                     </button>
-                  )}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <hr style={{ borderColor: "var(--border-color)", margin: "1.5rem 0" }} />
-
-          {/* Granular Metrics Input */}
-          <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "1rem" }}>Content Performance Metrics</h3>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "1rem" }}>
-            <div className="form-group">
-              <label className="form-label">Impressions (Views)</label>
-              <input 
-                type="number" 
-                className="form-input" 
-                min="0" 
-                disabled={!canEdit} 
-                value={impressions} 
-                onChange={e => setImpressions(e.target.value)} 
-              />
+                  </span>
+                ))}
+              </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Reach (Unique Viewers)</label>
-              <input 
-                type="number" 
-                className="form-input" 
-                min="0" 
-                disabled={!canEdit} 
-                value={reach} 
-                onChange={e => setReach(e.target.value)} 
-              />
+            <hr style={{ borderColor: "var(--border-color)", margin: "1.5rem 0" }} />
+
+            {/* Performance Metrics Grid */}
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1rem" }}>
+              Performance Metrics
+            </h3>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "0.85rem", marginBottom: "1.75rem" }}>
+              <div className="form-group">
+                <label className="form-label">Impressions</label>
+                <input type="number" className="form-input" min="0" placeholder="0" value={impressions} onChange={e => setImpressions(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Reach</label>
+                <input type="number" className="form-input" min="0" placeholder="0" value={reach} onChange={e => setReach(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Likes</label>
+                <input type="number" className="form-input" min="0" placeholder="0" value={likes} onChange={e => setLikes(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Comments</label>
+                <input type="number" className="form-input" min="0" placeholder="0" value={comments} onChange={e => setComments(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Shares</label>
+                <input type="number" className="form-input" min="0" placeholder="0" value={shares} onChange={e => setShares(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Saves</label>
+                <input type="number" className="form-input" min="0" placeholder="0" value={saves} onChange={e => setSaves(e.target.value)} />
+              </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Likes</label>
-              <input 
-                type="number" 
-                className="form-input" 
-                min="0" 
-                disabled={!canEdit} 
-                value={likes} 
-                onChange={e => setLikes(e.target.value)} 
-              />
+            {/* Action Buttons */}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+              <button 
+                type="button" 
+                onClick={() => setActivePage("content-table")} 
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" style={{ minWidth: "140px" }}>
+                💾 Save Entry
+              </button>
             </div>
-
-            <div className="form-group">
-              <label className="form-label">Comments</label>
-              <input 
-                type="number" 
-                className="form-input" 
-                min="0" 
-                disabled={!canEdit} 
-                value={comments} 
-                onChange={e => setComments(e.target.value)} 
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Shares</label>
-              <input 
-                type="number" 
-                className="form-input" 
-                min="0" 
-                disabled={!canEdit} 
-                value={shares} 
-                onChange={e => setShares(e.target.value)} 
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Saves</label>
-              <input 
-                type="number" 
-                className="form-input" 
-                min="0" 
-                disabled={!canEdit} 
-                value={saves} 
-                onChange={e => setSaves(e.target.value)} 
-              />
-            </div>
-          </div>
-
-          <div className="form-group" style={{ marginTop: "1rem" }}>
-            <label className="form-label">Post Status</label>
-            <select 
-              className="form-select" 
-              disabled={!canEdit} 
-              value={status} 
-              onChange={e => setStatus(e.target.value)}
-            >
-              <option value="Uploaded">Uploaded</option>
-              <option value="Scheduled">Scheduled</option>
-              <option value="Privated">Privated</option>
-              <option value="Deleted">Deleted</option>
-            </select>
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "2rem" }}>
-            <button type="button" onClick={() => setActivePage("content-table")} className="btn btn-secondary">Cancel</button>
-            {canEdit && <button type="submit" className="btn btn-primary">Save Content Log</button>}
-          </div>
-
-        </form>
+          </form>
+        </div>
       </div>
+
+      {/* ── Interactive TikTok Help Guide Modal ── */}
+      {window.TikTokHelpModal && (
+        <window.TikTokHelpModal isOpen={helpModalOpen} onClose={() => setHelpModalOpen(false)} />
+      )}
     </div>
   );
 };
