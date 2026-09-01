@@ -2216,7 +2216,6 @@ function AddContentPage() {
 
 // CONTENT TABLE PAGE (WITH WEEKLY GRID TABLE & DETAILED VIEW)
 // ContentTablePage Component - Formatted Interactive Content Table with TikTok API Auto-Import & Remove All
-// ContentTablePage Component - Formatted Interactive Content Table with TikTok API Auto-Import & Remove All
 window.ContentTablePage = function() {
   const {
     activeAccount,
@@ -2358,7 +2357,7 @@ window.ContentTablePage = function() {
     setEditingContent(null);
   };
 
-  // â”€â”€ TikTok Quick Fetch Handler â”€â”€
+  // ── TikTok Quick Fetch Handler ──
   const handleFetchTikTokModal = async () => {
     if (!tiktokUrlInput.trim()) {
       setTiktokFetchError("Please enter a TikTok URL or Video ID");
@@ -2387,7 +2386,7 @@ window.ContentTablePage = function() {
     setTiktokPreview(null);
   };
 
-  // â”€â”€ Remove All Confirmation Handler â”€â”€
+  // ── Remove All Confirmation Handler ──
   const handleConfirmRemoveAll = () => {
     removeAllContents(activeAccount.id);
     setRemoveAllModalOpen(false);
@@ -2398,7 +2397,7 @@ window.ContentTablePage = function() {
       {/* Header with Title & Top Action Bar */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">{activeAccount.name} â€” Content Logs</h1>
+          <h1 className="page-title">{activeAccount.name} — Content Logs</h1>
           <p className="page-subtitle">Interactive database of published, scheduled, privated, and deleted posts</p>
         </div>
 
@@ -2417,12 +2416,12 @@ window.ContentTablePage = function() {
                 }}
                 title="Import TikTok video automatically using TikTok API"
               >
-                <span>ðŸŽµ Import from TikTok</span>
+                <span>🎵 Import from TikTok</span>
               </button>
 
               {/* Add Content Button */}
               <button onClick={() => setActivePage("add-content")} className="btn btn-primary">
-                <span>âž• Add Content</span>
+                <span>➕ Add Content</span>
               </button>
 
               {/* Remove All Content Button */}
@@ -2438,7 +2437,7 @@ window.ContentTablePage = function() {
                   }}
                   title="Remove all content records for this account (Undoable)"
                 >
-                  <span>ðŸ—‘ï¸ Remove All Content</span>
+                  <span>🗑️ Remove All Content</span>
                 </button>
               )}
             </>
@@ -2473,10 +2472,10 @@ window.ContentTablePage = function() {
 
             <select className="form-select" style={{ width: "auto" }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
               <option value="ALL">All Statuses</option>
-              <option value="Uploaded">ðŸŸ¢ Uploaded</option>
-              <option value="Scheduled">â±ï¸ Scheduled</option>
-              <option value="Privated">ðŸ”’ Privated</option>
-              <option value="Deleted">ðŸ—‘ï¸ Deleted</option>
+              <option value="Uploaded">🟢 Uploaded</option>
+              <option value="Scheduled">⏱️ Scheduled</option>
+              <option value="Privated">🔒 Privated</option>
+              <option value="Deleted">🗑️ Deleted</option>
             </select>
 
             <select className="form-select" style={{ width: "auto" }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
@@ -2519,7 +2518,7 @@ window.ContentTablePage = function() {
 
               return (
                 <tr key={item.id}>
-                  <td style={{ whiteSpace: "nowrap", fontWeight: 500 }}>{item.uploadDate || "â€”"}</td>
+                  <td style={{ whiteSpace: "nowrap", fontWeight: 500 }}>{item.uploadDate || "—"}</td>
                   <td>
                     <span className="chip" style={{
                       background: item.platform === "TikTok" ? "rgba(37,244,238,0.15)" : "rgba(255,255,255,0.06)",
@@ -2544,7 +2543,7 @@ window.ContentTablePage = function() {
                   <td>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
                       {(item.subjects || []).map(s => (
-                        <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}>ðŸ‘¤ {s}</span>
+                        <span key={s} className="chip chip-subject" style={{ fontSize: "0.75rem" }}>👤 {s}</span>
                       ))}
                     </div>
                   </td>
@@ -2570,7 +2569,7 @@ window.ContentTablePage = function() {
                           className="btn btn-secondary btn-icon"
                           title="Edit Content Entry"
                         >
-                          <span>âœï¸</span>
+                          <span>✏️</span>
                         </button>
                         <button 
                           onClick={() => {
@@ -2579,7 +2578,7 @@ window.ContentTablePage = function() {
                           className="btn btn-danger btn-icon"
                           title="Delete Content Entry"
                         >
-                          <span>ðŸ—‘ï¸</span>
+                          <span>🗑️</span>
                         </button>
                       </div>
                     </td>
@@ -2599,13 +2598,13 @@ window.ContentTablePage = function() {
         </table>
       </div>
 
-      {/* â•â• TIKTOK QUICK IMPORT MODAL â•â• */}
+      {/* ══ TIKTOK QUICK IMPORT MODAL ══ */}
       {tiktokModalOpen && (
         <div className="modal-overlay" onClick={() => setTiktokModalOpen(false)}>
           <div className="modal-content" style={{ maxWidth: "600px", width: "90%" }} onClick={e => e.stopPropagation()}>
             <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span style={{ fontSize: "1.5rem" }}>ðŸŽµ</span>
+                <span style={{ fontSize: "1.5rem" }}>🎵</span>
                 <h2 className="modal-title" style={{ margin: 0, fontSize: "1.3rem", fontWeight: 700 }}>Import from TikTok API</h2>
               </div>
               <button 
@@ -2614,7 +2613,7 @@ window.ContentTablePage = function() {
                 className="btn btn-secondary btn-icon"
                 style={{ width: "32px", height: "32px" }}
               >
-                âœ•
+                ✕
               </button>
             </div>
 
@@ -2644,7 +2643,7 @@ window.ContentTablePage = function() {
 
             {tiktokFetchError && (
               <div style={{ padding: "0.6rem 0.85rem", borderRadius: "6px", background: "rgba(244,63,94,0.15)", color: "#F43F5E", fontSize: "0.82rem", marginBottom: "1rem" }}>
-                âš ï¸ {tiktokFetchError}
+                ⚠️ {tiktokFetchError}
               </div>
             )}
 
@@ -2692,7 +2691,7 @@ window.ContentTablePage = function() {
                   className="btn btn-primary"
                   style={{ background: "linear-gradient(135deg, #10B981, #06B6D4)", color: "#fff", border: "none" }}
                 >
-                  âž• Add to Content Table
+                  ➕ Add to Content Table
                 </button>
               )}
             </div>
@@ -2700,13 +2699,13 @@ window.ContentTablePage = function() {
         </div>
       )}
 
-      {/* â•â• REMOVE ALL CONTENT CONFIRMATION MODAL â•â• */}
+      {/* ══ REMOVE ALL CONTENT CONFIRMATION MODAL ══ */}
       {removeAllModalOpen && (
         <div className="modal-overlay" onClick={() => setRemoveAllModalOpen(false)}>
           <div className="modal-content" style={{ maxWidth: "480px", width: "90%" }} onClick={e => e.stopPropagation()}>
             <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
               <div style={{ width: "54px", height: "54px", borderRadius: "50%", background: "rgba(244,63,94,0.15)", color: "#F43F5E", fontSize: "1.8rem", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem auto" }}>
-                ðŸ—‘ï¸
+                🗑️
               </div>
               <h2 style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--text-main)", margin: "0 0 0.5rem 0" }}>
                 Remove All Content?
@@ -2717,7 +2716,7 @@ window.ContentTablePage = function() {
             </div>
 
             <div style={{ padding: "0.75rem 1rem", borderRadius: "8px", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.25)", fontSize: "0.82rem", color: "var(--accent-primary-light)", marginBottom: "1.5rem" }}>
-              ðŸ’¡ <strong>Don't worry:</strong> You can immediately restore everything anytime by clicking the <strong>Undo</strong> button or pressing <strong>Ctrl+Z</strong>.
+              💡 <strong>Don't worry:</strong> You can immediately restore everything anytime by clicking the <strong>Undo</strong> button or pressing <strong>Ctrl+Z</strong>.
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
@@ -2737,7 +2736,7 @@ window.ContentTablePage = function() {
         </div>
       )}
 
-      {/* â•â• EDIT CONTENT MODAL â•â• */}
+      {/* ══ EDIT CONTENT MODAL ══ */}
       {editingContent && (
         <div className="modal-overlay" onClick={() => setEditingContent(null)}>
           <div className="modal-content" style={{ maxWidth: "800px", width: "90%", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
@@ -2750,7 +2749,7 @@ window.ContentTablePage = function() {
                 style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}
                 title="Close"
               >
-                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>âœ•</span>
+                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>✕</span>
               </button>
             </div>
 
@@ -2805,6 +2804,84 @@ window.ContentTablePage = function() {
                 ></textarea>
               </div>
 
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label className="form-label">Hashtags (space or comma separated)</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  value={editingContent.hashtagsInput} 
+                  onChange={e => setEditingContent({ ...editingContent, hashtagsInput: e.target.value })} 
+                />
+              </div>
+
+              {/* Multi-Subject Editor */}
+              <div className="form-group" style={{ marginBottom: "1.25rem" }}>
+                <label className="form-label">Subject / People Featured</label>
+                <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="Type person's name (e.g. Sarah, Jordan)..." 
+                    value={editingContent.subjectInput} 
+                    onChange={e => setEditingContent({ ...editingContent, subjectInput: e.target.value })}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddEditSubject();
+                      }
+                    }} 
+                  />
+                  <button type="button" onClick={handleAddEditSubject} className="btn btn-secondary">
+                    Add
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                  {editingContent.subjectsList.map(name => (
+                    <span key={name} className="chip chip-subject" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                      👤 {name}
+                      <button 
+                        type="button" 
+                        onClick={() => handleRemoveEditSubject(name)} 
+                        style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold", fontSize: "0.85rem", lineHeight: 1 }} 
+                        title="Remove subject"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <hr style={{ borderColor: "var(--border-color)", margin: "1.25rem 0" }} />
+
+              <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "1rem" }}>Content Performance Metrics</h3>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "0.85rem", marginBottom: "1rem" }}>
+                <div className="form-group"><label className="form-label">Impressions</label><input type="number" className="form-input" min="0" value={editingContent.impressions} onChange={e => setEditingContent({ ...editingContent, impressions: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Reach</label><input type="number" className="form-input" min="0" value={editingContent.reach} onChange={e => setEditingContent({ ...editingContent, reach: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Likes</label><input type="number" className="form-input" min="0" value={editingContent.likes} onChange={e => setEditingContent({ ...editingContent, likes: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Comments</label><input type="number" className="form-input" min="0" value={editingContent.comments} onChange={e => setEditingContent({ ...editingContent, comments: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Shares</label><input type="number" className="form-input" min="0" value={editingContent.shares} onChange={e => setEditingContent({ ...editingContent, shares: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Saves</label><input type="number" className="form-input" min="0" value={editingContent.saves} onChange={e => setEditingContent({ ...editingContent, saves: e.target.value })} /></div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label className="form-label">Post Status</label>
+                <select 
+                  className="form-select" 
+                  value={editingContent.status} 
+                  onChange={e => setEditingContent({ ...editingContent, status: e.target.value })}
+                >
+                  <option value="Uploaded">Uploaded</option>
+                  <option value="Scheduled">Scheduled</option>
+                  <option value="Privated">Privated</option>
+                  <option value="Deleted">Deleted</option>
+                </select>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
+                <button type="button" onClick={() => setEditingContent(null)} className="btn btn-secondary">Cancel</button>
                 <button type="submit" className="btn btn-primary">Save Changes</button>
               </div>
             </form>
