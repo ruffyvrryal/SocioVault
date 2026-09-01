@@ -1,4 +1,4 @@
-// Complete Standalone Application Bundle for Social Media Hub (with Subject Sorting & Pagination + Top Post Highlight Card)
+﻿// Complete Standalone Application Bundle for Social Media Hub (with Subject Sorting & Pagination + Top Post Highlight Card)
 
 // 1. INITIAL MOCK DATA
 window.INITIAL_DATA = {
@@ -1129,38 +1129,51 @@ function LoginPage() {
   );
 };
 
-function AccountVaultPage() {
-  const { user } = React.useContext(AuthContext);
-  const { accounts, setActiveAccountId, setActivePage, addAccount, removeAccount, editAccount, contents, getUserRole } = React.useContext(VaultContext);
+// AccountVaultPage Component - Modern, Compact Account Vault Hub & Weekly Schedule
+window.AccountVaultPage = function() {
+  const { user } = React.useContext(window.AuthContext);
+  const {
+    accounts,
+    setActiveAccountId,
+    setActivePage,
+    addAccount,
+    removeAccount,
+    editAccount,
+    contents,
+    getUserRole
+  } = React.useContext(window.VaultContext);
 
+  // Add modal state
   const [showAddModal, setShowAddModal] = React.useState(false);
   const [accountName, setAccountName] = React.useState("");
   const [accountDesc, setAccountDesc] = React.useState("");
+  const [vaultSearch, setVaultSearch] = React.useState("");
 
+  // Edit modal state
   const [editingAcc, setEditingAcc] = React.useState(null);
   const [editName, setEditName] = React.useState("");
   const [editDesc, setEditDesc] = React.useState("");
   const [editPhoto, setEditPhoto] = React.useState("");
-  const [editPhotoMode, setEditPhotoMode] = React.useState("url");
+  const [editPhotoMode, setEditPhotoMode] = React.useState("url"); // "url" | "upload"
   const [editPhotoPreview, setEditPhotoPreview] = React.useState("");
 
   const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-  const getDayOfWeek = (dateStr) => {
-    if (!dateStr) return "Mon";
-    const parts = dateStr.split("-").map(Number);
-    if (parts.length < 3) return "Mon";
-    const date = new Date(parts[0], parts[1] - 1, parts[2]);
-    const dayIndex = date.getDay();
-    return dayIndex === 0 ? "Sun" : daysOfWeek[dayIndex - 1];
-  };
-
+  // Accounts accessible by current user, sorted alphabetically
   const accessibleAccounts = React.useMemo(() => {
     if (!user) return [];
     return accounts
-      .filter(acc => acc.ownerEmail === user.email || (acc.collaborators && acc.collaborators.some(c => c.email === user.email)))
+      .filter(acc =>
+        acc.ownerEmail === user.email ||
+        (acc.collaborators && acc.collaborators.some(c => c.email === user.email))
+      )
+      .filter(acc => {
+        if (!vaultSearch.trim()) return true;
+        const q = vaultSearch.toLowerCase();
+        return (acc.name || "").toLowerCase().includes(q) || (acc.description || "").toLowerCase().includes(q);
+      })
       .sort((a, b) => (a.name || "").localeCompare((b.name || "")));
-  }, [accounts, user]);
+  }, [accounts, user, vaultSearch]);
 
   const handleCreate = (e) => {
     e.preventDefault();
@@ -1198,9 +1211,11 @@ function AccountVaultPage() {
   const handleEditSave = (e) => {
     e.preventDefault();
     if (!editName.trim()) return;
-    if (editAccount) {
-      editAccount(editingAcc.id, { name: editName.trim(), description: editDesc.trim(), photoURL: editPhoto.trim() });
-    }
+    editAccount(editingAcc.id, {
+      name: editName.trim(),
+      description: editDesc.trim(),
+      photoURL: editPhoto.trim()
+    });
     setEditingAcc(null);
   };
 
@@ -1209,7 +1224,7 @@ function AccountVaultPage() {
     setActivePage("account-center");
   };
 
-  // â”€â”€ Weekly Schedule State: { Mon: ["accId1", ""], ... } â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Weekly Schedule State: { Mon: ["accId1", ""], ... } ──────────────────
   const DAYS_KEY = "smh_weekly_day_schedule";
 
   const [scheduleByDay, setScheduleByDay] = React.useState(() => {
@@ -1245,237 +1260,269 @@ function AccountVaultPage() {
 
   return (
     <div className="page-container">
-      <div className="page-header">
+      {/* ── Header Bar ── */}
+      <div className="page-header" style={{ marginBottom: "1.25rem" }}>
         <div>
-          <h1 className="page-title">Account Vault Hub</h1>
-          <p className="page-subtitle">Select an account workspace to view platforms, content tables, and analytics.</p>
+          <h1 className="page-title" style={{ fontSize: "1.45rem", fontWeight: 800 }}>Account Vault Hub</h1>
+          <p className="page-subtitle" style={{ fontSize: "0.82rem" }}>
+            Select a brand workspace or assign weekly posting schedules
+          </p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
-          <i data-lucide="plus" style={{ width: "18px", height: "18px" }}></i>
-          Add New Account
-        </button>
+
+        <div style={{ display: "flex", gap: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Search vaults..."
+            value={vaultSearch}
+            onChange={e => setVaultSearch(e.target.value)}
+            style={{ width: "180px", minHeight: "34px", padding: "0.35rem 0.75rem", fontSize: "0.8rem" }}
+          />
+          <button onClick={() => setShowAddModal(true)} className="btn btn-sm btn-primary" style={{ fontWeight: 700 }}>
+            <span>➕ New Account Vault</span>
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.5rem", marginBottom: "2.5rem" }}>
+      {/* ── Account Cards Grid ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))", gap: "1rem", marginBottom: "2rem" }}>
         {accessibleAccounts.map(acc => {
           const role = getUserRole(acc);
           const accContents = contents.filter(c => c.accountId === acc.id);
           const totalViews = accContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
+          const totalFollowers = (acc.platforms || []).reduce((sum, p) => sum + (Number(p.followers) || 0), 0);
 
           return (
-            <div key={acc.id} className="glass-card glass-card-interactive" style={{ cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "space-between" }} onClick={() => selectAccount(acc.id)}>
+            <div
+              key={acc.id}
+              className="glass-card glass-card-interactive"
+              style={{
+                cursor: "pointer",
+                padding: "1.1rem",
+                borderRadius: "14px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                border: "1px solid rgba(255,255,255,0.08)",
+                background: "linear-gradient(145deg, rgba(22,30,46,0.9), rgba(13,17,23,0.95))"
+              }}
+              onClick={() => selectAccount(acc.id)}
+            >
               <div>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1rem" }}>
-                  {acc.photoURL ? (
-                    <img src={acc.photoURL} alt={acc.name} style={{ width: "48px", height: "48px", borderRadius: "12px", objectFit: "cover", border: "2px solid rgba(139,92,246,0.4)" }} onError={e => { e.target.style.display = "none"; }} />
-                  ) : (
-                    <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "linear-gradient(135deg, rgba(139,92,246,0.25), rgba(6,182,212,0.2))", border: "1px solid rgba(139,92,246,0.35)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", fontSize: "1.35rem", fontWeight: 800 }}>
-                      {acc.name ? acc.name.charAt(0).toUpperCase() : "V"}
+                {/* Card Top Row: Avatar + Role Badge + Actions */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.85rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                    {acc.photoURL ? (
+                      <img
+                        src={acc.photoURL}
+                        alt={acc.name}
+                        style={{ width: "42px", height: "42px", borderRadius: "10px", objectFit: "cover", border: "2px solid rgba(139, 92, 246, 0.4)" }}
+                        onError={e => { e.target.style.display = "none"; }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: "42px",
+                        height: "42px",
+                        borderRadius: "10px",
+                        background: "linear-gradient(135deg, rgba(139,92,246,0.3), rgba(6,182,212,0.25))",
+                        border: "1px solid rgba(139,92,246,0.4)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#fff",
+                        fontSize: "1.15rem",
+                        fontWeight: 800
+                      }}>
+                        {acc.name ? acc.name.charAt(0).toUpperCase() : "V"}
+                      </div>
+                    )}
+
+                    <div>
+                      <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0, color: "#fff" }}>{acc.name}</h3>
+                      <span className={`badge ${role === 'owner' ? 'badge-uploaded' : (role === 'editor' ? 'badge-scheduled' : 'badge-privated')}`} style={{ fontSize: "0.62rem", marginTop: "2px" }}>
+                        {role}
+                      </span>
+                    </div>
+                  </div>
+
+                  {role === 'owner' && (
+                    <div style={{ display: "flex", gap: "0.3rem" }}>
+                      <button
+                        onClick={(e) => openEditModal(e, acc)}
+                        className="btn btn-secondary btn-icon"
+                        title="Edit Account"
+                        style={{ width: "26px", height: "26px", minWidth: "26px", minHeight: "26px", padding: 0, fontSize: "0.75rem" }}
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); if (confirm(`Delete account "${acc.name}"?`)) removeAccount(acc.id); }}
+                        className="btn btn-danger btn-icon"
+                        title="Delete Account"
+                        style={{ width: "26px", height: "26px", minWidth: "26px", minHeight: "26px", padding: 0, fontSize: "0.75rem" }}
+                      >
+                        🗑️
+                      </button>
                     </div>
                   )}
-
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
-                    <span className={`badge ${role === 'owner' ? 'badge-uploaded' : role === 'editor' ? 'badge-scheduled' : 'badge-privated'}`}>
-                      {role}
-                    </span>
-                    {role === 'owner' && (
-                      <>
-                        <button onClick={(e) => openEditModal(e, acc)} className="btn btn-secondary btn-icon" title="Edit Account" style={{ width: "32px", height: "32px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <i data-lucide="edit-2" style={{ width: "14px", height: "14px" }}></i>
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete account "${acc.name}"?`)) removeAccount(acc.id); }} className="btn btn-danger btn-icon" title="Delete Account" style={{ width: "32px", height: "32px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <i data-lucide="trash-2" style={{ width: "14px", height: "14px" }}></i>
-                        </button>
-                      </>
-                    )}
-                  </div>
                 </div>
 
-                <h3 style={{ fontSize: "1.2rem", fontWeight: 700, marginBottom: "0.35rem" }}>{acc.name}</h3>
-                <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1.1rem", lineHeight: 1.5 }}>{acc.description}</p>
+                <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "0.85rem", lineHeight: 1.4, minHeight: "2.2em" }}>
+                  {acc.description || "Social media workspace"}
+                </p>
 
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1.1rem" }}>
+                {/* Connected Platforms Pill Chips */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem", marginBottom: "0.85rem" }}>
                   {(acc.platforms || []).map(p => (
-                    <span key={p.id || p.name} className="chip" style={{ fontSize: "0.75rem" }}>{p.name}: {p.handle}</span>
+                    <span key={p.id || p.name} className="chip" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem" }}>
+                      {p.name}: {p.handle}
+                    </span>
                   ))}
+                  {(acc.platforms || []).length === 0 && (
+                    <span style={{ fontSize: "0.72rem", color: "var(--text-subtle)" }}>No channels linked</span>
+                  )}
                 </div>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "0.85rem", borderTop: "1px solid var(--border-color)", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                <div><strong style={{ color: "#fff" }}>{accContents.length}</strong> Content Items</div>
-                <div><strong style={{ color: "var(--accent-cyan)" }}>{(totalViews / 1000).toFixed(1)}k</strong> Views</div>
+              {/* Card Footer Metrics */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "0.75rem", borderTop: "1px solid var(--border-color)", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                <div>👥 <strong>{totalFollowers.toLocaleString()}</strong> aud</div>
+                <div>📋 <strong>{accContents.length}</strong> posts</div>
+                <div>👀 <strong style={{ color: "var(--accent-cyan-light)" }}>{(totalViews / 1000).toFixed(1)}k</strong> views</div>
               </div>
             </div>
           );
         })}
 
         {accessibleAccounts.length === 0 && (
-          <div className="glass-card" style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem 1.5rem" }}>
-            <i data-lucide="folder-plus" style={{ width: "48px", height: "48px", color: "var(--text-subtle)", marginBottom: "1rem" }}></i>
-            <h3 style={{ fontSize: "1.2rem", fontWeight: 700 }}>No Accounts Found</h3>
-            <p style={{ color: "var(--text-muted)", margin: "0.5rem 0 1.5rem" }}>You haven't created any social media accounts yet.</p>
-            <button onClick={() => setShowAddModal(true)} className="btn btn-primary">Create Your First Account</button>
+          <div className="glass-card" style={{ gridColumn: "1 / -1", textAlign: "center", padding: "2.5rem 1.5rem" }}>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 700 }}>No Accounts Match Your Search</h3>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: "0.4rem 0 1rem" }}>Create a new brand account or clear your filter</p>
+            <button onClick={() => setShowAddModal(true)} className="btn btn-primary btn-sm">Create New Vault</button>
           </div>
         )}
       </div>
 
-      {/* WEEKLY SCHEDULE TABLE HUB â€” Account Picker per Day */}
-      <div style={{ marginBottom: "2rem" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+      {/* ── Global Weekly Schedule Hub ── */}
+      <div className="glass-card" style={{ padding: "1.25rem", borderRadius: "14px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
           <div>
-            <h2 style={{ fontSize: "1.35rem", fontWeight: 700, color: "#FFFFFF" }}>Global Weekly Schedule Hub</h2>
-            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>Assign which accounts post on each day of the week</p>
+            <h2 style={{ fontSize: "1.15rem", fontWeight: 700, color: "#fff", margin: 0 }}>
+              📅 Global Weekly Schedule Board
+            </h2>
+            <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", margin: "2px 0 0" }}>
+              Assign designated accounts & workspaces for each posting day
+            </p>
           </div>
         </div>
 
-        <div className="weekly-schedule-card">
-          {/* Header Row */}
-          <div className="weekly-table-header">
-            {daysOfWeek.map(day => (
-              <div key={day} className="weekly-header-col">{day}</div>
-            ))}
-          </div>
-
-          {/* Grid Columns â€” each pill is an account-picker select */}
-          <div className="weekly-table-grid">
-            {daysOfWeek.map(day => {
-              const slots = scheduleByDay[day] || [""];
-              return (
-                <div key={day} className="weekly-day-column">
-                  {slots.map((accId, idx) => {
-                    const selectedAcc = accessibleAccounts.find(a => a.id === accId);
-                    return (
-                      <div key={idx} className={`weekly-pill-item${accId ? "" : " pill-empty"}`} style={{ position: "relative", padding: 0, overflow: "visible" }}>
-                        <select
-                          value={accId}
-                          onChange={e => updateSlotForDay(day, idx, e.target.value)}
-                          title={selectedAcc ? selectedAcc.name : "Pick an account"}
-                          style={{
-                            width: "100%",
-                            background: "transparent",
-                            border: "none",
-                            color: accId ? "#fff" : "rgba(255,255,255,0.45)",
-                            fontSize: "0.78rem",
-                            fontWeight: accId ? 600 : 400,
-                            cursor: "pointer",
-                            outline: "none",
-                            padding: "0 0.6rem",
-                            height: "32px",
-                            appearance: "none",
-                            WebkitAppearance: "none",
-                          }}
-                        >
-                          <option value="" style={{ background: "#0f1024", color: "rgba(255,255,255,0.5)" }}>Dropdown</option>
-                          {accessibleAccounts.map(acc => (
-                            <option key={acc.id} value={acc.id} style={{ background: "#0f1024", color: "#fff" }}>
-                              {acc.name}
-                            </option>
-                          ))}
-                        </select>
-                        {accId && (
-                          <button
-                            onClick={() => removeSlotForDay(day, idx)}
-                            title="Remove"
-                            style={{
-                              position: "absolute", right: "4px", top: "50%", transform: "translateY(-50%)",
-                              background: "none", border: "none", color: "rgba(255,255,255,0.35)",
-                              cursor: "pointer", fontSize: "0.7rem", lineHeight: 1, padding: "2px", display: "flex"
-                            }}
-                          >âœ•</button>
-                        )}
-                      </div>
-                    );
-                  })}
+        {/* 7-Day Columns Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(130px, 1fr))", gap: "0.6rem", overflowX: "auto", paddingBottom: "0.5rem" }}>
+          {daysOfWeek.map(day => {
+            const slots = scheduleByDay[day] || [""];
+            return (
+              <div key={day} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "0.6rem", display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+                <div style={{ textAlign: "center", fontWeight: 800, fontSize: "0.8rem", color: "var(--accent-primary-light)", paddingBottom: "0.35rem", borderBottom: "1px solid var(--border-subtle)" }}>
+                  {day}
                 </div>
-              );
-            })}
-          </div>
 
-          {/* Footer: "+" button per day */}
-          <div className="weekly-add-footer">
-            {daysOfWeek.map(day => (
-              <div key={day} className="weekly-add-col">
+                {slots.map((accId, idx) => {
+                  const selectedAcc = accounts.find(a => a.id === accId);
+                  return (
+                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: "0.25rem", background: accId ? "rgba(139,92,246,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${accId ? "rgba(139,92,246,0.35)" : "var(--border-color)"}`, borderRadius: "6px", padding: "0.2rem 0.35rem" }}>
+                      <select
+                        value={accId}
+                        onChange={e => updateSlotForDay(day, idx, e.target.value)}
+                        style={{ width: "100%", background: "transparent", border: "none", color: accId ? "#fff" : "var(--text-muted)", fontSize: "0.74rem", fontWeight: accId ? 700 : 400, outline: "none", cursor: "pointer" }}
+                      >
+                        <option value="" style={{ background: "#0F172A", color: "var(--text-muted)" }}>+ Assign...</option>
+                        {accounts.map(acc => (
+                          <option key={acc.id} value={acc.id} style={{ background: "#0F172A", color: "#fff" }}>
+                            {acc.name}
+                          </option>
+                        ))}
+                      </select>
+                      {accId && (
+                        <button
+                          onClick={() => removeSlotForDay(day, idx)}
+                          style={{ background: "none", border: "none", color: "var(--text-subtle)", cursor: "pointer", fontSize: "0.75rem", padding: "0 2px" }}
+                          title="Clear slot"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+
                 <button
-                  className="weekly-add-btn"
-                  title={`Add account slot for ${day}`}
+                  type="button"
                   onClick={() => addSlotForDay(day)}
-                >+</button>
+                  style={{ width: "100%", padding: "0.2rem", borderRadius: "4px", background: "transparent", border: "1px dashed var(--border-color)", color: "var(--text-subtle)", fontSize: "0.68rem", cursor: "pointer" }}
+                >
+                  + slot
+                </button>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
 
+      {/* ── CREATE ACCOUNT MODAL ── */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">Add New Social Account Vault</h2>
-              <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon" style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>âœ•</span>
-              </button>
+          <div className="modal-content" style={{ maxWidth: "440px", width: "90%" }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0 }}>Create Account Vault</h2>
+              <button onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon" style={{ width: "28px", height: "28px" }}>✕</button>
             </div>
+
             <form onSubmit={handleCreate}>
-              <div className="form-group">
-                <label className="form-label">Account / Brand Name</label>
-                <input type="text" className="form-input" required value={accountName} onChange={e => setAccountName(e.target.value)} />
+              <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+                <label className="form-label">Brand / Account Name</label>
+                <input type="text" className="form-input" placeholder="e.g. Nike Football, Tech Daily" required value={accountName} onChange={e => setAccountName(e.target.value)} />
               </div>
-              <div className="form-group">
-                <label className="form-label">Description / Niche</label>
-                <textarea className="form-textarea" rows="3" value={accountDesc} onChange={e => setAccountDesc(e.target.value)}></textarea>
+
+              <div className="form-group" style={{ marginBottom: "1.25rem" }}>
+                <label className="form-label">Description / Purpose</label>
+                <textarea className="form-textarea" rows="2" placeholder="Briefly describe this workspace..." value={accountDesc} onChange={e => setAccountDesc(e.target.value)}></textarea>
               </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
                 <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary">Cancel</button>
-                <button type="submit" className="btn btn-primary">Create Account</button>
+                <button type="submit" className="btn btn-primary">Create Vault</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* ── EDIT ACCOUNT MODAL ── */}
       {editingAcc && (
         <div className="modal-overlay" onClick={() => setEditingAcc(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: "520px" }}>
-            <div className="modal-header">
-              <h2 className="modal-title">Edit Account</h2>
-              <button type="button" onClick={() => setEditingAcc(null)} className="btn btn-secondary btn-icon" style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>âœ•</span>
-              </button>
+          <div className="modal-content" style={{ maxWidth: "480px", width: "90%" }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0 }}>Edit Account Settings</h2>
+              <button onClick={() => setEditingAcc(null)} className="btn btn-secondary btn-icon" style={{ width: "28px", height: "28px" }}>✕</button>
             </div>
+
             <form onSubmit={handleEditSave}>
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem" }}>
-                {editPhotoPreview ? (
-                  <img src={editPhotoPreview} alt="Preview" style={{ width: "80px", height: "80px", borderRadius: "16px", objectFit: "cover", border: "2px solid rgba(139,92,246,0.4)" }} onError={e => { e.target.style.display = "none"; }} />
-                ) : (
-                  <div style={{ width: "80px", height: "80px", borderRadius: "16px", background: "linear-gradient(135deg, rgba(139,92,246,0.25), rgba(6,182,212,0.2))", border: "2px dashed rgba(139,92,246,0.4)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", fontSize: "2rem", fontWeight: 800 }}>
-                    {editName ? editName.charAt(0).toUpperCase() : "?"}
-                  </div>
-                )}
-              </div>
-              <div className="form-group">
-                <label className="form-label">Account / Brand Name</label>
+              <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+                <label className="form-label">Account Name</label>
                 <input type="text" className="form-input" required value={editName} onChange={e => setEditName(e.target.value)} />
               </div>
-              <div className="form-group">
-                <label className="form-label">Description / Niche</label>
-                <textarea className="form-textarea" rows="3" value={editDesc} onChange={e => setEditDesc(e.target.value)}></textarea>
+
+              <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+                <label className="form-label">Description</label>
+                <textarea className="form-textarea" rows="2" value={editDesc} onChange={e => setEditDesc(e.target.value)}></textarea>
               </div>
-              <div className="form-group">
-                <label className="form-label">Profile Photo</label>
-                <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
-                  <button type="button" onClick={() => setEditPhotoMode("url")} className={`btn ${editPhotoMode === "url" ? "btn-primary" : "btn-secondary"}`} style={{ fontSize: "0.82rem", padding: "0.35rem 0.9rem" }}>Image URL</button>
-                  <button type="button" onClick={() => setEditPhotoMode("upload")} className={`btn ${editPhotoMode === "upload" ? "btn-primary" : "btn-secondary"}`} style={{ fontSize: "0.82rem", padding: "0.35rem 0.9rem" }}>Local Upload</button>
-                </div>
-                {editPhotoMode === "url" ? (
-                  <input type="url" className="form-input" placeholder="https://example.com/photo.jpg" value={editPhoto} onChange={e => handleEditPhotoUrlChange(e.target.value)} />
-                ) : (
-                  <input type="file" accept="image/*" className="form-input" style={{ padding: "0.45rem" }} onChange={handleEditPhotoUpload} />
-                )}
-                {editPhotoPreview && (
-                  <button type="button" onClick={() => { setEditPhoto(""); setEditPhotoPreview(""); }} className="btn btn-secondary" style={{ marginTop: "0.5rem", fontSize: "0.82rem", padding: "0.25rem 0.6rem" }}>Remove photo</button>
-                )}
+
+              <div className="form-group" style={{ marginBottom: "1.25rem" }}>
+                <label className="form-label">Photo / Logo URL</label>
+                <input type="text" className="form-input" placeholder="https://..." value={editPhoto} onChange={e => handleEditPhotoUrlChange(e.target.value)} />
               </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
                 <button type="button" onClick={() => setEditingAcc(null)} className="btn btn-secondary">Cancel</button>
                 <button type="submit" className="btn btn-primary">Save Changes</button>
               </div>
@@ -1485,7 +1532,7 @@ function AccountVaultPage() {
       )}
     </div>
   );
-}
+};
 
 // Navbar Component — Premium Top Navigation, Account Switcher & Global Undo Controller
 window.Navbar = function() {
@@ -1745,66 +1792,81 @@ window.Navbar = function() {
   );
 };
 
-function AccountCenterPage() {
-  const { activeAccount, addPlatform, removePlatform, contents, canEdit, editAccount, setActivePage } = React.useContext(VaultContext);
+// AccountCenterPage Component - Modern, Compact, High-Impact Account Overview
+window.AccountCenterPage = function() {
+  const { 
+    activeAccount, 
+    addPlatform, 
+    removePlatform, 
+    contents, 
+    canEdit, 
+    setActivePage,
+    syncAllTikTokPosts,
+    isSyncingTikTok
+  } = React.useContext(window.VaultContext);
 
   const [showAddModal, setShowAddModal] = React.useState(false);
-  const [editingPlatform, setEditingPlatform] = React.useState(null);
-  const [platformName, setPlatformName] = React.useState("TikTok");
+  const [platformName, setPlatformName] = React.useState("Instagram");
   const [handle, setHandle] = React.useState("");
   const [followers, setFollowers] = React.useState("");
   const [url, setUrl] = React.useState("");
 
-  if (!activeAccount) return <div className="page-container"><p>No active account selected.</p></div>;
+  if (!activeAccount) {
+    return (
+      <div className="page-container" style={{ textAlign: "center", padding: "4rem 1rem" }}>
+        <p style={{ color: "var(--text-muted)" }}>No active account selected.</p>
+        <button onClick={() => setActivePage("account-vault")} className="btn btn-primary" style={{ marginTop: "1rem" }}>
+          ← Return to Vault Hub
+        </button>
+      </div>
+    );
+  }
 
   const accountContents = contents.filter(c => c.accountId === activeAccount.id);
   const totalViews = accountContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
+  const totalReach = accountContents.reduce((sum, c) => sum + (c.reach || 0), 0);
+  const totalLikes = accountContents.reduce((sum, c) => sum + (c.likes || 0), 0);
+  const totalComments = accountContents.reduce((sum, c) => sum + (c.comments || 0), 0);
+  const totalShares = accountContents.reduce((sum, c) => sum + (c.shares || 0), 0);
+  const totalSaves = accountContents.reduce((sum, c) => sum + (c.saves || 0), 0);
+  const totalEngagement = totalLikes + totalComments + totalShares + totalSaves;
+  const overallER = totalViews > 0 ? ((totalEngagement / totalViews) * 100).toFixed(2) : "0.00";
   const totalFollowers = activeAccount.platforms.reduce((sum, p) => sum + (Number(p.followers) || 0), 0);
 
-  // Calculate TikTok monthly impression trend for health status
-  const getHealthStatus = React.useMemo(() => {
-    // Get the 5 most recent TikTok contents (by uploadDate)
-    const recentTikTokContents = accountContents
-      .filter(c => c.platform === "TikTok" && c.uploadDate)
-      .sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate))
-      .slice(0, 5);
+  // Status breakdown
+  const statusCounts = { Uploaded: 0, Scheduled: 0, Privated: 0, Deleted: 0 };
+  accountContents.forEach(c => {
+    const s = c.status || "Uploaded";
+    if (statusCounts[s] !== undefined) statusCounts[s]++;
+    else statusCounts["Uploaded"]++;
+  });
 
-    // If no TikTok content, status is red
-    if (recentTikTokContents.length === 0) {
-      return { status: "red", label: "No TikTok Activity", color: "#F43F5E" };
-    }
+  // Recent 5 TikTok posts for health status
+  const recentTikToks = accountContents
+    .filter(c => (c.platform === "TikTok" || c.originalUrl) && c.uploadDate)
+    .sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate))
+    .slice(0, 5);
 
-    // Calculate average impressions of recent 5 TikToks
-    const totalImpressions = recentTikTokContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
-    const avgImpressions = totalImpressions / recentTikTokContents.length;
+  const avgTikTokViews = recentTikToks.length > 0 
+    ? Math.round(recentTikToks.reduce((sum, c) => sum + (c.impressions || 0), 0) / recentTikToks.length)
+    : 0;
 
-    // Determine status based on average impressions:
-    // Red: all 5 have 0 views (or average is 0)
-    // Yellow: below 100 but above 0
-    // Green: 100 or above
-    if (avgImpressions === 0) {
-      return { 
-        status: "red", 
-        label: "Critical: 0 Views on Recent Posts", 
-        color: "#F43F5E",
-        detail: `Recent 5 TikToks: ${recentTikTokContents.length} posts, avg 0 views`
-      };
-    } else if (avgImpressions < 100) {
-      return { 
-        status: "yellow", 
-        label: "Low: Below 100 Views Average", 
-        color: "#F59E0B",
-        detail: `Recent 5 TikToks: ${recentTikTokContents.length} posts, avg ${Math.round(avgImpressions)} views`
-      };
+  const healthStatus = React.useMemo(() => {
+    if (recentTikToks.length === 0) {
+      return { label: "No TikTok Activity", color: "#F43F5E", bg: "rgba(244,63,94,0.12)", icon: "⚠️", desc: "No recent TikTok posts logged" };
+    } else if (avgTikTokViews >= 500) {
+      return { label: "High Performing", color: "#10B981", bg: "rgba(16,185,129,0.12)", icon: "🔥", desc: `Avg ${avgTikTokViews.toLocaleString()} views on recent ${recentTikToks.length} posts` };
+    } else if (avgTikTokViews >= 100) {
+      return { label: "Healthy Trend", color: "#06B6D4", bg: "rgba(6,182,212,0.12)", icon: "✨", desc: `Avg ${avgTikTokViews.toLocaleString()} views on recent ${recentTikToks.length} posts` };
     } else {
-      return { 
-        status: "green", 
-        label: "Healthy: Above 100 Views Average", 
-        color: "#10B981",
-        detail: `Recent 5 TikToks: ${recentTikTokContents.length} posts, avg ${Math.round(avgImpressions)} views`
-      };
+      return { label: "Low Activity", color: "#F59E0B", bg: "rgba(245,158,11,0.12)", icon: "⚡", desc: `Avg ${avgTikTokViews.toLocaleString()} views on recent posts` };
     }
-  }, [accountContents]);
+  }, [recentTikToks, avgTikTokViews]);
+
+  // Recent 5 content items across all platforms
+  const recentPosts = accountContents
+    .sort((a, b) => new Date(b.uploadDate || 0) - new Date(a.uploadDate || 0))
+    .slice(0, 5);
 
   const handleAddPlatform = (e) => {
     e.preventDefault();
@@ -1815,244 +1877,354 @@ function AccountCenterPage() {
       followers: Number(followers) || 0,
       url: url || "#"
     });
-    setHandle(""); setFollowers(""); setUrl(""); setShowAddModal(false);
+    setHandle("");
+    setFollowers("");
+    setUrl("");
+    setShowAddModal(false);
+  };
+
+  const getPlatformIcon = (name) => {
+    switch (name.toLowerCase()) {
+      case "instagram": return "📸";
+      case "youtube": return "▶️";
+      case "tiktok": return "🎵";
+      case "x (twitter)":
+      case "x":
+      case "twitter": return "𝕏";
+      case "facebook": return "📘";
+      case "threads": return "🧵";
+      default: return "🌐";
+    }
   };
 
   return (
     <div className="page-container">
-      <div className="page-header">
+      {/* ── Header Bar ── */}
+      <div className="page-header" style={{ marginBottom: "1.25rem" }}>
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-            <h1 className="page-title">{activeAccount.name} - Account Center</h1>
-            <div
-              style={{
-                width: "16px",
-                height: "16px",
-                borderRadius: "50%",
-                backgroundColor: getHealthStatus.color,
-                boxShadow: `0 0 12px ${getHealthStatus.color}`,
-                border: `2px solid ${getHealthStatus.color}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-              title={`Health Status: ${getHealthStatus.label} â€” ${getHealthStatus.detail}`}
-            />
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+            <h1 className="page-title" style={{ fontSize: "1.45rem", fontWeight: 800 }}>
+              {activeAccount.name}
+            </h1>
+            <div style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              padding: "0.2rem 0.65rem",
+              borderRadius: "20px",
+              background: healthStatus.bg,
+              border: `1px solid ${healthStatus.color}`,
+              color: healthStatus.color,
+              fontSize: "0.74rem",
+              fontWeight: 700
+            }}>
+              <span>{healthStatus.icon}</span>
+              <span>{healthStatus.label}</span>
+            </div>
           </div>
-          <p className="page-subtitle">{activeAccount.description} * Managed platforms & channel credentials</p>
+          <p className="page-subtitle" style={{ fontSize: "0.82rem", marginTop: "2px" }}>
+            {activeAccount.description || "Active social media workspace"} • {activeAccount.platforms.length} connected platforms
+          </p>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem" }}>
+
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           {canEdit && (
-            <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
-              <Icon name="plus-circle" size={18} color="" /> Add Platform Channel
+            <button onClick={() => setShowAddModal(true)} className="btn btn-sm btn-secondary" style={{ fontWeight: 700 }}>
+              <span>➕ Add Channel</span>
             </button>
           )}
-          <button onClick={() => setActivePage("add-content")} className="btn btn-secondary">
-            <Icon name="file-plus" size={18} color="" /> Create Content Entry
+          <button onClick={() => setActivePage("add-content")} className="btn btn-sm btn-primary" style={{ fontWeight: 700 }}>
+            <span>⚡ Log Content</span>
           </button>
         </div>
       </div>
 
-      <div className="stats-grid">
-        <div className="glass-card stat-card">
-          <span className="stat-label">Total Channel Audience</span>
-          <span className="stat-value" style={{ color: "var(--accent-cyan)" }}>
-            {totalFollowers > 1000 ? (totalFollowers / 1000).toFixed(1) + "k" : totalFollowers}
-          </span>
-          <span className="stat-change positive">Across {activeAccount.platforms.length} connected platforms</span>
+      {/* ── 4-KPI Compact Metrics Row ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "0.85rem", marginBottom: "1.25rem" }}>
+        
+        {/* KPI 1: Total Audience */}
+        <div className="glass-card" style={{ padding: "0.9rem 1.15rem", borderRadius: "12px", border: "1px solid rgba(139,92,246,0.25)", background: "linear-gradient(135deg, rgba(139,92,246,0.08), rgba(13,17,23,0.8))" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
+            <span style={{ fontSize: "0.74rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Total Audience
+            </span>
+            <span style={{ fontSize: "1.1rem" }}>👥</span>
+          </div>
+          <div style={{ fontSize: "1.65rem", fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>
+            {totalFollowers >= 1000 ? (totalFollowers / 1000).toFixed(1) + "k" : totalFollowers.toLocaleString()}
+          </div>
+          <div style={{ fontSize: "0.74rem", color: "var(--accent-primary-light)", marginTop: "0.35rem", display: "flex", gap: "0.3rem" }}>
+            {activeAccount.platforms.map(p => (
+              <span key={p.id} title={`${p.name}: ${(Number(p.followers) || 0).toLocaleString()}`}>{getPlatformIcon(p.name)}</span>
+            ))}
+          </div>
         </div>
-        <div className="glass-card stat-card">
-          <span className="stat-label">Logged Content Items</span>
-          <span className="stat-value">{accountContents.length}</span>
-          <span className="stat-change positive">Total uploaded & scheduled</span>
+
+        {/* KPI 2: Total Impressions */}
+        <div className="glass-card" style={{ padding: "0.9rem 1.15rem", borderRadius: "12px", border: "1px solid rgba(6,182,212,0.25)", background: "linear-gradient(135deg, rgba(6,182,212,0.08), rgba(13,17,23,0.8))" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
+            <span style={{ fontSize: "0.74rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Total Impressions
+            </span>
+            <span style={{ fontSize: "1.1rem" }}>👀</span>
+          </div>
+          <div style={{ fontSize: "1.65rem", fontWeight: 800, color: "#22D3EE", lineHeight: 1.1 }}>
+            {totalViews >= 1000000 ? (totalViews / 1000000).toFixed(2) + "M" : (totalViews >= 1000 ? (totalViews / 1000).toFixed(1) + "k" : totalViews.toLocaleString())}
+          </div>
+          <div style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
+            Reach: <strong>{(totalReach / 1000).toFixed(1)}k</strong> (85% est.)
+          </div>
         </div>
-        <div className="glass-card stat-card">
-          <span className="stat-label">Total Impressions (Views)</span>
-          <span className="stat-value" style={{ color: "var(--accent-emerald)" }}>{(totalViews / 1000).toFixed(1)}k</span>
-          <span className="stat-change positive">Cumulative views recorded</span>
+
+        {/* KPI 3: Engagement & ER% */}
+        <div className="glass-card" style={{ padding: "0.9rem 1.15rem", borderRadius: "12px", border: "1px solid rgba(16,185,129,0.25)", background: "linear-gradient(135deg, rgba(16,185,129,0.08), rgba(13,17,23,0.8))" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
+            <span style={{ fontSize: "0.74rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Avg Engagement Rate
+            </span>
+            <span style={{ fontSize: "1.1rem" }}>🎯</span>
+          </div>
+          <div style={{ fontSize: "1.65rem", fontWeight: 800, color: "#34D399", lineHeight: 1.1 }}>
+            {overallER}%
+          </div>
+          <div style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
+            ❤️ {totalLikes.toLocaleString()} likes • 💬 {totalComments.toLocaleString()} comments
+          </div>
+        </div>
+
+        {/* KPI 4: Logged Content */}
+        <div className="glass-card" style={{ padding: "0.9rem 1.15rem", borderRadius: "12px", border: "1px solid rgba(244,63,94,0.25)", background: "linear-gradient(135deg, rgba(244,63,94,0.08), rgba(13,17,23,0.8))" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
+            <span style={{ fontSize: "0.74rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Total Posts Logged
+            </span>
+            <span style={{ fontSize: "1.1rem" }}>📋</span>
+          </div>
+          <div style={{ fontSize: "1.65rem", fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>
+            {accountContents.length}
+          </div>
+          <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "0.35rem", display: "flex", gap: "0.4rem" }}>
+            <span style={{ color: "var(--accent-emerald)" }}>{statusCounts.Uploaded} live</span>
+            <span>•</span>
+            <span style={{ color: "var(--accent-cyan)" }}>{statusCounts.Scheduled} plan</span>
+            <span>•</span>
+            <span style={{ color: "var(--accent-amber)" }}>{statusCounts.Privated} priv</span>
+          </div>
         </div>
       </div>
 
-      <h2 style={{ fontSize: "1.35rem", fontWeight: 700, margin: "2rem 0 1rem" }}>
-        Connected Platforms ({activeAccount.platforms.length})
-      </h2>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem" }}>
-        {activeAccount.platforms.map(p => (
-          <div key={p.id} className="glass-card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-                <div>
-                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700 }}>{p.name}</h3>
-                  <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>{p.handle}</p>
-                </div>
-                {canEdit && (
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
-                    <button onClick={() => setEditingPlatform({ ...p })} className="btn btn-secondary btn-icon" style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px" }} title="Edit Platform">
-                      <Icon name="edit-2" size={16} color="var(--accent-primary)" />
-                    </button>
-                    <button onClick={() => confirm(`Remove ${p.name}?`) && removePlatform(activeAccount.id, p.id)} className="btn btn-danger btn-icon" style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px" }}>
-                      <Icon name="trash" size={16} color="#F43F5E" />
-                    </button>
-                  </div>
-                )}
-              </div>
-              {p.url && p.url !== "#" && (
-                <div style={{
-                  display: "flex", alignItems: "center", gap: "0.4rem",
-                  fontSize: "0.78rem", color: "var(--text-muted)",
-                  background: "rgba(255,255,255,0.04)", borderRadius: "8px",
-                  padding: "0.4rem 0.6rem", marginBottom: "0.75rem",
-                  overflow: "hidden"
-                }}>
-                  <Icon name="link" size={12} color="var(--accent-cyan)" style={{flexShrink: 0}} />
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.url}</span>
-                </div>
-              )}
+      {/* ── TikTok Live Status & Quick Action Banner ── */}
+      <div className="glass-card" style={{
+        padding: "1rem 1.25rem",
+        borderRadius: "12px",
+        marginBottom: "1.25rem",
+        background: "linear-gradient(135deg, rgba(37,244,238,0.08), rgba(254,44,85,0.08))",
+        border: "1px solid rgba(37,244,238,0.25)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: "0.75rem"
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, #25F4EE, #FE2C55)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}>
+            🎵
+          </div>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span style={{ fontWeight: 800, fontSize: "0.95rem", color: "#fff" }}>TikTok Performance Pulse:</span>
+              <span style={{ fontWeight: 700, fontSize: "0.85rem", color: healthStatus.color }}>{healthStatus.label}</span>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "0.85rem", borderTop: "1px solid var(--border-color)", fontSize: "0.85rem" }}>
-              <div>Followers: <strong style={{ color: "#fff" }}>{p.followers > 1000 ? (p.followers / 1000).toFixed(1) + "k" : p.followers}</strong></div>
-              {p.url && p.url !== "#" ? (
-                <a
-                  href={p.url.startsWith("http") ? p.url : "https://" + p.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: "flex", alignItems: "center", gap: "0.35rem",
-                    color: "var(--accent-cyan)", fontSize: "0.82rem", fontWeight: 600,
-                    textDecoration: "none"
-                  }}
-                >
-                  <Icon name="external-link" size={13} color="" />
-                  View Channel
-                </a>
-              ) : (
-                <span style={{ color: "var(--text-subtle)", fontSize: "0.82rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-                  <Icon name="link-2-off" size={13} color="" />
-                  No link added
-                </span>
-              )}
+            <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "1px" }}>
+              {healthStatus.desc} • {recentTikToks.length} posts tracked
             </div>
           </div>
-        ))}
+        </div>
+
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          {recentTikToks.length > 0 && (
+            <button
+              type="button"
+              onClick={() => syncAllTikTokPosts(activeAccount.id)}
+              disabled={isSyncingTikTok}
+              className="btn btn-sm btn-secondary"
+              style={{
+                borderColor: "rgba(37,244,238,0.4)",
+                color: "#25F4EE",
+                background: "rgba(37,244,238,0.1)",
+                fontWeight: 700,
+                fontSize: "0.78rem"
+              }}
+              title="Refresh views and engagement for all TikTok posts"
+            >
+              <span style={{ animation: isSyncingTikTok ? "spin 1s linear infinite" : "none", display: "inline-block" }}>🔄</span>
+              <span>{isSyncingTikTok ? "Syncing..." : "Sync Live TikTok"}</span>
+            </button>
+          )}
+          <button
+            onClick={() => setActivePage("timeframe-analytics")}
+            className="btn btn-sm btn-secondary"
+            style={{ fontSize: "0.78rem" }}
+          >
+            📊 View Analytics →
+          </button>
+        </div>
       </div>
 
+      {/* ── 2-Column Split: Connected Channels & Recent Posts ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.25rem" }}>
+        
+        {/* Left Column: Connected Platform Channels */}
+        <div className="glass-card" style={{ padding: "1.25rem", borderRadius: "14px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>
+              Connected Channels ({activeAccount.platforms.length})
+            </h3>
+            {canEdit && (
+              <button onClick={() => setShowAddModal(true)} className="btn btn-sm btn-ghost" style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}>
+                + Add Platform
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            {activeAccount.platforms.map(p => (
+              <div 
+                key={p.id} 
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0.65rem 0.85rem",
+                  borderRadius: "10px",
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid var(--border-color)",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+                  <span style={{ fontSize: "1.2rem" }}>{getPlatformIcon(p.name)}</span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#fff" }}>{p.name}</div>
+                    <div style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>{p.handle}</div>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontWeight: 800, fontSize: "0.88rem", color: "var(--accent-cyan-light)" }}>
+                      {(Number(p.followers) || 0).toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: "0.68rem", color: "var(--text-subtle)", textTransform: "uppercase" }}>followers</div>
+                  </div>
+                  {canEdit && (
+                    <button
+                      onClick={() => removePlatform(activeAccount.id, p.id)}
+                      className="btn btn-ghost"
+                      style={{ padding: "0.2rem 0.4rem", minHeight: "26px", color: "var(--text-subtle)" }}
+                      title="Remove platform"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right Column: Recent Activity Feed */}
+        <div className="glass-card" style={{ padding: "1.25rem", borderRadius: "14px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>
+              Recent Content ({recentPosts.length})
+            </h3>
+            <button onClick={() => setActivePage("content-table")} className="btn btn-sm btn-ghost" style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}>
+              View All Table →
+            </button>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+            {recentPosts.map(post => (
+              <div 
+                key={post.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0.6rem 0.75rem",
+                  borderRadius: "8px",
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid var(--border-color)",
+                  fontSize: "0.82rem"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: "0.75rem" }}>
+                  <span>{getPlatformIcon(post.platform)}</span>
+                  <span style={{ fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {post.caption || "(No caption)"}
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexShrink: 0 }}>
+                  <span style={{ fontWeight: 700, fontSize: "0.8rem", color: "var(--accent-emerald)" }}>
+                    {(post.impressions || 0).toLocaleString()} views
+                  </span>
+                  <span className={`badge ${post.status === 'Uploaded' ? 'badge-uploaded' : (post.status === 'Scheduled' ? 'badge-scheduled' : 'badge-privated')}`} style={{ fontSize: "0.65rem" }}>
+                    {post.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {recentPosts.length === 0 && (
+              <div style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)", fontSize: "0.82rem" }}>
+                No content logged yet. Click <strong>⚡ Log Content</strong> to add your first post!
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── ADD PLATFORM CHANNEL MODAL ── */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">Link Platform to {activeAccount.name}</h2>
-              <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon" style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }} title="Close">
-                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>x</span>
-              </button>
+          <div className="modal-content" style={{ maxWidth: "440px", width: "90%" }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0 }}>Add Channel Account</h2>
+              <button onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon" style={{ width: "28px", height: "28px" }}>✕</button>
             </div>
+
             <form onSubmit={handleAddPlatform}>
-              <div className="form-group">
+              <div className="form-group" style={{ marginBottom: "0.85rem" }}>
                 <label className="form-label">Platform</label>
                 <select className="form-select" value={platformName} onChange={e => setPlatformName(e.target.value)}>
-                  <option value="TikTok">TikTok</option>
                   <option value="Instagram">Instagram</option>
-                  <option value="Facebook">Facebook</option>
-                  <option value="X (Twitter)">X (Twitter)</option>
+                  <option value="TikTok">TikTok</option>
                   <option value="YouTube">YouTube</option>
+                  <option value="X (Twitter)">X (Twitter)</option>
+                  <option value="Facebook">Facebook</option>
                   <option value="Threads">Threads</option>
                 </select>
               </div>
-              <div className="form-group">
-                <label className="form-label">Handle</label>
-                <input type="text" className="form-input" placeholder="@handle" required value={handle} onChange={e => setHandle(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Followers Count</label>
-                <input type="number" className="form-input" placeholder="10000" value={followers} onChange={e => setFollowers(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Channel / Profile URL</label>
-                <input
-                  type="url"
-                  className="form-input"
-                  placeholder="https://instagram.com/yourhandle"
-                  value={url}
-                  onChange={e => setUrl(e.target.value)}
-                />
-                <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
-                  Paste the full link to your profile/channel so "View Channel" works.
-                </p>
-              </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
-                <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary">Cancel</button>
-                <button type="submit" className="btn btn-primary">Link Platform</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
-      {/* -- Edit Platform Modal -- */}
-      {editingPlatform && (
-        <div className="modal-overlay" onClick={() => setEditingPlatform(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">Edit Platform Details</h2>
-              <button type="button" onClick={() => setEditingPlatform(null)} className="btn btn-secondary btn-icon" style={{ cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }} title="Close">
-                <span style={{ fontSize: "1.2rem", lineHeight: 1, fontWeight: "bold" }}>x</span>
-              </button>
-            </div>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              if (!editingPlatform.name || !editingPlatform.handle) {
-                alert("Platform name and handle are required");
-                return;
-              }
-              const updatedPlatforms = activeAccount.platforms.map(p => 
-                p.id === editingPlatform.id ? editingPlatform : p
-              );
-              editAccount(activeAccount.id, { platforms: updatedPlatforms });
-              setEditingPlatform(null);
-            }}>
-              <div className="form-group">
-                <label className="form-label">Platform Name</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  required
-                  value={editingPlatform.name} 
-                  onChange={e => setEditingPlatform({ ...editingPlatform, name: e.target.value })}
-                />
+              <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+                <label className="form-label">Account Handle / Username</label>
+                <input type="text" className="form-input" placeholder="@yourbrand" required value={handle} onChange={e => setHandle(e.target.value)} />
               </div>
-              <div className="form-group">
-                <label className="form-label">Handle / Username</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  required
-                  value={editingPlatform.handle} 
-                  onChange={e => setEditingPlatform({ ...editingPlatform, handle: e.target.value })}
-                />
+
+              <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+                <label className="form-label">Followers Count</label>
+                <input type="number" className="form-input" placeholder="0" min="0" value={followers} onChange={e => setFollowers(e.target.value)} />
               </div>
-              <div className="form-group">
-                <label className="form-label">Followers</label>
-                <input 
-                  type="number" 
-                  className="form-input" 
-                  min="0"
-                  value={editingPlatform.followers} 
-                  onChange={e => setEditingPlatform({ ...editingPlatform, followers: Number(e.target.value) })}
-                />
+
+              <div className="form-group" style={{ marginBottom: "1.25rem" }}>
+                <label className="form-label">Profile URL (Optional)</label>
+                <input type="text" className="form-input" placeholder="https://instagram.com/..." value={url} onChange={e => setUrl(e.target.value)} />
               </div>
-              <div className="form-group">
-                <label className="form-label">URL (Profile Link)</label>
-                <input 
-                  type="url" 
-                  className="form-input" 
-                  placeholder="https://..."
-                  value={editingPlatform.url} 
-                  onChange={e => setEditingPlatform({ ...editingPlatform, url: e.target.value })}
-                />
-              </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
-                <button type="button" onClick={() => setEditingPlatform(null)} className="btn btn-secondary">Cancel</button>
-                <button type="submit" className="btn btn-primary">Save Changes</button>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
+                <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary">Cancel</button>
+                <button type="submit" className="btn btn-primary">Add Channel</button>
               </div>
             </form>
           </div>
@@ -2060,9 +2232,8 @@ function AccountCenterPage() {
       )}
     </div>
   );
-}
+};
 
-// AddContentPage Component - Dedicated page for logging content entries with TikTok API Auto-Input & Real-Time Sync
 // TikTokHelpModal Component — Comprehensive Interactive Guide & Tutorial for TikTok API & Real-Time Sync
 window.TikTokHelpModal = function({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = React.useState("quickstart");
@@ -2386,6 +2557,7 @@ window.TikTokHelpModal = function({ isOpen, onClose }) {
   );
 };
 
+// AddContentPage Component - Modern 2-Column Compact Layout for Fast Manual & TikTok API Logging
 window.AddContentPage = function() {
   const { activeAccount, addContent, canEdit, setActivePage, fetchTikTokData } = React.useContext(window.VaultContext);
 
@@ -2394,7 +2566,7 @@ window.AddContentPage = function() {
     const now = new Date();
     return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   });
-  const [platform, setPlatform] = React.useState(() => activeAccount?.platforms?.[0]?.name || "Instagram");
+  const [platform, setPlatform] = React.useState(() => activeAccount?.platforms?.[0]?.name || "TikTok");
   const [caption, setCaption] = React.useState("");
   const [hashtagsInput, setHashtagsInput] = React.useState("");
   const [subjectInput, setSubjectInput] = React.useState("");
@@ -2406,7 +2578,7 @@ window.AddContentPage = function() {
   const [shares, setShares] = React.useState("");
   const [saves, setSaves] = React.useState("");
   const [status, setStatus] = React.useState("Uploaded");
-  const [contentType, setContentType] = React.useState("");
+  const [contentType, setContentType] = React.useState("Video");
 
   // TikTok API Auto-Fetch State
   const [tiktokInput, setTiktokInput] = React.useState("");
@@ -2458,7 +2630,6 @@ window.AddContentPage = function() {
     }
   };
 
-  // Handle multi-subject addition
   const handleAddSubject = () => {
     if (!subjectInput.trim()) return;
     const clean = subjectInput.trim();
@@ -2479,7 +2650,6 @@ window.AddContentPage = function() {
       return;
     }
 
-    // Parse hashtags
     const hashtagsArray = hashtagsInput
       .split(/[\s,]+/)
       .map(tag => tag.trim())
@@ -2512,146 +2682,136 @@ window.AddContentPage = function() {
 
   return (
     <div className="page-container">
-      {/* Header with Title */}
-      <div className="page-header">
+      {/* ── Header ── */}
+      <div className="page-header" style={{ marginBottom: "1.25rem" }}>
         <div>
-          <h1 className="page-title">Add Content Entry</h1>
-          <p className="page-subtitle">Log new content details manually or auto-import in seconds via TikTok API</p>
+          <h1 className="page-title" style={{ fontSize: "1.4rem", fontWeight: 800 }}>
+            Add Content Entry
+          </h1>
+          <p className="page-subtitle" style={{ fontSize: "0.82rem" }}>
+            Log post metrics manually or import in seconds via TikTok API
+          </p>
+        </div>
+
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button
+            type="button"
+            onClick={() => setHelpModalOpen(true)}
+            className="btn btn-sm btn-secondary"
+            style={{ borderColor: "rgba(37,244,238,0.4)", color: "#25F4EE", fontWeight: 700 }}
+          >
+            <span>❓ API Guide</span>
+          </button>
+          <button onClick={() => setActivePage("content-table")} className="btn btn-sm btn-secondary">
+            <span>← Table</span>
+          </button>
         </div>
       </div>
 
-      <div style={{ maxWidth: "850px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+      {/* ── 2-Column Responsive Layout ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: "1.25rem", alignItems: "start" }}>
         
-        {/* ── TIKTOK API AUTO-INPUT PANEL ── */}
-        <div className="glass-card" style={{
-          background: "linear-gradient(135deg, rgba(37,244,238,0.08), rgba(254,44,85,0.08))",
-          border: "1px solid rgba(37,244,238,0.25)",
-          borderRadius: "16px",
-          padding: "1.5rem"
-        }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.85rem", flexWrap: "wrap", gap: "0.5rem" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <div style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "10px",
-                background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "1.1rem"
-              }}>
+        {/* LEFT COLUMN: TikTok API Auto-Input Panel & Live Preview */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div className="glass-card" style={{
+            background: "linear-gradient(135deg, rgba(37,244,238,0.08), rgba(254,44,85,0.08))",
+            border: "1px solid rgba(37,244,238,0.25)",
+            borderRadius: "14px",
+            padding: "1.25rem"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.85rem" }}>
+              <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, #25F4EE, #FE2C55)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>
                 🎵
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "#fff" }}>
-                  TikTok API Auto-Input & Real-Time Sync
+                <h3 style={{ margin: 0, fontSize: "0.98rem", fontWeight: 700, color: "#fff" }}>
+                  TikTok API Auto-Input
                 </h3>
-                <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                  Paste any TikTok link to auto-fill caption, hashtags, views, likes & metrics
-                </span>
+                <div style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>
+                  Paste any TikTok link to auto-fill views, likes & caption
+                </div>
               </div>
             </div>
 
-            {/* Tutorial / Help Button */}
-            <button
-              type="button"
-              onClick={() => setHelpModalOpen(true)}
-              className="btn btn-sm btn-secondary"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                fontSize: "0.78rem",
-                fontWeight: 700,
-                borderColor: "rgba(37,244,238,0.4)",
-                color: "#25F4EE",
-                background: "rgba(37,244,238,0.1)"
-              }}
-              title="How to use TikTok API & Real-Time Sync"
-            >
-              <span>❓</span>
-              <span>API Guide & Tutorial</span>
-            </button>
+            <form onSubmit={handleFetchTikTok} style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+              <input
+                type="text"
+                className="form-input"
+                style={{ background: "rgba(15, 23, 42, 0.7)", fontSize: "0.84rem", minHeight: "38px" }}
+                placeholder="https://www.tiktok.com/@user/video/... or https://vt.tiktok.com/..."
+                value={tiktokInput}
+                onChange={e => setTiktokInput(e.target.value)}
+                disabled={tiktokLoading}
+              />
+              <button
+                type="submit"
+                className="btn btn-primary btn-sm"
+                disabled={tiktokLoading || !tiktokInput.trim()}
+                style={{
+                  background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
+                  color: "#000",
+                  fontWeight: 800,
+                  border: "none",
+                  width: "100%",
+                  minHeight: "36px"
+                }}
+              >
+                {tiktokLoading ? "⏳ Extracting Post Data..." : "⚡ Auto-Fill Post Details"}
+              </button>
+            </form>
+
+            {tiktokError && (
+              <div style={{ marginTop: "0.65rem", padding: "0.5rem 0.75rem", borderRadius: "6px", background: "rgba(244,63,94,0.15)", border: "1px solid rgba(244,63,94,0.3)", color: "#F43F5E", fontSize: "0.78rem" }}>
+                ⚠️ {tiktokError}
+              </div>
+            )}
           </div>
 
-          <form onSubmit={handleFetchTikTok} style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <input
-              type="text"
-              className="form-input"
-              style={{ flex: 1, minWidth: "260px", background: "rgba(15, 23, 42, 0.6)" }}
-              placeholder="Paste TikTok URL (e.g. https://www.tiktok.com/@user/video/... or https://vt.tiktok.com/...)"
-              value={tiktokInput}
-              onChange={e => setTiktokInput(e.target.value)}
-              disabled={tiktokLoading}
-            />
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={tiktokLoading || !tiktokInput.trim()}
-              style={{
-                background: "linear-gradient(135deg, #25F4EE, #FE2C55)",
-                color: "#000",
-                fontWeight: 800,
-                border: "none",
-                minWidth: "160px"
-              }}
-            >
-              {tiktokLoading ? "⏳ Fetching..." : "⚡ Auto-Fill Post"}
-            </button>
-          </form>
-
-          {/* Feedback Messages */}
-          {tiktokError && (
-            <div style={{ marginTop: "0.85rem", padding: "0.6rem 0.85rem", borderRadius: "8px", background: "rgba(244, 63, 94, 0.15)", border: "1px solid rgba(244, 63, 94, 0.3)", color: "#F43F5E", fontSize: "0.82rem" }}>
-              ⚠️ {tiktokError}
-            </div>
-          )}
-
+          {/* Live Extracted Card Preview */}
           {tiktokSuccess && (
-            <div style={{ marginTop: "0.85rem", padding: "0.75rem 1rem", borderRadius: "8px", background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", color: "#10B981", fontSize: "0.82rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
-              <div>
-                ✨ <strong>Success!</strong> Auto-filled video: <em>"{tiktokSuccess.caption?.substring(0, 35)}..."</em> ({tiktokSuccess.impressions?.toLocaleString()} views, {tiktokSuccess.likes?.toLocaleString()} likes).
+            <div className="glass-card" style={{
+              padding: "1.1rem",
+              borderRadius: "12px",
+              border: "1px solid rgba(16,185,129,0.35)",
+              background: "linear-gradient(145deg, rgba(16,185,129,0.06), rgba(13,17,23,0.9))"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                <span style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", color: "var(--accent-emerald)" }}>
+                  ✅ Extracted Video Details
+                </span>
+                <span className="badge badge-uploaded" style={{ fontSize: "0.65rem" }}>Live Synced</span>
               </div>
-              <span className="badge badge-uploaded" style={{ fontSize: "0.7rem" }}>Real-Time Live Ready</span>
+              <div style={{ fontWeight: 700, fontSize: "0.88rem", color: "#fff", marginBottom: "0.4rem" }}>
+                {tiktokSuccess.caption}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem", marginBottom: "0.65rem" }}>
+                {(tiktokSuccess.hashtags || []).map((h, i) => (
+                  <span key={i} className="chip chip-hashtag" style={{ fontSize: "0.7rem", padding: "0.1rem 0.35rem" }}>{h}</span>
+                ))}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.4rem", background: "rgba(0,0,0,0.3)", padding: "0.5rem", borderRadius: "8px", fontSize: "0.76rem" }}>
+                <div>👀 <strong>{tiktokSuccess.impressions?.toLocaleString()}</strong> views</div>
+                <div>❤️ <strong>{tiktokSuccess.likes?.toLocaleString()}</strong> likes</div>
+                <div>💬 <strong>{tiktokSuccess.comments?.toLocaleString()}</strong> comments</div>
+              </div>
             </div>
           )}
+
+          {/* Quick Pro-Tip Box */}
+          <div style={{ padding: "0.85rem 1rem", borderRadius: "10px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
+            💡 <strong>Instant Sync Tip:</strong> All auto-filled numbers remain 100% editable on the right before saving. After adding, you can real-time sync metrics anytime on the Content Table!
+          </div>
         </div>
 
-        {/* ── MANUAL / DETAILED LOGGING FORM ── */}
-        <div className="glass-card" style={{ padding: "2rem" }}>
+        {/* RIGHT COLUMN: Form Details & Metrics Grid */}
+        <div className="glass-card" style={{ padding: "1.35rem", borderRadius: "14px" }}>
           <form onSubmit={handleSubmit}>
             
-            {/* Row 1: Date, Time & Platform */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.25rem", marginBottom: "1.25rem" }}>
-              <div className="form-group">
-                <label className="form-label">Upload Date</label>
-                <input 
-                  type="date" 
-                  className="form-input" 
-                  required 
-                  value={uploadDate} 
-                  onChange={e => setUploadDate(e.target.value)} 
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Upload Time</label>
-                <input 
-                  type="time" 
-                  className="form-input" 
-                  value={uploadTime} 
-                  onChange={e => setUploadTime(e.target.value)} 
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Platform</label>
-                <select 
-                  className="form-select" 
-                  value={platform} 
-                  onChange={e => setPlatform(e.target.value)}
-                >
+            {/* Row 1: Platform & Status */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem", marginBottom: "0.85rem" }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontSize: "0.74rem" }}>Platform</label>
+                <select className="form-select" style={{ minHeight: "36px", fontSize: "0.84rem" }} value={platform} onChange={e => setPlatform(e.target.value)}>
                   <option value="TikTok">TikTok</option>
                   <option value="Instagram">Instagram</option>
                   <option value="YouTube">YouTube</option>
@@ -2660,28 +2820,10 @@ window.AddContentPage = function() {
                   <option value="Threads">Threads</option>
                 </select>
               </div>
-            </div>
 
-            {/* Row 2: Content Type & Status */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", marginBottom: "1.25rem" }}>
-              <div className="form-group">
-                <label className="form-label">Content Type</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  placeholder="e.g. Video, Reels, Carousel, Short..." 
-                  value={contentType} 
-                  onChange={e => setContentType(e.target.value)} 
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Post Status</label>
-                <select 
-                  className="form-select" 
-                  value={status} 
-                  onChange={e => setStatus(e.target.value)}
-                >
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontSize: "0.74rem" }}>Post Status</label>
+                <select className="form-select" style={{ minHeight: "36px", fontSize: "0.84rem" }} value={status} onChange={e => setStatus(e.target.value)}>
                   <option value="Uploaded">Uploaded (Live Post)</option>
                   <option value="Scheduled">Scheduled</option>
                   <option value="Privated">Privated</option>
@@ -2690,115 +2832,103 @@ window.AddContentPage = function() {
               </div>
             </div>
 
-            {/* Row 3: Caption Textarea */}
-            <div className="form-group" style={{ marginBottom: "1.25rem" }}>
-              <label className="form-label">Caption / Post Description</label>
-              <textarea 
-                className="form-textarea" 
-                rows="3" 
-                placeholder="Enter post caption or story text..." 
-                required 
-                value={caption} 
-                onChange={e => setCaption(e.target.value)}
-              ></textarea>
+            {/* Row 2: Date & Time & Content Type */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.75rem", marginBottom: "0.85rem" }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontSize: "0.74rem" }}>Date</label>
+                <input type="date" className="form-input" style={{ minHeight: "36px", fontSize: "0.82rem" }} required value={uploadDate} onChange={e => setUploadDate(e.target.value)} />
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontSize: "0.74rem" }}>Time</label>
+                <input type="time" className="form-input" style={{ minHeight: "36px", fontSize: "0.82rem" }} value={uploadTime} onChange={e => setUploadTime(e.target.value)} />
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontSize: "0.74rem" }}>Type</label>
+                <input type="text" className="form-input" style={{ minHeight: "36px", fontSize: "0.82rem" }} placeholder="Video, Reel..." value={contentType} onChange={e => setContentType(e.target.value)} />
+              </div>
             </div>
 
-            {/* Row 4: Hashtags */}
-            <div className="form-group" style={{ marginBottom: "1.25rem" }}>
-              <label className="form-label">Hashtags (separated by spaces or commas)</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                placeholder="#tiktok #trending #social" 
-                value={hashtagsInput} 
-                onChange={e => setHashtagsInput(e.target.value)} 
-              />
+            {/* Caption */}
+            <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+              <label className="form-label" style={{ fontSize: "0.74rem" }}>Caption / Description</label>
+              <textarea className="form-textarea" rows="2" style={{ fontSize: "0.85rem" }} placeholder="Post caption..." required value={caption} onChange={e => setCaption(e.target.value)}></textarea>
             </div>
 
-            {/* Row 5: Multi-Subject Selector */}
-            <div className="form-group" style={{ marginBottom: "1.5rem" }}>
-              <label className="form-label">Subjects / People Featured</label>
-              <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  placeholder="Type person's name (e.g. Sarah, Jordan, Alex)..." 
-                  value={subjectInput} 
+            {/* Hashtags */}
+            <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+              <label className="form-label" style={{ fontSize: "0.74rem" }}>Hashtags</label>
+              <input type="text" className="form-input" style={{ minHeight: "36px", fontSize: "0.84rem" }} placeholder="#viral #trending #business" value={hashtagsInput} onChange={e => setHashtagsInput(e.target.value)} />
+            </div>
+
+            {/* Subjects */}
+            <div className="form-group" style={{ marginBottom: "1rem" }}>
+              <label className="form-label" style={{ fontSize: "0.74rem" }}>Featured Subjects / People</label>
+              <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.4rem" }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ minHeight: "34px", fontSize: "0.82rem" }}
+                  placeholder="Person's name..."
+                  value={subjectInput}
                   onChange={e => setSubjectInput(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddSubject();
-                    }
-                  }} 
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddSubject(); } }}
                 />
-                <button type="button" onClick={handleAddSubject} className="btn btn-secondary">
-                  Add Subject
+                <button type="button" onClick={handleAddSubject} className="btn btn-sm btn-secondary" style={{ padding: "0.2rem 0.6rem", fontSize: "0.75rem" }}>
+                  + Add
                 </button>
               </div>
 
-              {/* Subject Chips */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem" }}>
                 {subjectsList.map(name => (
-                  <span key={name} className="chip chip-subject" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                  <span key={name} className="chip chip-subject" style={{ fontSize: "0.72rem", padding: "0.1rem 0.4rem" }}>
                     👤 {name}
-                    <button 
-                      type="button" 
-                      onClick={() => handleRemoveSubject(name)} 
-                      style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold", fontSize: "0.85rem", lineHeight: 1 }} 
-                      title="Remove subject"
-                    >
-                      ✕
-                    </button>
+                    <button type="button" onClick={() => handleRemoveSubject(name)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold" }}>✕</button>
                   </span>
                 ))}
               </div>
             </div>
 
-            <hr style={{ borderColor: "var(--border-color)", margin: "1.5rem 0" }} />
+            <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: "0.85rem", marginBottom: "0.85rem" }}>
+              <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#fff", marginBottom: "0.6rem" }}>
+                📊 Performance Metrics
+              </div>
 
-            {/* Performance Metrics Grid */}
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1rem" }}>
-              Performance Metrics
-            </h3>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "0.85rem", marginBottom: "1.75rem" }}>
-              <div className="form-group">
-                <label className="form-label">Impressions</label>
-                <input type="number" className="form-input" min="0" placeholder="0" value={impressions} onChange={e => setImpressions(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Reach</label>
-                <input type="number" className="form-input" min="0" placeholder="0" value={reach} onChange={e => setReach(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Likes</label>
-                <input type="number" className="form-input" min="0" placeholder="0" value={likes} onChange={e => setLikes(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Comments</label>
-                <input type="number" className="form-input" min="0" placeholder="0" value={comments} onChange={e => setComments(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Shares</label>
-                <input type="number" className="form-input" min="0" placeholder="0" value={shares} onChange={e => setShares(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Saves</label>
-                <input type="number" className="form-input" min="0" placeholder="0" value={saves} onChange={e => setSaves(e.target.value)} />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.6rem" }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: "0.68rem" }}>Impressions</label>
+                  <input type="number" className="form-input" style={{ minHeight: "34px", fontSize: "0.82rem" }} min="0" placeholder="0" value={impressions} onChange={e => setImpressions(e.target.value)} />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: "0.68rem" }}>Reach</label>
+                  <input type="number" className="form-input" style={{ minHeight: "34px", fontSize: "0.82rem" }} min="0" placeholder="0" value={reach} onChange={e => setReach(e.target.value)} />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: "0.68rem" }}>Likes</label>
+                  <input type="number" className="form-input" style={{ minHeight: "34px", fontSize: "0.82rem" }} min="0" placeholder="0" value={likes} onChange={e => setLikes(e.target.value)} />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: "0.68rem" }}>Comments</label>
+                  <input type="number" className="form-input" style={{ minHeight: "34px", fontSize: "0.82rem" }} min="0" placeholder="0" value={comments} onChange={e => setComments(e.target.value)} />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: "0.68rem" }}>Shares</label>
+                  <input type="number" className="form-input" style={{ minHeight: "34px", fontSize: "0.82rem" }} min="0" placeholder="0" value={shares} onChange={e => setShares(e.target.value)} />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: "0.68rem" }}>Saves</label>
+                  <input type="number" className="form-input" style={{ minHeight: "34px", fontSize: "0.82rem" }} min="0" placeholder="0" value={saves} onChange={e => setSaves(e.target.value)} />
+                </div>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
-              <button 
-                type="button" 
-                onClick={() => setActivePage("content-table")} 
-                className="btn btn-secondary"
-              >
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem", marginTop: "1rem" }}>
+              <button type="button" onClick={() => setActivePage("content-table")} className="btn btn-sm btn-secondary">
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary" style={{ minWidth: "140px" }}>
+              <button type="submit" className="btn btn-sm btn-primary" style={{ fontWeight: 800, padding: "0.4rem 1.25rem" }}>
                 💾 Save Entry
               </button>
             </div>
