@@ -1373,7 +1373,7 @@ const undo = React.useCallback(async () => {
     };
   }, [user, activeAccountId, activeAccount?.id, activeAccount?.lastDailyAutoSyncDate]);
 
-  // ── Periodic Content Live Auto-Updater (Updates pasted TikTok links in background) ──
+  // ── Periodic Content Live Auto-Updater (Updates pasted TikTok links automatically in real-time) ──
   React.useEffect(() => {
     if (!user || !activeAccountId || !canEdit) return;
 
@@ -1388,9 +1388,9 @@ const undo = React.useCallback(async () => {
 
         try {
           const fresh = await fetchTikTokData(url);
-          // Only update if we got verified real data from the serverless API (not fallback zeros)
-          if (fresh && fresh.verifiedRealTime && (fresh.impressions > 0 || fresh.likes > 0)) {
-            await getRefForUid(ownerUid).collection('contents').doc(item.id).update(cleanFirestoreData({
+          // Only update if fresh has actual non-zero metrics
+          if (fresh && (fresh.impressions > 0 || fresh.likes > 0)) {
+            const cleanUpdate = cleanFirestoreData({
               impressions: fresh.impressions,
               reach: fresh.reach,
               likes: fresh.likes,
@@ -1399,20 +1399,28 @@ const undo = React.useCallback(async () => {
               saves: fresh.saves,
               thumbnailUrl: fresh.thumbnailUrl || item.thumbnailUrl || "",
               lastSyncedAt: new Date().toISOString()
-            }));
+            });
+
+            // 1. Update Firestore
+            await getRefForUid(ownerUid).collection('contents').doc(item.id).update(cleanUpdate);
+
+            // 2. Update local React state immediately for instant real-time zero-refresh feedback
+            setOwnContents(prev => prev.map(c => c.id === item.id ? { ...c, ...cleanUpdate } : c));
+            setSharedContents(prev => prev.map(c => c.id === item.id ? { ...c, ...cleanUpdate } : c));
           }
         } catch(e) {}
       }
     };
 
-    const initialTimer = setTimeout(autoRefreshPastedTikTokPosts, 4000);
-    const intervalTimer = setInterval(autoRefreshPastedTikTokPosts, 2.5 * 60 * 1000); // check every 2.5 mins
+    // Auto-sync instantly on page visit / tab switch (500ms), and repeat in background every 60s
+    const initialTimer = setTimeout(autoRefreshPastedTikTokPosts, 500);
+    const intervalTimer = setInterval(autoRefreshPastedTikTokPosts, 60 * 1000);
 
     return () => {
       clearTimeout(initialTimer);
       clearInterval(intervalTimer);
     };
-  }, [user, activeAccountId, canEdit, contents.length]);
+  }, [user, activeAccountId, canEdit, activePage]);
 
   const canUndo = historyStack.length > 0;
   const lastActionDescription = historyStack[0]?.description || '';
@@ -3183,6 +3191,18 @@ window.AddContentPage = function() {
       setTiktokLoading(false);
     }
   };
+
+  // Instant Auto-Fetch on URL paste (zero clicks required)
+  React.useEffect(() => {
+    if (!tiktokInput || (!tiktokInput.includes("tiktok.com") && !tiktokInput.startsWith("vt.") && !tiktokInput.startsWith("vm."))) return;
+    if (tiktokSuccess && tiktokSuccess.originalUrl === tiktokInput) return;
+
+    const timer = setTimeout(() => {
+      handleFetchTikTok();
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [tiktokInput]);
 
   // Handle Entire Account Auto-Sync
   const handleSyncEntireAccount = async (e) => {
