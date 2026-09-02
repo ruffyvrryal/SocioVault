@@ -3869,6 +3869,10 @@ window.ContentTablePage = function() {
   const [sortBy, setSortBy] = React.useState("uploadDate");
   const [sortOrder, setSortOrder] = React.useState("desc");
 
+  // ── Pagination State (25 content items per page) ──
+  const ROWS_PER_PAGE = 25;
+  const [currentPage, setCurrentPage] = React.useState(1);
+
   // Quick TikTok Modal State (supports single video & entire account sync)
   const [tiktokModalOpen, setTiktokModalOpen] = React.useState(false);
   const [tiktokModalMode, setTiktokModalMode] = React.useState("account"); // "account" | "single"
@@ -3901,6 +3905,11 @@ window.ContentTablePage = function() {
 
   const tikTokPlatform = (activeAccount.platforms || []).find(p => p.name === "TikTok");
 
+  // Reset page to 1 whenever search, filter, or sorting changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, platformFilter, statusFilter, sortBy, sortOrder]);
+
   // Filtering & Sorting
   const filteredAndSortedContents = React.useMemo(() => {
     return accountContents.filter(item => {
@@ -3930,6 +3939,13 @@ window.ContentTablePage = function() {
       return sortOrder === "asc" ? (valA || 0) - (valB || 0) : (valB || 0) - (valA || 0);
     });
   }, [accountContents, searchTerm, platformFilter, statusFilter, sortBy, sortOrder]);
+
+  // Pagination calculation: 25 items per page
+  const totalPages = Math.max(1, Math.ceil(filteredAndSortedContents.length / ROWS_PER_PAGE));
+  const pagedContents = React.useMemo(() => {
+    const start = (currentPage - 1) * ROWS_PER_PAGE;
+    return filteredAndSortedContents.slice(start, start + ROWS_PER_PAGE);
+  }, [filteredAndSortedContents, currentPage]);
 
   const handleSort = (field) => {
     if (sortBy === field) {
@@ -4216,11 +4232,12 @@ window.ContentTablePage = function() {
             </tr>
           </thead>
           <tbody>
-            {filteredAndSortedContents.map(item => {
+            {pagedContents.map((item, rowIdx) => {
               const eng = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
               const er = item.reach > 0 ? ((eng / item.reach) * 100).toFixed(2) : (item.impressions > 0 ? ((eng / item.impressions) * 100).toFixed(2) : "0.00");
               const isTikTok = item.platform === "TikTok" || item.originalUrl;
               const isItemSyncing = syncingItemId === item.id;
+              const itemNumber = ((currentPage - 1) * ROWS_PER_PAGE) + rowIdx + 1;
 
               return (
                 <tr key={item.id}>
@@ -4333,6 +4350,79 @@ window.ContentTablePage = function() {
           </tbody>
         </table>
       </div>
+
+      {/* ── Table Pagination Bar (25 items per page) ── */}
+      {totalPages > 1 && (
+        <div style={{
+          padding: "0.85rem 1.25rem",
+          borderRadius: "12px",
+          marginTop: "0.85rem",
+          background: "rgba(22, 30, 46, 0.75)",
+          border: "1px solid var(--border-color)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "0.5rem"
+        }}>
+          <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 500 }}>
+            Showing posts <strong style={{ color: "#fff" }}>{((currentPage - 1) * ROWS_PER_PAGE) + 1}–{Math.min(currentPage * ROWS_PER_PAGE, filteredAndSortedContents.length)}</strong> of <strong style={{ color: "#fff" }}>{filteredAndSortedContents.length}</strong> (Page {currentPage} of {totalPages})
+          </div>
+          <div style={{ display: "flex", gap: "0.35rem", alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="btn btn-secondary btn-sm"
+              style={{ padding: "0.25rem 0.55rem", fontSize: "0.75rem", opacity: currentPage === 1 ? 0.4 : 1 }}
+              title="First Page"
+            >«</button>
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="btn btn-secondary btn-sm"
+              style={{ padding: "0.25rem 0.55rem", fontSize: "0.75rem", opacity: currentPage === 1 ? 0.4 : 1 }}
+              title="Previous Page"
+            >‹ Prev</button>
+            {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+              let page;
+              if (totalPages <= 7) { page = i + 1; }
+              else if (currentPage <= 4) { page = i + 1; }
+              else if (currentPage >= totalPages - 3) { page = totalPages - 6 + i; }
+              else { page = currentPage - 3 + i; }
+              return (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`btn btn-sm ${currentPage === page ? "btn-primary" : "btn-secondary"}`}
+                  style={{
+                    padding: "0.25rem 0.6rem",
+                    fontSize: "0.75rem",
+                    minWidth: "32px",
+                    fontWeight: currentPage === page ? 800 : 500,
+                    background: currentPage === page ? "var(--gradient-primary)" : "rgba(255,255,255,0.06)",
+                    color: "#fff",
+                    border: currentPage === page ? "none" : "1px solid var(--border-color)"
+                  }}
+                >{page}</button>
+              );
+            })}
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="btn btn-secondary btn-sm"
+              style={{ padding: "0.25rem 0.55rem", fontSize: "0.75rem", opacity: currentPage === totalPages ? 0.4 : 1 }}
+              title="Next Page"
+            >Next ›</button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="btn btn-secondary btn-sm"
+              style={{ padding: "0.25rem 0.55rem", fontSize: "0.75rem", opacity: currentPage === totalPages ? 0.4 : 1 }}
+              title="Last Page"
+            >»</button>
+          </div>
+        </div>
+      )}
 
       {/* ── TIKTOK IMPORT / AUTO-SYNC MODAL ── */}
       {tiktokModalOpen && (
