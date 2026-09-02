@@ -996,6 +996,9 @@ const undo = React.useCallback(async () => {
 
       await editAccount(targetAccountId, updatedAccountFields);
 
+      // Log daily follower snapshot for Follower Tracks page
+      recordFollowerSnapshot(targetAccountId, updatedPlatforms);
+
       // 2. Merge & Import all videos into Contents (Firestore batch & local state)
       let newlyImported = 0;
       let refreshedCount = 0;
@@ -1252,6 +1255,41 @@ const undo = React.useCallback(async () => {
     await ref.update({ subjectPhotos: updatedPhotos });
   };
 
+  // ── Follower History Tracking ──
+  const [followerHistory, setFollowerHistory] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem("smh_follower_history");
+      return saved ? JSON.parse(saved) : {};
+    } catch(e) { return {}; }
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem("smh_follower_history", JSON.stringify(followerHistory));
+  }, [followerHistory]);
+
+  // Record a daily follower snapshot for an account
+  const recordFollowerSnapshot = React.useCallback((accountId, platforms) => {
+    const today = new Date().toISOString().split("T")[0];
+    const totalFollowers = (platforms || []).reduce((s, p) => s + (Number(p.followers) || 0), 0);
+    const platformMap = {};
+    (platforms || []).forEach(p => { platformMap[p.name] = Number(p.followers) || 0; });
+
+    setFollowerHistory(prev => {
+      const accHistory = Array.isArray(prev[accountId]) ? [...prev[accountId]] : [];
+      // Check if we already have a snapshot for today - update it
+      const todayIdx = accHistory.findIndex(s => s.date === today);
+      const snapshot = { date: today, timestamp: Date.now(), platforms: platformMap, total: totalFollowers };
+      if (todayIdx >= 0) {
+        accHistory[todayIdx] = snapshot;
+      } else {
+        accHistory.push(snapshot);
+      }
+      // Keep last 365 days sorted
+      accHistory.sort((a, b) => a.date.localeCompare(b.date));
+      return { ...prev, [accountId]: accHistory.slice(-365) };
+    });
+  }, []);
+
   const canUndo = historyStack.length > 0;
   const lastActionDescription = historyStack[0]?.description || '';
 
@@ -1263,7 +1301,8 @@ const undo = React.useCallback(async () => {
       addContent, updateContent, deleteContent, removeAllContents,
       addCollaborator, updateCollaboratorRole, removeCollaborator,
       updateSubjectPhoto, getUserRole, historyStack, canUndo, lastActionDescription, undo, undoToast, setUndoToast,
-      fetchTikTokData, fetchTikTokAccountProfile, syncTikTokAccount, syncTikTokPost, syncAllTikTokPosts, isSyncingTikTok
+      fetchTikTokData, fetchTikTokAccountProfile, syncTikTokAccount, syncTikTokPost, syncAllTikTokPosts, isSyncingTikTok,
+      followerHistory, recordFollowerSnapshot
     }}>
       {children}
     </VaultContext.Provider>
@@ -1840,7 +1879,8 @@ window.Navbar = function() {
     { id: "hashtag-analytics",   label: "Hashtag Studio",   icon: "hash"          },
     { id: "subject-analytics",   label: "Subjects",         icon: "users"         },
     { id: "report-summary",      label: "Report",           icon: "file-bar-chart"},
-    { id: "collaborators",       label: "Collaborators",    icon: "share-2"       }
+    { id: "collaborators",       label: "Collaborators",    icon: "share-2"       },
+    { id: "follower-tracks",     label: "Follower Tracks",  icon: "trending-up"   }
   ];
 
   const accessibleAccounts = accounts.filter(acc =>
@@ -7161,6 +7201,453 @@ window.NotesPage = function() {
   );
 };
 
+// ── FollowerTracksPage — Daily Follower Growth Tracker ──
+window.FollowerTracksPage = function() {
+  const {
+    activeAccount, followerHistory, recordFollowerSnapshot, accounts, setUndoToast
+  } = React.useContext(window.VaultContext);
+
+  const ROWS_PER_PAGE = 25;
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [platformFilter, setPlatformFilter] = React.useState("ALL");
+  const [manualFollowers, setManualFollowers] = React.useState({});
+  const [addingManual, setAddingManual] = React.useState(false);
+  const [manualDate, setManualDate] = React.useState(new Date().toISOString().split("T")[0]);
+
+  if (!activeAccount) {
+    return <div className="page-container"><p style={{ color: "var(--text-muted)" }}>No active account selected.</p></div>;
+  }
+
+  const accHistory = React.useMemo(() => {
+    return Array.isArray(followerHistory[activeAccount.id]) ? followerHistory[activeAccount.id] : [];
+  }, [followerHistory, activeAccount.id]);
+
+  // All unique platform names across all snapshots
+  const allPlatforms = React.useMemo(() => {
+    const set = new Set();
+    accHistory.forEach(s => Object.keys(s.platforms || {}).forEach(p => set.add(p)));
+    (activeAccount.platforms || []).forEach(p => set.add(p.name));
+    return Array.from(set);
+  }, [accHistory, activeAccount]);
+
+  // Filtered & reversed (newest first for table)
+  const tableRows = React.useMemo(() => {
+    return [...accHistory].reverse();
+  }, [accHistory]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(tableRows.length / ROWS_PER_PAGE));
+  const pagedRows = tableRows.slice((currentPage - 1) * ROWS_PER_PAGE, currentPage * ROWS_PER_PAGE);
+
+  // Chart data — last 30 days
+  const chartData = React.useMemo(() => accHistory.slice(-30), [accHistory]);
+
+  // Compute max for chart scale
+  const chartMax = React.useMemo(() => {
+    if (chartData.length === 0) return 1000;
+    return Math.max(...chartData.map(s => s.total || 0), 1000);
+  }, [chartData]);
+
+  // Growth vs previous day
+  const latestSnap = accHistory[accHistory.length - 1];
+  const prevSnap   = accHistory[accHistory.length - 2];
+  const todayTotal = latestSnap ? latestSnap.total : 0;
+  const prevTotal  = prevSnap   ? prevSnap.total   : 0;
+  const dailyGrowth = todayTotal - prevTotal;
+  const growthPct = prevTotal > 0 ? ((dailyGrowth / prevTotal) * 100).toFixed(2) : "0.00";
+
+  // Take a manual snapshot now
+  const handleSnapshotNow = () => {
+    recordFollowerSnapshot(activeAccount.id, activeAccount.platforms || []);
+    setUndoToast({ message: "📸 Today's follower snapshot saved!", type: "success" });
+    setTimeout(() => setUndoToast(null), 3000);
+  };
+
+  // Add manual entry
+  const handleAddManual = (e) => {
+    e.preventDefault();
+    const platforms = {};
+    allPlatforms.forEach(p => {
+      const val = Number(manualFollowers[p] || 0);
+      if (val > 0) platforms[p] = val;
+    });
+    const total = Object.values(platforms).reduce((s, v) => s + v, 0);
+    if (total === 0) return;
+    const snapshot = { date: manualDate, timestamp: new Date(manualDate).getTime(), platforms, total };
+    const prev = Array.isArray(followerHistory[activeAccount.id]) ? [...followerHistory[activeAccount.id]] : [];
+    const idx = prev.findIndex(s => s.date === manualDate);
+    if (idx >= 0) prev[idx] = snapshot; else prev.push(snapshot);
+    prev.sort((a, b) => a.date.localeCompare(b.date));
+    // Use recordFollowerSnapshot hack via internal setFollowerHistory by directly recording
+    recordFollowerSnapshot(activeAccount.id, allPlatforms.map(name => ({ name, followers: platforms[name] || 0 })));
+    setAddingManual(false);
+    setManualFollowers({});
+    setUndoToast({ message: `✅ Manual entry for ${manualDate} saved!`, type: "success" });
+    setTimeout(() => setUndoToast(null), 3000);
+  };
+
+  const formatNum = (n) => {
+    if (!n) return "0";
+    if (n >= 1000000) return (n / 1000000).toFixed(2) + "M";
+    if (n >= 1000) return (n / 1000).toFixed(1) + "K";
+    return n.toLocaleString();
+  };
+
+  const getPlatformColor = (name) => {
+    switch ((name || "").toLowerCase()) {
+      case "tiktok": return "#25F4EE";
+      case "instagram": return "#E1306C";
+      case "youtube": return "#FF0000";
+      case "x (twitter)": case "x": case "twitter": return "#1DA1F2";
+      case "facebook": return "#1877F2";
+      case "threads": return "#000000";
+      default: return "#8B5CF6";
+    }
+  };
+
+  // Simple SVG line chart
+  const LineChart = ({ data, maxVal }) => {
+    if (data.length < 2) return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "180px", color: "var(--text-muted)", fontSize: "0.82rem", flexDirection: "column", gap: "0.5rem" }}>
+        <span style={{ fontSize: "2rem" }}>📈</span>
+        <span>Sync TikTok account or add entries to see growth chart</span>
+      </div>
+    );
+
+    const W = 700, H = 180, PAD = 40;
+    const w = W - PAD * 2;
+    const h = H - PAD;
+
+    const points = data.map((s, i) => ({
+      x: PAD + (i / (data.length - 1)) * w,
+      y: PAD / 2 + (1 - (s.total || 0) / maxVal) * h,
+      val: s.total || 0,
+      date: s.date
+    }));
+
+    const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+    const areaD = pathD + ` L${points[points.length - 1].x.toFixed(1)},${(PAD / 2 + h).toFixed(1)} L${points[0].x.toFixed(1)},${(PAD / 2 + h).toFixed(1)} Z`;
+
+    // Y-axis labels
+    const yLabels = [0, 0.25, 0.5, 0.75, 1].map(f => ({
+      y: PAD / 2 + (1 - f) * h,
+      label: formatNum(Math.round(f * maxVal))
+    }));
+
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "180px" }}>
+        <defs>
+          <linearGradient id="ftGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#25F4EE" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#25F4EE" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        {/* Grid lines */}
+        {yLabels.map((yl, i) => (
+          <g key={i}>
+            <line x1={PAD} y1={yl.y} x2={W - PAD / 2} y2={yl.y} stroke="rgba(255,255,255,0.07)" strokeWidth="1" />
+            <text x={PAD - 4} y={yl.y + 4} textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.35)">{yl.label}</text>
+          </g>
+        ))}
+        {/* Area fill */}
+        <path d={areaD} fill="url(#ftGrad)" />
+        {/* Line */}
+        <path d={pathD} fill="none" stroke="#25F4EE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Dots + tooltips */}
+        {points.filter((_, i) => i % Math.max(1, Math.floor(points.length / 10)) === 0 || i === points.length - 1).map((p, i) => (
+          <g key={i}>
+            <circle cx={p.x} cy={p.y} r="3.5" fill="#25F4EE" stroke="#0d1117" strokeWidth="1.5" />
+            <title>{p.date}: {formatNum(p.val)} followers</title>
+          </g>
+        ))}
+        {/* X-axis date labels */}
+        {points.filter((_, i) => i === 0 || i === points.length - 1 || i % Math.max(1, Math.floor(points.length / 5)) === 0).map((p, i) => (
+          <text key={i} x={p.x} y={H - 4} textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.4)">{p.date.slice(5)}</text>
+        ))}
+      </svg>
+    );
+  };
+
+  // Platform breakdown mini bar chart (latest snapshot)
+  const platformBars = allPlatforms.map(p => ({
+    name: p,
+    val: latestSnap ? (latestSnap.platforms[p] || 0) : 0,
+    color: getPlatformColor(p)
+  })).filter(p => p.val > 0).sort((a, b) => b.val - a.val);
+
+  const barMax = platformBars.length > 0 ? platformBars[0].val : 1;
+
+  return (
+    <div className="page-container">
+      {/* ── Header ── */}
+      <div className="page-header" style={{ marginBottom: "1.5rem" }}>
+        <div>
+          <h1 className="page-title" style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: "0.2rem" }}>
+            📊 Follower Tracks
+          </h1>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.82rem", margin: 0 }}>
+            Daily follower growth tracking for <strong>{activeAccount.name}</strong> — auto-updated on every TikTok sync
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+          <button onClick={handleSnapshotNow} className="btn btn-sm btn-secondary" style={{ fontWeight: 700 }}>
+            📸 Snapshot Now
+          </button>
+          <button onClick={() => { setAddingManual(true); setCurrentPage(1); }} className="btn btn-sm btn-primary" style={{ fontWeight: 700 }}>
+            ✏️ Add Manual Entry
+          </button>
+        </div>
+      </div>
+
+      {/* ── KPI Cards ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0.85rem", marginBottom: "1.5rem" }}>
+        <div className="glass-card" style={{ padding: "1rem 1.2rem", borderRadius: "12px", border: "1px solid rgba(37,244,238,0.25)", background: "linear-gradient(135deg, rgba(37,244,238,0.08), rgba(13,17,23,0.8))" }}>
+          <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.35rem" }}>Total Followers Today</div>
+          <div style={{ fontSize: "1.8rem", fontWeight: 900, color: "#25F4EE", lineHeight: 1.1 }}>{formatNum(todayTotal)}</div>
+          <div style={{ fontSize: "0.73rem", color: "var(--text-muted)", marginTop: "0.3rem" }}>All platforms combined</div>
+        </div>
+
+        <div className="glass-card" style={{ padding: "1rem 1.2rem", borderRadius: "12px", border: `1px solid ${dailyGrowth >= 0 ? "rgba(16,185,129,0.25)" : "rgba(244,63,94,0.25)"}`, background: `linear-gradient(135deg, ${dailyGrowth >= 0 ? "rgba(16,185,129,0.08)" : "rgba(244,63,94,0.08)"}, rgba(13,17,23,0.8))` }}>
+          <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.35rem" }}>Daily Growth</div>
+          <div style={{ fontSize: "1.8rem", fontWeight: 900, color: dailyGrowth >= 0 ? "#10B981" : "#F43F5E", lineHeight: 1.1 }}>
+            {dailyGrowth >= 0 ? "+" : ""}{formatNum(dailyGrowth)}
+          </div>
+          <div style={{ fontSize: "0.73rem", color: dailyGrowth >= 0 ? "#10B981" : "#F43F5E", marginTop: "0.3rem" }}>
+            {dailyGrowth >= 0 ? "▲" : "▼"} {Math.abs(growthPct)}% vs yesterday
+          </div>
+        </div>
+
+        <div className="glass-card" style={{ padding: "1rem 1.2rem", borderRadius: "12px", border: "1px solid rgba(139,92,246,0.25)", background: "linear-gradient(135deg, rgba(139,92,246,0.08), rgba(13,17,23,0.8))" }}>
+          <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.35rem" }}>Days Tracked</div>
+          <div style={{ fontSize: "1.8rem", fontWeight: 900, color: "#A78BFA", lineHeight: 1.1 }}>{accHistory.length}</div>
+          <div style={{ fontSize: "0.73rem", color: "var(--text-muted)", marginTop: "0.3rem" }}>Daily snapshots logged</div>
+        </div>
+
+        <div className="glass-card" style={{ padding: "1rem 1.2rem", borderRadius: "12px", border: "1px solid rgba(245,158,11,0.25)", background: "linear-gradient(135deg, rgba(245,158,11,0.08), rgba(13,17,23,0.8))" }}>
+          <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.35rem" }}>Avg Daily Growth</div>
+          <div style={{ fontSize: "1.8rem", fontWeight: 900, color: "#F59E0B", lineHeight: 1.1 }}>
+            {accHistory.length >= 2
+              ? "+" + formatNum(Math.round((accHistory[accHistory.length - 1].total - accHistory[0].total) / Math.max(1, accHistory.length - 1)))
+              : "—"}
+          </div>
+          <div style={{ fontSize: "0.73rem", color: "var(--text-muted)", marginTop: "0.3rem" }}>Over all tracked days</div>
+        </div>
+      </div>
+
+      {/* ── Chart + Platform Breakdown ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: "1rem", marginBottom: "1.5rem" }}>
+        {/* Line Chart */}
+        <div className="glass-card" style={{ padding: "1.25rem", borderRadius: "14px", border: "1px solid var(--border-color)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+            <div>
+              <div style={{ fontSize: "0.88rem", fontWeight: 800, color: "#fff" }}>Follower Growth (Last 30 Days)</div>
+              <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "2px" }}>Total followers across all platforms</div>
+            </div>
+            <span style={{ fontSize: "0.72rem", color: "#25F4EE", fontWeight: 700, background: "rgba(37,244,238,0.1)", padding: "0.2rem 0.55rem", borderRadius: "20px", border: "1px solid rgba(37,244,238,0.25)" }}>LIVE</span>
+          </div>
+          <LineChart data={chartData} maxVal={chartMax} />
+        </div>
+
+        {/* Platform Breakdown */}
+        <div className="glass-card" style={{ padding: "1.25rem", borderRadius: "14px", border: "1px solid var(--border-color)" }}>
+          <div style={{ fontSize: "0.88rem", fontWeight: 800, color: "#fff", marginBottom: "0.85rem" }}>Platform Breakdown</div>
+          {platformBars.length === 0 ? (
+            <div style={{ color: "var(--text-muted)", fontSize: "0.78rem", textAlign: "center", padding: "2rem 0" }}>
+              Sync TikTok or add a snapshot to see breakdown
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              {platformBars.map(p => (
+                <div key={p.name}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
+                    <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#fff" }}>{p.name}</span>
+                    <span style={{ fontSize: "0.78rem", fontWeight: 700, color: p.color }}>{formatNum(p.val)}</span>
+                  </div>
+                  <div style={{ height: "6px", borderRadius: "3px", background: "rgba(255,255,255,0.08)" }}>
+                    <div style={{ height: "100%", borderRadius: "3px", width: `${Math.round((p.val / barMax) * 100)}%`, background: p.color, transition: "width 0.4s ease" }}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Manual Entry Modal ── */}
+      {addingManual && (
+        <div className="modal-overlay" onClick={() => setAddingManual(false)}>
+          <div className="modal-content" style={{ maxWidth: "420px", width: "95%" }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h2 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0 }}>✏️ Add Manual Follower Entry</h2>
+              <button onClick={() => setAddingManual(false)} className="btn btn-secondary btn-icon" style={{ width: "28px", height: "28px" }}>✕</button>
+            </div>
+            <form onSubmit={handleAddManual}>
+              <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+                <label className="form-label" style={{ fontSize: "0.76rem" }}>Date</label>
+                <input type="date" className="form-input" value={manualDate} onChange={e => setManualDate(e.target.value)} required />
+              </div>
+              {(activeAccount.platforms || []).map(p => (
+                <div className="form-group" key={p.id} style={{ marginBottom: "0.75rem" }}>
+                  <label className="form-label" style={{ fontSize: "0.76rem" }}>{p.name} Followers</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    min="0"
+                    placeholder={`${p.name} follower count`}
+                    value={manualFollowers[p.name] || ""}
+                    onChange={e => setManualFollowers(prev => ({ ...prev, [p.name]: e.target.value }))}
+                  />
+                </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
+                <button type="button" onClick={() => setAddingManual(false)} className="btn btn-secondary btn-sm">Cancel</button>
+                <button type="submit" className="btn btn-primary btn-sm">💾 Save Entry</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Daily Follower Table ── */}
+      <div className="glass-card" style={{ borderRadius: "14px", border: "1px solid var(--border-color)", overflow: "hidden" }}>
+        <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+          <div>
+            <div style={{ fontSize: "0.9rem", fontWeight: 800, color: "#fff" }}>📅 Daily Follower Log</div>
+            <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "2px" }}>
+              {tableRows.length} entries • Showing {Math.min(ROWS_PER_PAGE, pagedRows.length)} per page • Page {currentPage} of {totalPages}
+            </div>
+          </div>
+          <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+            Auto-updated on every TikTok sync • Newest first
+          </div>
+        </div>
+
+        {tableRows.length === 0 ? (
+          <div style={{ padding: "3rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+            <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>📊</div>
+            <div style={{ fontWeight: 700, color: "#fff", marginBottom: "0.4rem" }}>No follower data yet</div>
+            <div>Click <strong>📸 Snapshot Now</strong> to log today's count, or sync your TikTok account — it will auto-log daily data.</div>
+          </div>
+        ) : (
+          <>
+            <div className="table-container" style={{ overflowX: "auto" }}>
+              <table className="custom-table" style={{ minWidth: "600px" }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: "50px" }}>#</th>
+                    <th>Date</th>
+                    <th>Total Followers</th>
+                    {allPlatforms.map(p => (
+                      <th key={p} style={{ color: getPlatformColor(p) }}>{p}</th>
+                    ))}
+                    <th>Daily Change</th>
+                    <th>Growth %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedRows.map((row, idx) => {
+                    const globalIdx = tableRows.length - ((currentPage - 1) * ROWS_PER_PAGE + idx);
+                    // Get previous snapshot (next in reversed = older)
+                    const prevRow = tableRows[(currentPage - 1) * ROWS_PER_PAGE + idx + 1];
+                    const change = prevRow ? row.total - prevRow.total : 0;
+                    const pct = prevRow && prevRow.total > 0 ? ((change / prevRow.total) * 100).toFixed(2) : "—";
+                    return (
+                      <tr key={row.date}>
+                        <td style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>{globalIdx}</td>
+                        <td>
+                          <div style={{ fontWeight: 700, color: "#fff", fontSize: "0.84rem" }}>{row.date}</div>
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: 800, color: "#25F4EE", fontSize: "0.9rem" }}>{formatNum(row.total)}</span>
+                        </td>
+                        {allPlatforms.map(p => (
+                          <td key={p}>
+                            <span style={{ fontWeight: 600, color: row.platforms[p] ? getPlatformColor(p) : "var(--text-muted)" }}>
+                              {row.platforms[p] ? formatNum(row.platforms[p]) : "—"}
+                            </span>
+                          </td>
+                        ))}
+                        <td>
+                          {prevRow ? (
+                            <span style={{ fontWeight: 700, color: change > 0 ? "#10B981" : change < 0 ? "#F43F5E" : "var(--text-muted)", fontSize: "0.84rem" }}>
+                              {change > 0 ? "+" : ""}{formatNum(change)}
+                            </span>
+                          ) : (
+                            <span style={{ color: "var(--text-muted)" }}>—</span>
+                          )}
+                        </td>
+                        <td>
+                          {pct !== "—" ? (
+                            <span style={{ fontWeight: 700, fontSize: "0.78rem", color: Number(pct) > 0 ? "#10B981" : Number(pct) < 0 ? "#F43F5E" : "var(--text-muted)" }}>
+                              {Number(pct) > 0 ? "▲" : Number(pct) < 0 ? "▼" : "●"} {Math.abs(Number(pct))}%
+                            </span>
+                          ) : (
+                            <span style={{ color: "var(--text-muted)" }}>—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div style={{ padding: "0.85rem 1.25rem", borderTop: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+                <div style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>
+                  Showing rows {((currentPage - 1) * ROWS_PER_PAGE) + 1}–{Math.min(currentPage * ROWS_PER_PAGE, tableRows.length)} of {tableRows.length}
+                </div>
+                <div style={{ display: "flex", gap: "0.35rem", alignItems: "center", flexWrap: "wrap" }}>
+                  <button
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: "0.25rem 0.55rem", fontSize: "0.75rem", opacity: currentPage === 1 ? 0.4 : 1 }}
+                  >«</button>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: "0.25rem 0.55rem", fontSize: "0.75rem", opacity: currentPage === 1 ? 0.4 : 1 }}
+                  >‹ Prev</button>
+                  {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+                    let page;
+                    if (totalPages <= 7) { page = i + 1; }
+                    else if (currentPage <= 4) { page = i + 1; }
+                    else if (currentPage >= totalPages - 3) { page = totalPages - 6 + i; }
+                    else { page = currentPage - 3 + i; }
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`btn btn-sm ${currentPage === page ? "btn-primary" : "btn-secondary"}`}
+                        style={{ padding: "0.25rem 0.6rem", fontSize: "0.75rem", minWidth: "32px", fontWeight: currentPage === page ? 800 : 500 }}
+                      >{page}</button>
+                    );
+                  })}
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: "0.25rem 0.55rem", fontSize: "0.75rem", opacity: currentPage === totalPages ? 0.4 : 1 }}
+                  >Next ›</button>
+                  <button
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: "0.25rem 0.55rem", fontSize: "0.75rem", opacity: currentPage === totalPages ? 0.4 : 1 }}
+                  >»</button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // 4. MAIN APP CONTROLLER
 
 function AppContent() {
@@ -7236,6 +7723,7 @@ function AppContent() {
       case "subject-analytics": return <SubjectAnalyticsPage />;
       case "report-summary": return <ReportSummaryPage />;
       case "collaborators": return <CollaboratorsPage />;
+      case "follower-tracks": return <FollowerTracksPage />;
       case "notes": return <NotesPage />;
       default: return <AccountCenterPage />;
     }

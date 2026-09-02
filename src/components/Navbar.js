@@ -26,7 +26,8 @@ window.Navbar = function() {
     { id: "hashtag-analytics",   label: "Hashtag Studio",   icon: "hash"          },
     { id: "subject-analytics",   label: "Subjects",         icon: "users"         },
     { id: "report-summary",      label: "Report",           icon: "file-bar-chart"},
-    { id: "collaborators",       label: "Collaborators",    icon: "share-2"       }
+    { id: "collaborators",       label: "Collaborators",    icon: "share-2"       },
+    { id: "follower-tracks",     label: "Follower Tracks",  icon: "trending-up"   }
   ];
 
   const accessibleAccounts = accounts.filter(acc =>
