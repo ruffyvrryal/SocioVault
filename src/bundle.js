@@ -542,12 +542,36 @@ const undo = React.useCallback(async () => {
     return clean;
   };
 
-  // -- Content Actions (Firestore + Undo History) --
+  // -- Content Actions (Firestore + Undo History + Instant Auto-Sync) --
   const addContent = async (contentData) => {
     recordHistory(`Added post: "${(contentData.caption || 'New Content').substring(0, 25)}..."`, contents, accounts);
     const ownerUid = getOwnerUidForAccount(activeAccountId);
     const clean = cleanFirestoreData({ accountId: activeAccountId, ...contentData });
-    await getRefForUid(ownerUid).collection('contents').add(clean);
+    const docRef = await getRefForUid(ownerUid).collection('contents').add(clean);
+
+    // If TikTok URL or video link was pasted, auto-update live metrics instantly in background
+    const postUrl = contentData.originalUrl || (contentData.videoId && contentData.videoId.includes('tiktok.com') ? contentData.videoId : '');
+    if (postUrl && (contentData.platform === 'TikTok' || postUrl.includes('tiktok.com'))) {
+      setTimeout(async () => {
+        try {
+          const freshData = await fetchTikTokData(postUrl);
+          if (freshData) {
+            await getRefForUid(ownerUid).collection('contents').doc(docRef.id).update(cleanFirestoreData({
+              impressions: freshData.impressions,
+              reach: freshData.reach,
+              likes: freshData.likes,
+              comments: freshData.comments,
+              shares: freshData.shares,
+              saves: freshData.saves,
+              thumbnailUrl: freshData.thumbnailUrl || contentData.thumbnailUrl || "",
+              lastSyncedAt: new Date().toISOString()
+            }));
+          }
+        } catch(e) {
+          console.warn("Immediate live TikTok post sync notice:", e);
+        }
+      }, 300);
+    }
   };
 
   const updateContent = async (contentId, updatedData) => {
@@ -1419,6 +1443,46 @@ const undo = React.useCallback(async () => {
       clearInterval(interval);
     };
   }, [user, activeAccountId, activeAccount?.id, activeAccount?.lastDailyAutoSyncDate]);
+
+  // ── Periodic Content Live Auto-Updater (Updates pasted TikTok links in background) ──
+  React.useEffect(() => {
+    if (!user || !activeAccountId || !canEdit) return;
+
+    const autoRefreshPastedTikTokPosts = async () => {
+      const tikTokPosts = contents.filter(c => c.accountId === activeAccountId && (c.platform === "TikTok" || (c.originalUrl && c.originalUrl.includes("tiktok.com"))));
+      if (tikTokPosts.length === 0) return;
+
+      const ownerUid = getOwnerUidForAccount(activeAccountId);
+      for (const item of tikTokPosts) {
+        const url = item.originalUrl || (item.videoId && item.videoId.includes("tiktok.com") ? item.videoId : "");
+        if (!url) continue;
+
+        try {
+          const fresh = await fetchTikTokData(url);
+          if (fresh && (fresh.impressions !== item.impressions || fresh.likes !== item.likes)) {
+            await getRefForUid(ownerUid).collection('contents').doc(item.id).update(cleanFirestoreData({
+              impressions: fresh.impressions,
+              reach: fresh.reach,
+              likes: fresh.likes,
+              comments: fresh.comments,
+              shares: fresh.shares,
+              saves: fresh.saves,
+              thumbnailUrl: fresh.thumbnailUrl || item.thumbnailUrl || "",
+              lastSyncedAt: new Date().toISOString()
+            }));
+          }
+        } catch(e) {}
+      }
+    };
+
+    const initialTimer = setTimeout(autoRefreshPastedTikTokPosts, 4000);
+    const intervalTimer = setInterval(autoRefreshPastedTikTokPosts, 2.5 * 60 * 1000); // check every 2.5 mins
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(intervalTimer);
+    };
+  }, [user, activeAccountId, canEdit, contents.length]);
 
   const canUndo = historyStack.length > 0;
   const lastActionDescription = historyStack[0]?.description || '';
