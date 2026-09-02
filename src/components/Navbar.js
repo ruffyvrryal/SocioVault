@@ -105,6 +105,25 @@ window.Navbar = function() {
           {/* Right: Actions & User Menu */}
           <div className="user-menu" style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
             
+            {/* Automatic Daily Live Tracking Indicator */}
+            {activeAccount && (
+              <div style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                padding: "0.3rem 0.65rem",
+                borderRadius: "8px",
+                fontSize: "0.74rem",
+                fontWeight: 600,
+                background: "rgba(16,185,129,0.1)",
+                border: "1px solid rgba(16,185,129,0.25)",
+                color: "#10B981"
+              }} title="Followers and content live metrics automatically update daily">
+                <span style={{ fontSize: "0.65rem" }}>🟢</span>
+                <span>Auto-Track: Active</span>
+              </div>
+            )}
+
             {/* Live TikTok Syncing Indicator */}
             {isSyncingTikTok && (
               <div style={{

@@ -1320,6 +1320,60 @@ const undo = React.useCallback(async () => {
     }
   }, [accounts, activeAccountId, followerHistory]);
 
+  // ── Automatic Daily Background Live Tracking Engine ──
+  const [lastAutoSyncTime, setLastAutoSyncTime] = React.useState(null);
+
+  React.useEffect(() => {
+    if (!user || !activeAccount || !canEdit) return;
+
+    const checkAndRunDailyAutoSync = async () => {
+      const todayStr = new Date().toISOString().split("T")[0];
+      const lastSyncDate = activeAccount.lastDailyAutoSyncDate;
+
+      // If today is already recorded, verify today's snapshot exists
+      if (lastSyncDate === todayStr) {
+        const existingHistory = activeAccount.followerHistory || [];
+        if (!existingHistory.some(s => s.date === todayStr) && (activeAccount.platforms || []).length > 0) {
+          recordFollowerSnapshot(activeAccount.id, activeAccount.platforms);
+        }
+        return;
+      }
+
+      // Check for TikTok handle to pull live metrics & log daily followers
+      const tikTokPlatform = (activeAccount.platforms || []).find(p => p.name === "TikTok");
+
+      try {
+        console.log(`[Auto-Sync] Running daily background live tracking for ${activeAccount.name}...`);
+        
+        if (tikTokPlatform && tikTokPlatform.handle && tikTokPlatform.handle.length > 2 && tikTokPlatform.handle !== "@") {
+          await syncTikTokAccount(activeAccount.id, tikTokPlatform.handle, { importPosts: true, updateFollowers: true });
+        } else if ((activeAccount.platforms || []).length > 0) {
+          await recordFollowerSnapshot(activeAccount.id, activeAccount.platforms);
+        }
+
+        // Mark today as auto-synced in Firestore
+        const ownerUid = getOwnerUidForAccount(activeAccount.id);
+        const ref = getRefForUid(ownerUid).collection('accounts').doc(activeAccount.id);
+        await ref.update({
+          lastDailyAutoSyncDate: todayStr,
+          lastAutoSyncTimestamp: Date.now()
+        });
+
+        setLastAutoSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      } catch(e) {
+        console.warn("[Auto-Sync] Daily background sync notice:", e.message);
+      }
+    };
+
+    const timer = setTimeout(checkAndRunDailyAutoSync, 1200);
+    const interval = setInterval(checkAndRunDailyAutoSync, 30 * 60 * 1000); // Re-check every 30 mins
+
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+  }, [user, activeAccountId, activeAccount?.id, activeAccount?.lastDailyAutoSyncDate]);
+
   const canUndo = historyStack.length > 0;
   const lastActionDescription = historyStack[0]?.description || '';
 
@@ -1332,7 +1386,7 @@ const undo = React.useCallback(async () => {
       addCollaborator, updateCollaboratorRole, removeCollaborator,
       updateSubjectPhoto, getUserRole, historyStack, canUndo, lastActionDescription, undo, undoToast, setUndoToast,
       fetchTikTokData, fetchTikTokAccountProfile, syncTikTokAccount, syncTikTokPost, syncAllTikTokPosts, isSyncingTikTok,
-      followerHistory, recordFollowerSnapshot
+      followerHistory, recordFollowerSnapshot, lastAutoSyncTime
     }}>
       {children}
     </VaultContext.Provider>
@@ -1988,6 +2042,25 @@ window.Navbar = function() {
           {/* Right: Actions & User Menu */}
           <div className="user-menu" style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
             
+            {/* Automatic Daily Live Tracking Indicator */}
+            {activeAccount && (
+              <div style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                padding: "0.3rem 0.65rem",
+                borderRadius: "8px",
+                fontSize: "0.74rem",
+                fontWeight: 600,
+                background: "rgba(16,185,129,0.1)",
+                border: "1px solid rgba(16,185,129,0.25)",
+                color: "#10B981"
+              }} title="Followers and content live metrics automatically update daily">
+                <span style={{ fontSize: "0.65rem" }}>🟢</span>
+                <span>Auto-Track: Active</span>
+              </div>
+            )}
+
             {/* Live TikTok Syncing Indicator */}
             {isSyncingTikTok && (
               <div style={{
