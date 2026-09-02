@@ -555,7 +555,8 @@ const undo = React.useCallback(async () => {
       setTimeout(async () => {
         try {
           const freshData = await fetchTikTokData(postUrl);
-          if (freshData) {
+          // Only update if we got real verified data from the serverless API
+          if (freshData && freshData.verifiedRealTime && (freshData.impressions > 0 || freshData.likes > 0)) {
             await getRefForUid(ownerUid).collection('contents').doc(docRef.id).update(cleanFirestoreData({
               impressions: freshData.impressions,
               reach: freshData.reach,
@@ -667,7 +668,8 @@ const undo = React.useCallback(async () => {
             thumbnailUrl: d.thumbnailUrl || d.authorAvatar || "",
             originalUrl: d.originalUrl || input,
             videoId: d.videoId || ("tik_" + Math.random().toString(36).substr(2, 9)),
-            lastSyncedAt: new Date().toISOString()
+            lastSyncedAt: new Date().toISOString(),
+            verifiedRealTime: true
           };
         }
       }
@@ -753,15 +755,8 @@ const undo = React.useCallback(async () => {
     if (likesMatch) likes = parseSocialCount(likesMatch[1]);
     if (commentsMatch) comments = parseSocialCount(commentsMatch[1]);
 
-    if (!baseViews || baseViews <= 0) {
-      const seed = videoId ? parseInt(videoId.slice(-6)) : Math.floor(Math.random() * 900000) + 100000;
-      baseViews = (seed % 750000) + 65000;
-    }
-
-    if (!likes || likes <= 0) likes = Math.round(baseViews * 0.085);
-    if (!comments || comments <= 0) comments = Math.round(likes * 0.052);
-    if (!shares || shares <= 0) shares = Math.round(likes * 0.16);
-    if (!saves || saves <= 0) saves = Math.round(likes * 0.21);
+    // If API failed and we have no real metrics from the input text, return 0 for all metrics.
+    // This is honest — we show 0 rather than invented numbers.
     const reach = Math.round(baseViews * 0.86);
 
     const now = new Date();
@@ -888,10 +883,8 @@ const undo = React.useCallback(async () => {
       }
     }
 
-    if (!profile.followers || profile.followers <= 0) {
-      profile.followers = 45200;
-      profile.totalLikes = 320000;
-    }
+    // If followers still 0, keep it as 0 — do NOT replace with fake data
+    // This makes it clear to the user that the API could not read the real follower count
 
     const baseFollowers = profile.followers;
     let formattedVideos = [];
@@ -962,62 +955,9 @@ const undo = React.useCallback(async () => {
           lastSyncedAt: new Date().toISOString()
         });
       }
-    } else {
-      const hooks = [
-        { caption: `Behind the scenes with @${username} 🔥`, tags: ["#fyp", "#behindthescenes", "#viral", `#${username.toLowerCase()}`] },
-        { caption: "Wait until the very end... 😱 You won't believe this!", tags: ["#foryou", "#trending", "#viral", `#${username.toLowerCase()}`] },
-        { caption: `New episode drop: ${profile.nickname || username} special ✨`, tags: ["#storytime", "#fyp", "#part2", `#${username.toLowerCase()}`] },
-        { caption: "Quick tutorial you need to know today 💡", tags: ["#tutorial", "#tips", "#learnontiktok", `#${username.toLowerCase()}`] },
-        { caption: "Reacting to the wildest comments on our last post 💬😂", tags: ["#reaction", "#funny", "#tiktok", `#${username.toLowerCase()}`] },
-        { caption: "Trying this viral trend before it ends 🚀", tags: ["#trend", "#fyp", "#trending", `#${username.toLowerCase()}`] },
-        { caption: "Exclusive secret announcement coming soon! 👀", tags: ["#announcement", "#teaser", "#foryou", `#${username.toLowerCase()}`] },
-        { caption: "Top 5 moments from this week! ⭐", tags: ["#top5", "#highlight", "#viral", `#${username.toLowerCase()}`] }
-      ];
-
-      for (let i = 0; i < 8; i++) {
-        const daysAgo = i * 2;
-        const dateObj = new Date();
-        dateObj.setDate(dateObj.getDate() - daysAgo);
-        const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-        
-        const hour = String(10 + ((i * 3) % 12)).padStart(2, '0');
-        const minute = String((i * 17) % 60).padStart(2, '0');
-        const timeStr = `${hour}:${minute}`;
-
-        const isViralHit = i === 1 || i === 5;
-        const multiplier = isViralHit ? (0.55 + Math.random() * 0.35) : (0.18 + Math.random() * 0.18);
-        const views = Math.max(1200, Math.round(baseFollowers * multiplier));
-        const reach = Math.round(views * 0.88);
-        const likes = Math.round(views * (0.075 + Math.random() * 0.025));
-        const comments = Math.round(likes * (0.045 + Math.random() * 0.02));
-        const shares = Math.round(likes * (0.14 + Math.random() * 0.05));
-        const saves = Math.round(likes * (0.18 + Math.random() * 0.06));
-
-        const hookItem = hooks[i % hooks.length];
-
-        formattedVideos.push({
-          platform: "TikTok",
-          contentType: "Video",
-          caption: hookItem.caption,
-          hashtags: hookItem.tags,
-          subjects: [profile.nickname || username],
-          impressions: views,
-          reach: reach,
-          likes: likes,
-          comments: comments,
-          shares: shares,
-          saves: saves,
-          status: "Uploaded",
-          uploadDate: dateStr,
-          uploadTime: timeStr,
-          author: profile.nickname || username,
-          thumbnailUrl: profile.avatar || "",
-          originalUrl: `https://www.tiktok.com/@${username}`,
-          videoId: "tik_" + Math.random().toString(36).substr(2, 9),
-          lastSyncedAt: new Date().toISOString()
-        });
-      }
     }
+    // If no custom video lines were provided, do NOT generate fake placeholder posts.
+    // Only the real video links pasted by the user will be imported.
 
     return {
       profile,
@@ -1189,20 +1129,9 @@ const undo = React.useCallback(async () => {
     }
   };
 
-  // ── Real-Time Bulk Syncer (All account posts) ──
+  // ── Real-Time Bulk Syncer (All account posts — only updates metrics of existing pasted posts, never imports fake ones) ──
   const syncAllTikTokPosts = async (accountId) => {
     const targetAccountId = accountId || activeAccountId;
-    const acc = accounts.find(a => a.id === targetAccountId);
-    const tikTokPlatform = (acc?.platforms || []).find(p => p.name === "TikTok");
-
-    if (tikTokPlatform && tikTokPlatform.handle && tikTokPlatform.handle !== "@" && tikTokPlatform.handle.length > 2) {
-      try {
-        await syncTikTokAccount(targetAccountId, tikTokPlatform.handle);
-        return;
-      } catch(e) {
-        console.warn("Full account sync fallback to post-by-post:", e);
-      }
-    }
 
     const tikTokItems = contents.filter(c => c.accountId === targetAccountId && (c.platform === "TikTok" || c.originalUrl));
     
@@ -1459,7 +1388,8 @@ const undo = React.useCallback(async () => {
 
         try {
           const fresh = await fetchTikTokData(url);
-          if (fresh && (fresh.impressions !== item.impressions || fresh.likes !== item.likes)) {
+          // Only update if we got verified real data from the serverless API (not fallback zeros)
+          if (fresh && fresh.verifiedRealTime && (fresh.impressions > 0 || fresh.likes > 0)) {
             await getRefForUid(ownerUid).collection('contents').doc(item.id).update(cleanFirestoreData({
               impressions: fresh.impressions,
               reach: fresh.reach,
