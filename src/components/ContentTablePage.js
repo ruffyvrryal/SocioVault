@@ -569,16 +569,74 @@ window.ContentTablePage = function() {
               </div>
             )}
 
-            {/* Single Video Preview Card */}
+            {/* Single Video Preview Card (Editable) */}
             {tiktokPreview && (
-              <div className="glass-card" style={{ padding: "0.85rem", borderRadius: "10px", border: "1px solid rgba(16,185,129,0.3)", background: "rgba(16,185,129,0.06)", marginBottom: "0.85rem" }}>
-                <div style={{ fontWeight: 700, fontSize: "0.86rem", color: "#fff", marginBottom: "0.35rem" }}>
-                  {tiktokPreview.caption}
+              <div className="glass-card" style={{ padding: "0.85rem", borderRadius: "10px", border: "1px solid rgba(37,244,238,0.35)", background: "rgba(37,244,238,0.05)", marginBottom: "0.85rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                  <span style={{ fontSize: "0.74rem", fontWeight: 800, color: "#25F4EE", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    ✨ Extracted Video Metadata (Review & Edit)
+                  </span>
+                  <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
+                    Author: <strong>@{tiktokPreview.author || "Creator"}</strong>
+                  </span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.4rem", fontSize: "0.75rem", background: "rgba(0,0,0,0.3)", padding: "0.45rem", borderRadius: "6px" }}>
-                  <div>👀 <strong>{tiktokPreview.impressions?.toLocaleString()}</strong> views</div>
-                  <div>❤️ <strong>{tiktokPreview.likes?.toLocaleString()}</strong> likes</div>
-                  <div>💬 <strong>{tiktokPreview.comments?.toLocaleString()}</strong> comments</div>
+
+                <div className="form-group" style={{ marginBottom: "0.5rem" }}>
+                  <label className="form-label" style={{ fontSize: "0.68rem" }}>Caption</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    style={{ fontSize: "0.8rem", padding: "0.35rem 0.55rem" }}
+                    value={tiktokPreview.caption || ""}
+                    onChange={e => setTiktokPreview({ ...tiktokPreview, caption: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: "0.5rem" }}>
+                  <label className="form-label" style={{ fontSize: "0.68rem" }}>Hashtags</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    style={{ fontSize: "0.8rem", padding: "0.35rem 0.55rem" }}
+                    value={(tiktokPreview.hashtags || []).join(" ")}
+                    onChange={e => {
+                      const tags = e.target.value.split(/[\s,]+/).filter(Boolean).map(t => t.startsWith("#") ? t : "#" + t);
+                      setTiktokPreview({ ...tiktokPreview, hashtags: tags });
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.4rem", fontSize: "0.72rem" }}>
+                  <div>
+                    <label className="form-label" style={{ fontSize: "0.64rem" }}>👀 Views</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      style={{ fontSize: "0.78rem", padding: "0.3rem" }}
+                      value={tiktokPreview.impressions || 0}
+                      onChange={e => setTiktokPreview({ ...tiktokPreview, impressions: Number(e.target.value) || 0, reach: Math.round((Number(e.target.value) || 0) * 0.86) })}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: "0.64rem" }}>❤️ Likes</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      style={{ fontSize: "0.78rem", padding: "0.3rem" }}
+                      value={tiktokPreview.likes || 0}
+                      onChange={e => setTiktokPreview({ ...tiktokPreview, likes: Number(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: "0.64rem" }}>💬 Comments</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      style={{ fontSize: "0.78rem", padding: "0.3rem" }}
+                      value={tiktokPreview.comments || 0}
+                      onChange={e => setTiktokPreview({ ...tiktokPreview, comments: Number(e.target.value) || 0 })}
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -586,7 +644,7 @@ window.ContentTablePage = function() {
             {/* Entire Account Success Feedback */}
             {tiktokAccountResult && (
               <div style={{ padding: "0.75rem 1rem", borderRadius: "8px", background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)", color: "#10B981", fontSize: "0.82rem", marginBottom: "0.85rem" }}>
-                ✅ <strong>@{tiktokAccountResult.profile.username}</strong> synced! {tiktokAccountResult.videos.length} videos live tracked.
+                ✅ <strong>@{tiktokAccountResult.profile.username}</strong> synced! ({tiktokAccountResult.profile.followers?.toLocaleString()} followers) • {tiktokAccountResult.videos.length} videos live tracked.
               </div>
             )}
 
