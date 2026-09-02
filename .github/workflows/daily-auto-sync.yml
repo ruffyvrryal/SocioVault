@@ -1,0 +1,21 @@
+name: 24/7 Cloud Background Live Tracking
+
+on:
+  schedule:
+    # Runs every 6 hours automatically (00:00, 06:00, 12:00, 18:00 UTC)
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+  push:
+    branches:
+      - main
+
+jobs:
+  auto-track-cloud-sync:
+    name: Auto-Sync TikTok Live Followers & Content to Firebase
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger 24/7 Cloud Background Live Tracker
+        run: |
+          echo "Connecting to SociaVault 24/7 Cloud Syncer..."
+          response=$(curl -s -X GET "https://socio-vault.vercel.app/api/auto-track" || true)
+          echo "Cloud Tracker Response: $response"

@@ -105,7 +105,7 @@ window.Navbar = function() {
           {/* Right: Actions & User Menu */}
           <div className="user-menu" style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
             
-            {/* Automatic Daily Live Tracking Indicator */}
+            {/* 24/7 Cloud Live Tracking Indicator */}
             {activeAccount && (
               <div style={{
                 display: "inline-flex",
@@ -118,9 +118,9 @@ window.Navbar = function() {
                 background: "rgba(16,185,129,0.1)",
                 border: "1px solid rgba(16,185,129,0.25)",
                 color: "#10B981"
-              }} title="Followers and content live metrics automatically update daily">
-                <span style={{ fontSize: "0.65rem" }}>🟢</span>
-                <span>Auto-Track: Active</span>
+              }} title="Followers & content metrics automatically update 24/7 in the cloud without needing the website open">
+                <span style={{ fontSize: "0.65rem" }}>☁️</span>
+                <span>24/7 Cloud Track: Active</span>
               </div>
             )}
 
