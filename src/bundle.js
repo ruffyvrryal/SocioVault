@@ -609,15 +609,49 @@ const undo = React.useCallback(async () => {
     return Math.round(num);
   };
 
-  // ── TikTok Single Video API Service (Smart Parser & Real-Time Extractor) ──
+  // ── TikTok Single Video API Service (Direct TikTok Extractor + Serverless Fallback) ──
   const fetchTikTokData = async (urlOrId) => {
     if (!urlOrId || !urlOrId.trim()) {
       throw new Error("Please enter a TikTok video URL, Video ID, or paste post text");
     }
 
     const input = urlOrId.trim();
-    
-    // 1. Extract URLs and Video IDs
+
+    // 1. Try Vercel Serverless TikTok Live Extractor Endpoint
+    try {
+      const apiRes = await fetch(`/api/tiktok?url=${encodeURIComponent(input)}`);
+      if (apiRes.ok) {
+        const json = await apiRes.json();
+        if (json && json.success && json.data) {
+          const d = json.data;
+          return {
+            platform: "TikTok",
+            contentType: "Video",
+            caption: d.caption || "TikTok Video",
+            hashtags: d.hashtags || ["#tiktok"],
+            subjects: [d.author || "Creator"],
+            impressions: Number(d.impressions) || 0,
+            reach: Number(d.reach) || 0,
+            likes: Number(d.likes) || 0,
+            comments: Number(d.comments) || 0,
+            shares: Number(d.shares) || 0,
+            saves: Number(d.saves) || 0,
+            status: "Uploaded",
+            uploadDate: d.uploadDate || new Date().toISOString().split("T")[0],
+            uploadTime: d.uploadTime || "12:00",
+            author: d.author || "Creator",
+            thumbnailUrl: d.thumbnailUrl || d.authorAvatar || "",
+            originalUrl: d.originalUrl || input,
+            videoId: d.videoId || ("tik_" + Math.random().toString(36).substr(2, 9)),
+            lastSyncedAt: new Date().toISOString()
+          };
+        }
+      }
+    } catch (apiErr) {
+      console.warn("[TikTok API Endpoint Fallback]:", apiErr);
+    }
+
+    // 2. Client-Side Fallback Extractor (URLs & Video IDs)
     let videoUrl = "";
     let videoId = "";
     const urlMatch = input.match(/(https?:\/\/[^\s]+)/i);
@@ -633,15 +667,12 @@ const undo = React.useCallback(async () => {
       }
     }
 
-    // 2. Extract Creator / Author
     let authorName = "";
     const userMatch = input.match(/@([\w\.\_]+)/);
     if (userMatch) authorName = userMatch[1];
 
-    // 3. Extract Hashtags from input
     const hashtagsFound = (input.match(/#[\w\u0590-\u05ff]+/gi) || []);
 
-    // 4. Extract Clean Caption (strip URLs, hashtags, and leading emojis/junk)
     let cleanCaption = input
       .replace(/(https?:\/\/[^\s]+)/gi, "")
       .replace(/#[\w\u0590-\u05ff]+/gi, "")
@@ -657,7 +688,6 @@ const undo = React.useCallback(async () => {
     let metaImage = "";
     let metaDate = "";
 
-    // 5. Query live metadata if URL is available
     if (videoUrl) {
       try {
         const microUrl = `https://api.microlink.io/?url=${encodeURIComponent(videoUrl)}&meta=true`;
@@ -685,13 +715,11 @@ const undo = React.useCallback(async () => {
       cleanCaption = metaTitle.replace(/#[\w\u0590-\u05ff]+/gi, "").trim() || metaTitle;
     }
 
-    // Ensure at least default hashtags if none found
     if (hashtagsFound.length === 0) {
       hashtagsFound.push("#fyp", "#viral", "#tiktok");
       if (authorName) hashtagsFound.push(`#${authorName.toLowerCase().replace(/[^a-z0-9_]/g, '')}`);
     }
 
-    // 6. Metric Extraction or Seeded Calculation
     let baseViews = 0, likes = 0, comments = 0, shares = 0, saves = 0;
     const viewsMatch = input.match(/([\d\.]+[KMBkmb]?)\s*(?:views|plays|impressions)/i);
     const likesMatch = input.match(/([\d\.]+[KMBkmb]?)\s*(?:likes|hearts)/i);
@@ -780,44 +808,62 @@ const undo = React.useCallback(async () => {
       profileUrl: `https://www.tiktok.com/@${username}`
     };
 
-    // 1. Fetch Real Live Profile Metadata from Microlink
+    // 1. Try Vercel Serverless Endpoint
     try {
-      const targetUrl = `https://www.tiktok.com/@${username}`;
-      const microUrl = `https://api.microlink.io/?url=${encodeURIComponent(targetUrl)}&meta=true`;
-      const res = await fetch(microUrl);
-      if (res.ok) {
-        const json = await res.json();
-        if (json && json.data) {
+      const apiRes = await fetch(`/api/tiktok?url=${encodeURIComponent(`https://www.tiktok.com/@${username}`)}`);
+      if (apiRes.ok) {
+        const json = await apiRes.json();
+        if (json && json.success && json.data) {
           const d = json.data;
-          // Parse author / nickname
-          if (d.author) profile.nickname = d.author;
-          else if (d.title) profile.nickname = d.title.replace(/\s*\(@.*\)\s*on\s*TikTok/i, '').trim() || username;
+          profile.username = d.username || username;
+          profile.nickname = d.nickname || username;
+          profile.avatar = d.avatar || "";
+          profile.followers = Number(d.followers) || 0;
+          profile.totalLikes = Number(d.totalLikes) || 0;
+          profile.signature = d.bio || "";
+          profile.profileUrl = d.profileUrl || `https://www.tiktok.com/@${username}`;
+        }
+      }
+    } catch(apiErr) {
+      console.warn("[TikTok Serverless Profile Fallback]:", apiErr);
+    }
 
-          // Parse HD Avatar image
-          if (d.image?.url) profile.avatar = d.image.url;
+    // 2. Microlink Fallback if followers still not extracted
+    if (!profile.followers || profile.followers <= 0) {
+      try {
+        const targetUrl = `https://www.tiktok.com/@${username}`;
+        const microUrl = `https://api.microlink.io/?url=${encodeURIComponent(targetUrl)}&meta=true`;
+        const res = await fetch(microUrl);
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.data) {
+            const d = json.data;
+            if (d.author) profile.nickname = d.author;
+            else if (d.title) profile.nickname = d.title.replace(/\s*\(@.*\)\s*on\s*TikTok/i, '').trim() || username;
 
-          // Parse real Followers, Likes & Bio from description
-          const desc = d.description || "";
-          if (desc) {
-            const likesMatch = desc.match(/([\d\.]+[KMBkmb]?)\s*Likes/i);
-            if (likesMatch) profile.totalLikes = parseSocialCount(likesMatch[1]);
+            if (d.image?.url) profile.avatar = d.image.url;
 
-            const followersMatch = desc.match(/([\d\.]+[KMBkmb]?)\s*Followers/i);
-            if (followersMatch) profile.followers = parseSocialCount(followersMatch[1]);
+            const desc = d.description || "";
+            if (desc) {
+              const likesMatch = desc.match(/([\d\.]+[KMBkmb]?)\s*Likes/i);
+              if (likesMatch) profile.totalLikes = parseSocialCount(likesMatch[1]);
 
-            const bioParts = desc.split(/Followers\.\s*/i);
-            if (bioParts.length > 1) {
-              const rawBio = bioParts[1].split(/Watch the latest video/i)[0].trim();
-              if (rawBio) profile.signature = rawBio;
+              const followersMatch = desc.match(/([\d\.]+[KMBkmb]?)\s*Followers/i);
+              if (followersMatch) profile.followers = parseSocialCount(followersMatch[1]);
+
+              const bioParts = desc.split(/Followers\.\s*/i);
+              if (bioParts.length > 1) {
+                const rawBio = bioParts[1].split(/Watch the latest video/i)[0].trim();
+                if (rawBio) profile.signature = rawBio;
+              }
             }
           }
         }
+      } catch(e) {
+        console.warn("Microlink profile fetch fallback:", e);
       }
-    } catch(e) {
-      console.warn("Microlink profile fetch fallback:", e);
     }
 
-    // Default safe fallback if network was blocked
     if (!profile.followers || profile.followers <= 0) {
       profile.followers = 45200;
       profile.totalLikes = 320000;
@@ -826,7 +872,7 @@ const undo = React.useCallback(async () => {
     const baseFollowers = profile.followers;
     let formattedVideos = [];
 
-    // 2. Check if user supplied custom real video links or captions text
+    // Check if user supplied custom real video links or captions text
     const customLines = (options.rawVideosText || "")
       .split("\n")
       .map(l => l.trim())

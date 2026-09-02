@@ -237,30 +237,61 @@ window.VaultProvider = function({ children }) {
     return Math.round(num);
   };
 
-  // ── TikTok Single Video API Service ──
+  // ── TikTok Single Video API Service (Direct TikTok Extractor + Serverless Fallback) ──
   const fetchTikTokData = async (urlOrId) => {
     if (!urlOrId || !urlOrId.trim()) {
       throw new Error("Please enter a TikTok video URL or Video ID");
     }
 
     const input = urlOrId.trim();
-    let videoUrl = input;
+
+    // 1. Try Vercel Serverless TikTok Live Extractor Endpoint
+    try {
+      const apiRes = await fetch(`/api/tiktok?url=${encodeURIComponent(input)}`);
+      if (apiRes.ok) {
+        const json = await apiRes.json();
+        if (json && json.success && json.data) {
+          const d = json.data;
+          return {
+            platform: "TikTok",
+            contentType: "Video",
+            caption: d.caption || "TikTok Video",
+            hashtags: d.hashtags || ["#tiktok"],
+            subjects: [d.author || "Creator"],
+            impressions: Number(d.impressions) || 0,
+            reach: Number(d.reach) || 0,
+            likes: Number(d.likes) || 0,
+            comments: Number(d.comments) || 0,
+            shares: Number(d.shares) || 0,
+            saves: Number(d.saves) || 0,
+            status: "Uploaded",
+            uploadDate: d.uploadDate || new Date().toISOString().split("T")[0],
+            uploadTime: d.uploadTime || "12:00",
+            author: d.author || "Creator",
+            thumbnailUrl: d.thumbnailUrl || d.authorAvatar || "",
+            originalUrl: d.originalUrl || input,
+            videoId: d.videoId || ("tik_" + Math.random().toString(36).substr(2, 9)),
+            lastSyncedAt: new Date().toISOString()
+          };
+        }
+      }
+    } catch (apiErr) {
+      console.warn("[TikTok API Endpoint Fallback]:", apiErr);
+    }
+
+    // 2. Client-Side Fallback Extractor
+    let videoUrl = "";
     let videoId = "";
-
-    const idMatch = input.match(/\/video\/(\d+)/) || input.match(/^(\d{15,22})$/);
-    if (idMatch) videoId = idMatch[1];
-
-    const isLikelyUrl = input.startsWith("http://") || input.startsWith("https://") || idMatch || input.startsWith("@") || input.includes("tiktok.com");
-
-    if (!input.startsWith("http://") && !input.startsWith("https://")) {
-      if (videoId) {
+    const urlMatch = input.match(/(https?:\/\/[^\s]+)/i);
+    if (urlMatch) {
+      videoUrl = urlMatch[1].trim();
+      const idMatch = videoUrl.match(/\/video\/(\d+)/) || videoUrl.match(/^(\d{15,22})$/);
+      if (idMatch) videoId = idMatch[1];
+    } else {
+      const idMatch = input.match(/^(\d{15,22})$/);
+      if (idMatch) {
+        videoId = idMatch[1];
         videoUrl = `https://www.tiktok.com/@tiktok/video/${videoId}`;
-      } else if (input.startsWith("@")) {
-        videoUrl = `https://www.tiktok.com/${input}`;
-      } else if (isLikelyUrl) {
-        videoUrl = `https://www.tiktok.com/@creator/video/${input}`;
-      } else {
-        videoUrl = "";
       }
     }
 
@@ -380,37 +411,60 @@ window.VaultProvider = function({ children }) {
       profileUrl: `https://www.tiktok.com/@${username}`
     };
 
+    // 1. Try Vercel Serverless Endpoint
     try {
-      const targetUrl = `https://www.tiktok.com/@${username}`;
-      const microUrl = `https://api.microlink.io/?url=${encodeURIComponent(targetUrl)}&meta=true`;
-      const res = await fetch(microUrl);
-      if (res.ok) {
-        const json = await res.json();
-        if (json && json.data) {
+      const apiRes = await fetch(`/api/tiktok?url=${encodeURIComponent(`https://www.tiktok.com/@${username}`)}`);
+      if (apiRes.ok) {
+        const json = await apiRes.json();
+        if (json && json.success && json.data) {
           const d = json.data;
-          if (d.author) profile.nickname = d.author;
-          else if (d.title) profile.nickname = d.title.replace(/\s*\(@.*\)\s*on\s*TikTok/i, '').trim() || username;
+          profile.username = d.username || username;
+          profile.nickname = d.nickname || username;
+          profile.avatar = d.avatar || "";
+          profile.followers = Number(d.followers) || 0;
+          profile.totalLikes = Number(d.totalLikes) || 0;
+          profile.signature = d.bio || "";
+          profile.profileUrl = d.profileUrl || `https://www.tiktok.com/@${username}`;
+        }
+      }
+    } catch(apiErr) {
+      console.warn("[TikTok Serverless Profile Fallback]:", apiErr);
+    }
 
-          if (d.image?.url) profile.avatar = d.image.url;
+    // 2. Microlink Fallback
+    if (!profile.followers || profile.followers <= 0) {
+      try {
+        const targetUrl = `https://www.tiktok.com/@${username}`;
+        const microUrl = `https://api.microlink.io/?url=${encodeURIComponent(targetUrl)}&meta=true`;
+        const res = await fetch(microUrl);
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.data) {
+            const d = json.data;
+            if (d.author) profile.nickname = d.author;
+            else if (d.title) profile.nickname = d.title.replace(/\s*\(@.*\)\s*on\s*TikTok/i, '').trim() || username;
 
-          const desc = d.description || "";
-          if (desc) {
-            const likesMatch = desc.match(/([\d\.]+[KMBkmb]?)\s*Likes/i);
-            if (likesMatch) profile.totalLikes = parseSocialCount(likesMatch[1]);
+            if (d.image?.url) profile.avatar = d.image.url;
 
-            const followersMatch = desc.match(/([\d\.]+[KMBkmb]?)\s*Followers/i);
-            if (followersMatch) profile.followers = parseSocialCount(followersMatch[1]);
+            const desc = d.description || "";
+            if (desc) {
+              const likesMatch = desc.match(/([\d\.]+[KMBkmb]?)\s*Likes/i);
+              if (likesMatch) profile.totalLikes = parseSocialCount(likesMatch[1]);
 
-            const bioParts = desc.split(/Followers\.\s*/i);
-            if (bioParts.length > 1) {
-              const rawBio = bioParts[1].split(/Watch the latest video/i)[0].trim();
-              if (rawBio) profile.signature = rawBio;
+              const followersMatch = desc.match(/([\d\.]+[KMBkmb]?)\s*Followers/i);
+              if (followersMatch) profile.followers = parseSocialCount(followersMatch[1]);
+
+              const bioParts = desc.split(/Followers\.\s*/i);
+              if (bioParts.length > 1) {
+                const rawBio = bioParts[1].split(/Watch the latest video/i)[0].trim();
+                if (rawBio) profile.signature = rawBio;
+              }
             }
           }
         }
+      } catch(e) {
+        console.warn("Microlink profile fetch fallback:", e);
       }
-    } catch(e) {
-      console.warn("Microlink profile fetch fallback:", e);
     }
 
     if (!profile.followers || profile.followers <= 0) {
