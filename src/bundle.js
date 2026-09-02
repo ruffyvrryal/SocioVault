@@ -405,6 +405,7 @@ function VaultProvider({ children }) {
       platforms: [{ id: "p_" + Date.now(), name: "Instagram", handle: "@" + name.toLowerCase().replace(/\s+/g, "_"), followers: 0, url: "#" }],
       collaborators: [],
       subjectPhotos: {},
+      followerHistory: [],
       shareToken
     };
     const docRef = await getUserRef().collection('accounts').add(newAcc);
@@ -1255,7 +1256,7 @@ const undo = React.useCallback(async () => {
     await ref.update({ subjectPhotos: updatedPhotos });
   };
 
-  // ── Follower History Tracking ──
+  // ── Follower History Tracking (Firebase Firestore + Real-Time Sync) ──
   const [followerHistory, setFollowerHistory] = React.useState(() => {
     try {
       const saved = localStorage.getItem("smh_follower_history");
@@ -1267,28 +1268,57 @@ const undo = React.useCallback(async () => {
     localStorage.setItem("smh_follower_history", JSON.stringify(followerHistory));
   }, [followerHistory]);
 
-  // Record a daily follower snapshot for an account
-  const recordFollowerSnapshot = React.useCallback((accountId, platforms) => {
-    const today = new Date().toISOString().split("T")[0];
+  // Record a daily follower snapshot for an account in Firebase Firestore
+  const recordFollowerSnapshot = React.useCallback(async (accountId, platforms, customDate) => {
+    const targetAccountId = accountId || activeAccountId;
+    if (!targetAccountId) return;
+
+    const snapDate = customDate || new Date().toISOString().split("T")[0];
     const totalFollowers = (platforms || []).reduce((s, p) => s + (Number(p.followers) || 0), 0);
     const platformMap = {};
     (platforms || []).forEach(p => { platformMap[p.name] = Number(p.followers) || 0; });
 
-    setFollowerHistory(prev => {
-      const accHistory = Array.isArray(prev[accountId]) ? [...prev[accountId]] : [];
-      // Check if we already have a snapshot for today - update it
-      const todayIdx = accHistory.findIndex(s => s.date === today);
-      const snapshot = { date: today, timestamp: Date.now(), platforms: platformMap, total: totalFollowers };
-      if (todayIdx >= 0) {
-        accHistory[todayIdx] = snapshot;
-      } else {
-        accHistory.push(snapshot);
-      }
-      // Keep last 365 days sorted
-      accHistory.sort((a, b) => a.date.localeCompare(b.date));
-      return { ...prev, [accountId]: accHistory.slice(-365) };
-    });
-  }, []);
+    const targetAcc = accounts.find(a => a.id === targetAccountId);
+    const existingHistory = (targetAcc && Array.isArray(targetAcc.followerHistory))
+      ? [...targetAcc.followerHistory]
+      : (Array.isArray(followerHistory[targetAccountId]) ? [...followerHistory[targetAccountId]] : []);
+
+    const snapshot = {
+      date: snapDate,
+      timestamp: customDate ? new Date(customDate).getTime() : Date.now(),
+      platforms: platformMap,
+      total: totalFollowers
+    };
+
+    const dateIdx = existingHistory.findIndex(s => s.date === snapDate);
+    if (dateIdx >= 0) {
+      existingHistory[dateIdx] = snapshot;
+    } else {
+      existingHistory.push(snapshot);
+    }
+
+    existingHistory.sort((a, b) => a.date.localeCompare(b.date));
+    const trimmedHistory = existingHistory.slice(-365);
+
+    // 1. Update local cache state
+    setFollowerHistory(prev => ({
+      ...prev,
+      [targetAccountId]: trimmedHistory
+    }));
+
+    setOwnAccounts(prev => prev.map(a => a.id === targetAccountId ? { ...a, followerHistory: trimmedHistory } : a));
+    setSharedAccounts(prev => prev.map(a => a.id === targetAccountId ? { ...a, followerHistory: trimmedHistory } : a));
+
+    // 2. Persist directly to Firebase Firestore
+    try {
+      const ownerUid = getOwnerUidForAccount(targetAccountId);
+      const ref = getRefForUid(ownerUid).collection('accounts').doc(targetAccountId);
+      const cleanHistory = cleanFirestoreData(trimmedHistory);
+      await ref.update({ followerHistory: cleanHistory });
+    } catch(err) {
+      console.warn("Firestore followerHistory update warning:", err);
+    }
+  }, [accounts, activeAccountId, followerHistory]);
 
   const canUndo = historyStack.length > 0;
   const lastActionDescription = historyStack[0]?.description || '';
@@ -7219,8 +7249,11 @@ window.FollowerTracksPage = function() {
   }
 
   const accHistory = React.useMemo(() => {
-    return Array.isArray(followerHistory[activeAccount.id]) ? followerHistory[activeAccount.id] : [];
-  }, [followerHistory, activeAccount.id]);
+    if (activeAccount && Array.isArray(activeAccount.followerHistory) && activeAccount.followerHistory.length > 0) {
+      return activeAccount.followerHistory;
+    }
+    return Array.isArray(followerHistory[activeAccount?.id]) ? followerHistory[activeAccount.id] : [];
+  }, [activeAccount, followerHistory]);
 
   // All unique platform names across all snapshots
   const allPlatforms = React.useMemo(() => {
@@ -7257,32 +7290,25 @@ window.FollowerTracksPage = function() {
   const growthPct = prevTotal > 0 ? ((dailyGrowth / prevTotal) * 100).toFixed(2) : "0.00";
 
   // Take a manual snapshot now
-  const handleSnapshotNow = () => {
-    recordFollowerSnapshot(activeAccount.id, activeAccount.platforms || []);
-    setUndoToast({ message: "📸 Today's follower snapshot saved!", type: "success" });
+  const handleSnapshotNow = async () => {
+    await recordFollowerSnapshot(activeAccount.id, activeAccount.platforms || []);
+    setUndoToast({ message: "📸 Today's follower snapshot saved to Firebase!", type: "success" });
     setTimeout(() => setUndoToast(null), 3000);
   };
 
   // Add manual entry
-  const handleAddManual = (e) => {
+  const handleAddManual = async (e) => {
     e.preventDefault();
     const platforms = {};
     allPlatforms.forEach(p => {
       const val = Number(manualFollowers[p] || 0);
       if (val > 0) platforms[p] = val;
     });
-    const total = Object.values(platforms).reduce((s, v) => s + v, 0);
-    if (total === 0) return;
-    const snapshot = { date: manualDate, timestamp: new Date(manualDate).getTime(), platforms, total };
-    const prev = Array.isArray(followerHistory[activeAccount.id]) ? [...followerHistory[activeAccount.id]] : [];
-    const idx = prev.findIndex(s => s.date === manualDate);
-    if (idx >= 0) prev[idx] = snapshot; else prev.push(snapshot);
-    prev.sort((a, b) => a.date.localeCompare(b.date));
-    // Use recordFollowerSnapshot hack via internal setFollowerHistory by directly recording
-    recordFollowerSnapshot(activeAccount.id, allPlatforms.map(name => ({ name, followers: platforms[name] || 0 })));
+    if (Object.values(platforms).reduce((s, v) => s + v, 0) === 0) return;
+    await recordFollowerSnapshot(activeAccount.id, allPlatforms.map(name => ({ name, followers: platforms[name] || 0 })), manualDate);
     setAddingManual(false);
     setManualFollowers({});
-    setUndoToast({ message: `✅ Manual entry for ${manualDate} saved!`, type: "success" });
+    setUndoToast({ message: `✅ Follower snapshot for ${manualDate} saved to Firebase!`, type: "success" });
     setTimeout(() => setUndoToast(null), 3000);
   };
 

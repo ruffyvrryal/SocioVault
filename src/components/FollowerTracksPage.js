@@ -1,4 +1,4 @@
-// FollowerTracksPage — Daily Follower Growth Tracker
+// FollowerTracksPage — Daily Follower Growth Tracker (Firebase Cloud Synced)
 // Auto-updates on TikTok account sync. Paginated table (25 rows/page). Live SVG chart.
 window.FollowerTracksPage = function() {
   const {
@@ -16,8 +16,11 @@ window.FollowerTracksPage = function() {
   }
 
   const accHistory = React.useMemo(() => {
-    return Array.isArray(followerHistory[activeAccount.id]) ? followerHistory[activeAccount.id] : [];
-  }, [followerHistory, activeAccount.id]);
+    if (activeAccount && Array.isArray(activeAccount.followerHistory) && activeAccount.followerHistory.length > 0) {
+      return activeAccount.followerHistory;
+    }
+    return Array.isArray(followerHistory[activeAccount?.id]) ? followerHistory[activeAccount.id] : [];
+  }, [activeAccount, followerHistory]);
 
   const allPlatforms = React.useMemo(() => {
     const set = new Set();
@@ -41,13 +44,13 @@ window.FollowerTracksPage = function() {
   const dailyGrowth = todayTotal - prevTotal;
   const growthPct   = prevTotal > 0 ? ((dailyGrowth / prevTotal) * 100).toFixed(2) : "0.00";
 
-  const handleSnapshotNow = () => {
-    recordFollowerSnapshot(activeAccount.id, activeAccount.platforms || []);
-    setUndoToast({ message: "📸 Today's follower snapshot saved!", type: "success" });
+  const handleSnapshotNow = async () => {
+    await recordFollowerSnapshot(activeAccount.id, activeAccount.platforms || []);
+    setUndoToast({ message: "📸 Today's follower snapshot saved to Firebase!", type: "success" });
     setTimeout(() => setUndoToast(null), 3000);
   };
 
-  const handleAddManual = (e) => {
+  const handleAddManual = async (e) => {
     e.preventDefault();
     const platforms = {};
     allPlatforms.forEach(p => {
@@ -55,10 +58,10 @@ window.FollowerTracksPage = function() {
       if (val > 0) platforms[p] = val;
     });
     if (Object.values(platforms).reduce((s, v) => s + v, 0) === 0) return;
-    recordFollowerSnapshot(activeAccount.id, allPlatforms.map(name => ({ name, followers: platforms[name] || 0 })));
+    await recordFollowerSnapshot(activeAccount.id, allPlatforms.map(name => ({ name, followers: platforms[name] || 0 })), manualDate);
     setAddingManual(false);
     setManualFollowers({});
-    setUndoToast({ message: `✅ Manual entry for ${manualDate} saved!`, type: "success" });
+    setUndoToast({ message: `✅ Follower snapshot for ${manualDate} saved to Firebase!`, type: "success" });
     setTimeout(() => setUndoToast(null), 3000);
   };
 
@@ -131,9 +134,14 @@ window.FollowerTracksPage = function() {
     <div className="page-container">
       <div className="page-header" style={{ marginBottom:"1.5rem" }}>
         <div>
-          <h1 className="page-title" style={{ fontSize:"1.5rem", fontWeight:800, marginBottom:"0.2rem" }}>📊 Follower Tracks</h1>
-          <p style={{ color:"var(--text-muted)", fontSize:"0.82rem", margin:0 }}>
-            Daily follower growth for <strong>{activeAccount.name}</strong> — auto-logs on every TikTok sync
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <h1 className="page-title" style={{ fontSize:"1.5rem", fontWeight:800, margin:0 }}>📊 Follower Tracks</h1>
+            <span style={{ fontSize: "0.72rem", color: "#10B981", background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)", padding: "0.15rem 0.5rem", borderRadius: "12px", fontWeight: 700 }}>
+              🔥 Firebase Cloud
+            </span>
+          </div>
+          <p style={{ color:"var(--text-muted)", fontSize:"0.82rem", margin:"0.25rem 0 0 0" }}>
+            Daily follower growth for <strong>{activeAccount.name}</strong> — automatically synced & stored on Firebase
           </p>
         </div>
         <div style={{ display:"flex", gap:"0.6rem", flexWrap:"wrap" }}>
@@ -147,7 +155,7 @@ window.FollowerTracksPage = function() {
         {[
           { label:"Total Followers Today", val:fmt(todayTotal), sub:"All platforms combined", color:"#25F4EE", border:"rgba(37,244,238,0.25)", bg:"rgba(37,244,238,0.08)" },
           { label:"Daily Growth", val:(dailyGrowth>=0?"+":"")+fmt(dailyGrowth), sub:`${dailyGrowth>=0?"▲":"▼"} ${Math.abs(growthPct)}% vs yesterday`, color:dailyGrowth>=0?"#10B981":"#F43F5E", border:dailyGrowth>=0?"rgba(16,185,129,0.25)":"rgba(244,63,94,0.25)", bg:dailyGrowth>=0?"rgba(16,185,129,0.08)":"rgba(244,63,94,0.08)" },
-          { label:"Days Tracked", val:accHistory.length, sub:"Daily snapshots logged", color:"#A78BFA", border:"rgba(139,92,246,0.25)", bg:"rgba(139,92,246,0.08)" },
+          { label:"Days Tracked", val:accHistory.length, sub:"Cloud snapshots logged", color:"#A78BFA", border:"rgba(139,92,246,0.25)", bg:"rgba(139,92,246,0.08)" },
           { label:"Avg Daily Growth", val:accHistory.length>=2?"+"+fmt(Math.round((accHistory[accHistory.length-1].total-accHistory[0].total)/Math.max(1,accHistory.length-1))):"—", sub:"Over all tracked days", color:"#F59E0B", border:"rgba(245,158,11,0.25)", bg:"rgba(245,158,11,0.08)" }
         ].map(c => (
           <div key={c.label} className="glass-card" style={{ padding:"1rem 1.2rem", borderRadius:"12px", border:`1px solid ${c.border}`, background:`linear-gradient(135deg,${c.bg},rgba(13,17,23,0.8))` }}>
@@ -166,7 +174,7 @@ window.FollowerTracksPage = function() {
               <div style={{ fontSize:"0.88rem", fontWeight:800, color:"#fff" }}>Follower Growth (Last 30 Days)</div>
               <div style={{ fontSize:"0.72rem", color:"var(--text-muted)", marginTop:"2px" }}>Total followers across all platforms</div>
             </div>
-            <span style={{ fontSize:"0.72rem", color:"#25F4EE", fontWeight:700, background:"rgba(37,244,238,0.1)", padding:"0.2rem 0.55rem", borderRadius:"20px", border:"1px solid rgba(37,244,238,0.25)" }}>LIVE</span>
+            <span style={{ fontSize:"0.72rem", color: "#10B981", fontWeight:700, background:"rgba(16,185,129,0.1)", padding:"0.2rem 0.55rem", borderRadius:"20px", border:"1px solid rgba(16,185,129,0.25)" }}>☁️ FIREBASE LIVE</span>
           </div>
           <LineChart data={chartData} maxVal={chartMax}/>
         </div>
@@ -193,8 +201,8 @@ window.FollowerTracksPage = function() {
       {addingManual && (
         <div className="modal-overlay" onClick={() => setAddingManual(false)}>
           <div className="modal-content" style={{ maxWidth:"420px", width:"95%" }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1rem" }}>
-              <h2 style={{ fontSize:"1.1rem", fontWeight:700, margin:0 }}>✏️ Add Manual Follower Entry</h2>
+            <div className="modal-header" style={{ display:"flex", justifyContent:"space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h2 style={{ fontSize:"1.1rem", fontWeight:700, margin:0 }}>✏️ Add Follower Snapshot to Firebase</h2>
               <button onClick={() => setAddingManual(false)} className="btn btn-secondary btn-icon" style={{ width:"28px", height:"28px" }}>✕</button>
             </div>
             <form onSubmit={handleAddManual}>
@@ -212,7 +220,7 @@ window.FollowerTracksPage = function() {
               ))}
               <div style={{ display:"flex", justifyContent:"flex-end", gap:"0.6rem" }}>
                 <button type="button" onClick={() => setAddingManual(false)} className="btn btn-secondary btn-sm">Cancel</button>
-                <button type="submit" className="btn btn-primary btn-sm">💾 Save Entry</button>
+                <button type="submit" className="btn btn-primary btn-sm">💾 Save to Firebase</button>
               </div>
             </form>
           </div>
@@ -223,7 +231,7 @@ window.FollowerTracksPage = function() {
       <div className="glass-card" style={{ borderRadius:"14px", border:"1px solid var(--border-color)", overflow:"hidden" }}>
         <div style={{ padding:"1rem 1.25rem", borderBottom:"1px solid var(--border-color)", display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:"0.5rem" }}>
           <div>
-            <div style={{ fontSize:"0.9rem", fontWeight:800, color:"#fff" }}>📅 Daily Follower Log</div>
+            <div style={{ fontSize:"0.9rem", fontWeight:800, color:"#fff" }}>📅 Daily Follower Log (Cloud Synced)</div>
             <div style={{ fontSize:"0.72rem", color:"var(--text-muted)", marginTop:"2px" }}>
               {tableRows.length} entries • Page {currentPage} of {totalPages} • 25 per page
             </div>
@@ -234,8 +242,8 @@ window.FollowerTracksPage = function() {
         {tableRows.length === 0 ? (
           <div style={{ padding:"3rem", textAlign:"center", color:"var(--text-muted)", fontSize:"0.85rem" }}>
             <div style={{ fontSize:"2.5rem", marginBottom:"0.75rem" }}>📊</div>
-            <div style={{ fontWeight:700, color:"#fff", marginBottom:"0.4rem" }}>No follower data yet</div>
-            <div>Click <strong>📸 Snapshot Now</strong> to log today's count, or sync your TikTok account to auto-log.</div>
+            <div style={{ fontWeight:700, color:"#fff", marginBottom:"0.4rem" }}>No follower data on Firebase yet</div>
+            <div>Click <strong>📸 Snapshot Now</strong> to log today's count, or sync your TikTok account to auto-log to Firebase.</div>
           </div>
         ) : (
           <>
