@@ -1,6 +1,6 @@
 // AddContentPage Component - Modern 2-Column Layout with Single Video & Entire TikTok Account Auto-Import
 window.AddContentPage = function() {
-  const { activeAccount, addContent, canEdit, setActivePage, fetchTikTokData, syncTikTokAccount } = React.useContext(window.VaultContext);
+  const { activeAccount, contents, addContent, canEdit, setActivePage, fetchTikTokData, syncTikTokAccount } = React.useContext(window.VaultContext);
 
   const [mode, setMode] = React.useState("single"); // "single" | "account"
   const [uploadDate, setUploadDate] = React.useState(() => new Date().toISOString().split("T")[0]);
@@ -21,6 +21,117 @@ window.AddContentPage = function() {
   const [saves, setSaves] = React.useState("");
   const [status, setStatus] = React.useState("Uploaded");
   const [contentType, setContentType] = React.useState("Video");
+
+  // ── 1. Video / Content Type Recommendations (from past added data) ──
+  const pastContentTypes = React.useMemo(() => {
+    const counts = {};
+    (contents || []).forEach(c => {
+      const t = (c.contentType || "").trim();
+      if (t) counts[t] = (counts[t] || 0) + 1;
+    });
+    ["Video", "Reel", "Shorts", "Carousel", "Photo", "Tutorial", "Vlog", "Story"].forEach(d => {
+      if (!counts[d]) counts[d] = 0;
+    });
+    return Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+  }, [contents]);
+
+  const recommendedContentTypes = React.useMemo(() => {
+    const q = (contentType || "").trim().toLowerCase();
+    if (!q) return pastContentTypes.slice(0, 6);
+    return pastContentTypes.filter(t => t.toLowerCase().includes(q) && t.toLowerCase() !== q).slice(0, 6);
+  }, [pastContentTypes, contentType]);
+
+  // ── 2. Hashtag Recommendations (from past added data) ──
+  const pastHashtags = React.useMemo(() => {
+    const counts = {};
+    (contents || []).forEach(c => {
+      (c.hashtags || []).forEach(h => {
+        let tag = (h || "").trim();
+        if (!tag.startsWith("#")) tag = "#" + tag;
+        if (tag.length > 1) counts[tag] = (counts[tag] || 0) + 1;
+      });
+    });
+    return Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+  }, [contents]);
+
+  const currentTypedTag = React.useMemo(() => {
+    const parts = (hashtagsInput || "").split(/[\s,]+/);
+    const last = parts[parts.length - 1] || "";
+    return last.trim().toLowerCase();
+  }, [hashtagsInput]);
+
+  const currentTagsSet = React.useMemo(() => {
+    return new Set(
+      (hashtagsInput || "")
+        .split(/[\s,]+/)
+        .map(t => t.trim().toLowerCase())
+        .filter(Boolean)
+        .map(t => t.startsWith("#") ? t : "#" + t)
+    );
+  }, [hashtagsInput]);
+
+  const recommendedHashtags = React.useMemo(() => {
+    const q = currentTypedTag.replace(/^#/, '');
+    return pastHashtags.filter(h => {
+      const cleanH = h.toLowerCase().replace(/^#/, '');
+      const notAlreadyAdded = !currentTagsSet.has(h.toLowerCase());
+      if (!q) return notAlreadyAdded;
+      return notAlreadyAdded && cleanH.includes(q);
+    }).slice(0, 8);
+  }, [pastHashtags, currentTypedTag, currentTagsSet]);
+
+  const handleSelectHashtag = (tagToAdd) => {
+    const parts = (hashtagsInput || "").split(/[\s,]+/).filter(Boolean);
+    const last = parts[parts.length - 1] || "";
+    const cleanLast = last.replace(/^#/, '').toLowerCase();
+    const cleanTag = tagToAdd.replace(/^#/, '').toLowerCase();
+
+    let newParts;
+    if (cleanLast && cleanTag.startsWith(cleanLast) && parts.length > 0) {
+      newParts = [...parts.slice(0, -1), tagToAdd];
+    } else if (!parts.map(p => p.startsWith('#') ? p : '#' + p).includes(tagToAdd)) {
+      newParts = [...parts, tagToAdd];
+    } else {
+      newParts = parts;
+    }
+    setHashtagsInput(newParts.join(" ") + " ");
+  };
+
+  // ── 3. Featured Subject Recommendations (from past added data) ──
+  const pastSubjects = React.useMemo(() => {
+    const counts = {};
+    (contents || []).forEach(c => {
+      (c.subjects || []).forEach(s => {
+        const name = (s || "").trim();
+        if (name) counts[name] = (counts[name] || 0) + 1;
+      });
+    });
+    if (activeAccount?.subjectPhotos) {
+      Object.keys(activeAccount.subjectPhotos).forEach(name => {
+        if (!counts[name]) counts[name] = 1;
+      });
+    }
+    if (activeAccount?.name && !counts[activeAccount.name]) {
+      counts[activeAccount.name] = 0;
+    }
+    return Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+  }, [contents, activeAccount]);
+
+  const recommendedSubjects = React.useMemo(() => {
+    const q = (subjectInput || "").trim().toLowerCase();
+    return pastSubjects.filter(name => {
+      const notAdded = !subjectsList.includes(name);
+      if (!q) return notAdded;
+      return notAdded && name.toLowerCase().includes(q);
+    }).slice(0, 8);
+  }, [pastSubjects, subjectInput, subjectsList]);
+
+  const handleSelectSubject = (name) => {
+    if (!subjectsList.includes(name)) {
+      setSubjectsList(prev => [...prev, name]);
+    }
+    setSubjectInput("");
+  };
 
   // TikTok API State
   const [tiktokInput, setTiktokInput] = React.useState("");
@@ -72,6 +183,18 @@ window.AddContentPage = function() {
       setTiktokLoading(false);
     }
   };
+
+  // Instant Auto-Fetch on URL paste (zero clicks required)
+  React.useEffect(() => {
+    if (!tiktokInput || (!tiktokInput.includes("tiktok.com") && !tiktokInput.startsWith("vt.") && !tiktokInput.startsWith("vm."))) return;
+    if (tiktokSuccess && tiktokSuccess.originalUrl === tiktokInput) return;
+
+    const timer = setTimeout(() => {
+      handleFetchTikTok();
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [tiktokInput]);
 
   // Handle Entire Account Auto-Sync
   const handleSyncEntireAccount = async (e) => {
@@ -391,8 +514,45 @@ window.AddContentPage = function() {
               </div>
 
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ fontSize: "0.74rem" }}>Type</label>
-                <input type="text" className="form-input" style={{ minHeight: "36px", fontSize: "0.82rem" }} placeholder="Video, Reel..." value={contentType} onChange={e => setContentType(e.target.value)} />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <label className="form-label" style={{ fontSize: "0.74rem", margin: 0 }}>Type</label>
+                  {contentType && (
+                    <span style={{ fontSize: "0.64rem", color: "var(--accent-cyan-light)" }}>
+                      {contentType}
+                    </span>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ minHeight: "36px", fontSize: "0.82rem" }}
+                  placeholder="Video, Reel, Carousel..."
+                  value={contentType}
+                  onChange={e => setContentType(e.target.value)}
+                />
+                {recommendedContentTypes.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem", marginTop: "0.3rem" }}>
+                    {recommendedContentTypes.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setContentType(t)}
+                        className="chip"
+                        style={{
+                          fontSize: "0.66rem",
+                          padding: "0.08rem 0.4rem",
+                          cursor: "pointer",
+                          border: contentType.toLowerCase() === t.toLowerCase() ? "1px solid var(--accent-cyan)" : "1px solid rgba(255,255,255,0.12)",
+                          background: contentType.toLowerCase() === t.toLowerCase() ? "rgba(6,182,212,0.2)" : "rgba(255,255,255,0.05)",
+                          color: contentType.toLowerCase() === t.toLowerCase() ? "#22D3EE" : "var(--text-secondary)"
+                        }}
+                        title={`Use "${t}" type`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -402,21 +562,65 @@ window.AddContentPage = function() {
               <textarea className="form-textarea" rows="2" style={{ fontSize: "0.85rem" }} placeholder="Post caption..." required value={caption} onChange={e => setCaption(e.target.value)}></textarea>
             </div>
 
-            {/* Hashtags */}
+            {/* Hashtags with Dynamic Historical Recommendations */}
             <div className="form-group" style={{ marginBottom: "0.85rem" }}>
-              <label className="form-label" style={{ fontSize: "0.74rem" }}>Hashtags</label>
-              <input type="text" className="form-input" style={{ minHeight: "36px", fontSize: "0.84rem" }} placeholder="#viral #trending #business" value={hashtagsInput} onChange={e => setHashtagsInput(e.target.value)} />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
+                <label className="form-label" style={{ fontSize: "0.74rem", margin: 0 }}>Hashtags</label>
+                <span style={{ fontSize: "0.68rem", color: "var(--accent-primary-light)" }}>
+                  {pastHashtags.length > 0 ? `${pastHashtags.length} from previous posts` : 'Type tags with #'}
+                </span>
+              </div>
+              <input
+                type="text"
+                className="form-input"
+                style={{ minHeight: "36px", fontSize: "0.84rem" }}
+                placeholder="#viral #trending #business"
+                value={hashtagsInput}
+                onChange={e => setHashtagsInput(e.target.value)}
+              />
+              {recommendedHashtags.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem", marginTop: "0.35rem", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.68rem", color: "var(--text-subtle)", display: "flex", alignItems: "center", gap: "2px" }}>
+                    ✨ Recommended:
+                  </span>
+                  {recommendedHashtags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => handleSelectHashtag(tag)}
+                      className="chip chip-hashtag"
+                      style={{
+                        fontSize: "0.7rem",
+                        padding: "0.12rem 0.45rem",
+                        cursor: "pointer",
+                        background: "rgba(139,92,246,0.15)",
+                        border: "1px solid rgba(139,92,246,0.35)",
+                        color: "#C4B5FD",
+                        transition: "all 0.15s ease"
+                      }}
+                      title={`Click to add ${tag}`}
+                    >
+                      + {tag}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Subjects */}
+            {/* Featured Subjects with Dynamic Historical Recommendations */}
             <div className="form-group" style={{ marginBottom: "1rem" }}>
-              <label className="form-label" style={{ fontSize: "0.74rem" }}>Featured Subjects / People</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
+                <label className="form-label" style={{ fontSize: "0.74rem", margin: 0 }}>Featured Subjects / People</label>
+                <span style={{ fontSize: "0.68rem", color: "var(--accent-cyan-light)" }}>
+                  {pastSubjects.length > 0 ? `${pastSubjects.length} saved subjects` : 'Tag creators'}
+                </span>
+              </div>
               <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.4rem" }}>
                 <input
                   type="text"
                   className="form-input"
                   style={{ minHeight: "34px", fontSize: "0.82rem" }}
-                  placeholder="Person's name..."
+                  placeholder="Type subject or pick below..."
                   value={subjectInput}
                   onChange={e => setSubjectInput(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddSubject(); } }}
@@ -426,14 +630,46 @@ window.AddContentPage = function() {
                 </button>
               </div>
 
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem" }}>
-                {subjectsList.map(name => (
-                  <span key={name} className="chip chip-subject" style={{ fontSize: "0.72rem", padding: "0.1rem 0.4rem" }}>
-                    👤 {name}
-                    <button type="button" onClick={() => handleRemoveSubject(name)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold" }}>✕</button>
+              {/* Active Added Subjects */}
+              {subjectsList.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem", marginBottom: "0.45rem" }}>
+                  {subjectsList.map(name => (
+                    <span key={name} className="chip chip-subject" style={{ fontSize: "0.72rem", padding: "0.1rem 0.4rem" }}>
+                      👤 {name}
+                      <button type="button" onClick={() => handleRemoveSubject(name)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold" }}>✕</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Recommended Subjects from Previous Posts */}
+              {recommendedSubjects.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.68rem", color: "var(--text-subtle)", display: "flex", alignItems: "center", gap: "2px" }}>
+                    👥 Past Subjects:
                   </span>
-                ))}
-              </div>
+                  {recommendedSubjects.map((sub) => (
+                    <button
+                      key={sub}
+                      type="button"
+                      onClick={() => handleSelectSubject(sub)}
+                      className="chip chip-subject"
+                      style={{
+                        fontSize: "0.7rem",
+                        padding: "0.12rem 0.45rem",
+                        cursor: "pointer",
+                        background: "rgba(6,182,212,0.12)",
+                        border: "1px solid rgba(6,182,212,0.3)",
+                        color: "#67E8F9",
+                        transition: "all 0.15s ease"
+                      }}
+                      title={`Click to add ${sub}`}
+                    >
+                      + 👤 {sub}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: "0.85rem", marginBottom: "0.85rem" }}>
