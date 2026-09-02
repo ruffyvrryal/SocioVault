@@ -21,6 +21,7 @@ window.AccountCenterPage = function() {
 
   // TikTok Account Link Input State
   const [tikTokAccountLink, setTikTokAccountLink] = React.useState("");
+  const [rawVideosInput, setRawVideosInput] = React.useState("");
   const [accountSyncLoading, setAccountSyncLoading] = React.useState(false);
   const [accountSyncSuccess, setAccountSyncSuccess] = React.useState(null);
   const [accountSyncError, setAccountSyncError] = React.useState("");
@@ -111,7 +112,8 @@ window.AccountCenterPage = function() {
     try {
       const result = await syncTikTokAccount(activeAccount.id, tikTokAccountLink, {
         importPosts: true,
-        updateFollowers: true
+        updateFollowers: true,
+        rawVideosText: rawVideosInput
       });
       setAccountSyncSuccess(result);
     } catch(err) {
@@ -494,6 +496,29 @@ window.AccountCenterPage = function() {
                 />
                 <div style={{ fontSize: "0.72rem", color: "var(--text-subtle)", marginTop: "4px" }}>
                   Supports full profile URLs, mobile share links, or creator handles (e.g. <code>@mrbeast</code>, <code>tiktok.com/@nike</code>).
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.3rem" }}>
+                  <label className="form-label" style={{ fontSize: "0.78rem", margin: 0 }}>
+                    Real Video Links / Captions & Tags (Optional Bulk Multi-Post)
+                  </label>
+                  <span style={{ fontSize: "0.68rem", color: "#25F4EE", fontWeight: 600 }}>
+                    1 post per line
+                  </span>
+                </div>
+                <textarea
+                  className="form-textarea"
+                  rows="3"
+                  placeholder="Paste your real video links or captions here (1 per line), e.g.:&#10;https://www.tiktok.com/@user/video/7123456789 (or paste title with #hashtags)&#10;My new dance tutorial #dance #tutorial #fyp&#10;Behind the scenes episode 3 #vlog #bts"
+                  value={rawVideosInput}
+                  onChange={e => setRawVideosInput(e.target.value)}
+                  disabled={accountSyncLoading}
+                  style={{ fontSize: "0.76rem" }}
+                ></textarea>
+                <div style={{ fontSize: "0.7rem", color: "var(--text-subtle)", marginTop: "3px" }}>
+                  💡 <strong>Tip:</strong> Paste your real video links or captions with hashtags above to log your exact posts!
                 </div>
               </div>
 

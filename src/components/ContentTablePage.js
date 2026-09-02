@@ -30,6 +30,7 @@ window.ContentTablePage = function() {
   const [tiktokFetchError, setTiktokFetchError] = React.useState("");
   const [tiktokPreview, setTiktokPreview] = React.useState(null);
   const [tiktokAccountResult, setTiktokAccountResult] = React.useState(null);
+  const [tiktokBulkPostsInput, setTiktokBulkPostsInput] = React.useState("");
 
   // Edit Modal State
   const [editingContent, setEditingContent] = React.useState(null);
@@ -167,7 +168,8 @@ window.ContentTablePage = function() {
       if (tiktokModalMode === "account") {
         const res = await syncTikTokAccount(activeAccount.id, tiktokUrlInput, {
           importPosts: true,
-          updateFollowers: true
+          updateFollowers: true,
+          rawVideosText: tiktokBulkPostsInput
         });
         setTiktokAccountResult(res);
       } else {
@@ -553,6 +555,28 @@ window.ContentTablePage = function() {
                 disabled={tiktokFetching}
               />
             </div>
+
+            {tiktokModalMode === "account" && (
+              <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
+                  <label className="form-label" style={{ fontSize: "0.72rem", margin: 0 }}>
+                    Real Video Links / Captions (Optional Bulk Paste)
+                  </label>
+                  <span style={{ fontSize: "0.68rem", color: "#25F4EE", fontWeight: 600 }}>
+                    1 post per line
+                  </span>
+                </div>
+                <textarea
+                  className="form-textarea"
+                  rows="3"
+                  placeholder="Paste your real video URLs or post captions with hashtags (1 per line)..."
+                  value={tiktokBulkPostsInput}
+                  onChange={e => setTiktokBulkPostsInput(e.target.value)}
+                  disabled={tiktokFetching}
+                  style={{ fontSize: "0.76rem" }}
+                ></textarea>
+              </div>
+            )}
 
             {tiktokFetching && (
               <div style={{ padding: "0.85rem", borderRadius: "8px", background: "rgba(37,244,238,0.1)", border: "1px solid rgba(37,244,238,0.3)", textAlign: "center", marginBottom: "0.85rem" }}>

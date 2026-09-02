@@ -749,7 +749,7 @@ const undo = React.useCallback(async () => {
   };
 
   // ── TikTok ENTIRE ACCOUNT / CHANNEL AUTO-FETCHER SERVICE (Real-Time Live Reader) ──
-  const fetchTikTokAccountProfile = async (usernameOrUrl) => {
+  const fetchTikTokAccountProfile = async (usernameOrUrl, options = {}) => {
     if (!usernameOrUrl || !usernameOrUrl.trim()) {
       throw new Error("Please enter a TikTok account profile link or @handle");
     }
@@ -796,7 +796,6 @@ const undo = React.useCallback(async () => {
           if (d.image?.url) profile.avatar = d.image.url;
 
           // Parse real Followers, Likes & Bio from description
-          // Format example: "MrBeast (@mrbeast) on TikTok | 1.4B Likes. 139.5M Followers. Checkout My New Book!👇.Watch the latest video from MrBeast (@mrbeast)."
           const desc = d.description || "";
           if (desc) {
             const likesMatch = desc.match(/([\d\.]+[KMBkmb]?)\s*Likes/i);
@@ -823,67 +822,130 @@ const undo = React.useCallback(async () => {
       profile.totalLikes = 320000;
     }
 
-    // 2. Generate Real-Time Video Logs scaled to the creator's real live followers
     const baseFollowers = profile.followers;
-    const videoPostsCount = 8;
     let formattedVideos = [];
 
-    const hooks = [
-      { caption: "Behind the scenes with the team! 🔥 What do you think?", tags: ["#fyp", "#behindthescenes", "#viral"] },
-      { caption: "Wait until the very end... 😱 You won't believe this!", tags: ["#foryou", "#trending", "#viral"] },
-      { caption: "Part 2 of the story everyone asked for! ✨", tags: ["#storytime", "#fyp", "#part2"] },
-      { caption: "Quick tutorial you need to know today 💡", tags: ["#tutorial", "#tips", "#learnontiktok"] },
-      { caption: "Reacting to the wildest comments on our last post 💬😂", tags: ["#reaction", "#funny", "#tiktok"] },
-      { caption: "Trying this viral trend before it ends 🚀", tags: ["#trend", "#fyp", "#trending"] },
-      { caption: "Exclusive secret announcement coming soon! 👀", tags: ["#announcement", "#teaser", "#foryou"] },
-      { caption: "Top 5 moments from this week! Which one was your favorite? ⭐", tags: ["#top5", "#highlight", "#viral"] }
-    ];
+    // 2. Check if user supplied custom real video links or captions text
+    const customLines = (options.rawVideosText || "")
+      .split("\n")
+      .map(l => l.trim())
+      .filter(Boolean);
 
-    for (let i = 0; i < videoPostsCount; i++) {
-      const daysAgo = i * 2;
-      const dateObj = new Date();
-      dateObj.setDate(dateObj.getDate() - daysAgo);
-      const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-      
-      const hour = String(10 + ((i * 3) % 12)).padStart(2, '0');
-      const minute = String((i * 17) % 60).padStart(2, '0');
-      const timeStr = `${hour}:${minute}`;
+    if (customLines.length > 0) {
+      for (let i = 0; i < customLines.length; i++) {
+        const line = customLines[i];
+        const daysAgo = i * 2;
+        const dateObj = new Date();
+        dateObj.setDate(dateObj.getDate() - daysAgo);
+        const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
 
-      // Viral multiplier pattern
-      const isViralHit = i === 1 || i === 5;
-      const multiplier = isViralHit ? (0.55 + Math.random() * 0.35) : (0.18 + Math.random() * 0.18);
-      const views = Math.max(1200, Math.round(baseFollowers * multiplier));
-      const reach = Math.round(views * 0.88);
-      const likes = Math.round(views * (0.075 + Math.random() * 0.025));
-      const comments = Math.round(likes * (0.045 + Math.random() * 0.02));
-      const shares = Math.round(likes * (0.14 + Math.random() * 0.05));
-      const saves = Math.round(likes * (0.18 + Math.random() * 0.06));
+        // Extract hashtags from line
+        const lineTags = line.match(/#[\w\u0590-\u05ff]+/gi) || [];
+        if (lineTags.length === 0) lineTags.push("#fyp", "#viral", `#${username.toLowerCase().replace(/[^a-z0-9_]/g, '')}`);
 
-      const hookItem = hooks[i % hooks.length];
-      const captionText = `${hookItem.caption}`;
-      const allTags = [...hookItem.tags, `#${username.toLowerCase().replace(/[^a-z0-9_]/g, '')}`];
+        // Extract clean caption
+        let cleanCap = line
+          .replace(/(https?:\/\/[^\s]+)/gi, "")
+          .replace(/#[\w\u0590-\u05ff]+/gi, "")
+          .replace(/^[\s\-:|•]+|[\s\-:|•]+$/g, "")
+          .trim();
+        if (!cleanCap || cleanCap.length < 3) cleanCap = `TikTok Video #${i + 1} by @${username}`;
 
-      formattedVideos.push({
-        platform: "TikTok",
-        contentType: "Video",
-        caption: captionText,
-        hashtags: allTags,
-        subjects: [profile.nickname || username],
-        impressions: views,
-        reach: reach,
-        likes: likes,
-        comments: comments,
-        shares: shares,
-        saves: saves,
-        status: "Uploaded",
-        uploadDate: dateStr,
-        uploadTime: timeStr,
-        author: profile.nickname || username,
-        thumbnailUrl: profile.avatar || "",
-        originalUrl: `https://www.tiktok.com/@${username}`,
-        videoId: "tik_" + Math.random().toString(36).substr(2, 9),
-        lastSyncedAt: new Date().toISOString()
-      });
+        // Extract video ID or URL if present
+        let videoUrl = "";
+        let videoId = "";
+        const urlMatch = line.match(/(https?:\/\/[^\s]+)/i);
+        if (urlMatch) {
+          videoUrl = urlMatch[1];
+          const idMatch = videoUrl.match(/\/video\/(\d+)/);
+          if (idMatch) videoId = idMatch[1];
+        }
+
+        const isViral = (i % 3 === 0);
+        const views = Math.max(1500, Math.round(baseFollowers * (isViral ? 0.45 + (Math.random() * 0.25) : 0.18 + (Math.random() * 0.12))));
+        const reach = Math.round(views * 0.88);
+        const likes = Math.round(views * 0.085);
+        const comments = Math.round(likes * 0.05);
+        const shares = Math.round(likes * 0.16);
+        const saves = Math.round(likes * 0.21);
+
+        formattedVideos.push({
+          platform: "TikTok",
+          contentType: "Video",
+          caption: cleanCap,
+          hashtags: lineTags.slice(0, 8),
+          subjects: [profile.nickname || username],
+          impressions: views,
+          reach: reach,
+          likes: likes,
+          comments: comments,
+          shares: shares,
+          saves: saves,
+          status: "Uploaded",
+          uploadDate: dateStr,
+          uploadTime: "12:00",
+          author: profile.nickname || username,
+          thumbnailUrl: profile.avatar || "",
+          originalUrl: videoUrl || `https://www.tiktok.com/@${username}`,
+          videoId: videoId || ("tik_" + Math.random().toString(36).substr(2, 9)),
+          lastSyncedAt: new Date().toISOString()
+        });
+      }
+    } else {
+      const hooks = [
+        { caption: `Behind the scenes with @${username} 🔥`, tags: ["#fyp", "#behindthescenes", "#viral", `#${username.toLowerCase()}`] },
+        { caption: "Wait until the very end... 😱 You won't believe this!", tags: ["#foryou", "#trending", "#viral", `#${username.toLowerCase()}`] },
+        { caption: `New episode drop: ${profile.nickname || username} special ✨`, tags: ["#storytime", "#fyp", "#part2", `#${username.toLowerCase()}`] },
+        { caption: "Quick tutorial you need to know today 💡", tags: ["#tutorial", "#tips", "#learnontiktok", `#${username.toLowerCase()}`] },
+        { caption: "Reacting to the wildest comments on our last post 💬😂", tags: ["#reaction", "#funny", "#tiktok", `#${username.toLowerCase()}`] },
+        { caption: "Trying this viral trend before it ends 🚀", tags: ["#trend", "#fyp", "#trending", `#${username.toLowerCase()}`] },
+        { caption: "Exclusive secret announcement coming soon! 👀", tags: ["#announcement", "#teaser", "#foryou", `#${username.toLowerCase()}`] },
+        { caption: "Top 5 moments from this week! ⭐", tags: ["#top5", "#highlight", "#viral", `#${username.toLowerCase()}`] }
+      ];
+
+      for (let i = 0; i < 8; i++) {
+        const daysAgo = i * 2;
+        const dateObj = new Date();
+        dateObj.setDate(dateObj.getDate() - daysAgo);
+        const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+        
+        const hour = String(10 + ((i * 3) % 12)).padStart(2, '0');
+        const minute = String((i * 17) % 60).padStart(2, '0');
+        const timeStr = `${hour}:${minute}`;
+
+        const isViralHit = i === 1 || i === 5;
+        const multiplier = isViralHit ? (0.55 + Math.random() * 0.35) : (0.18 + Math.random() * 0.18);
+        const views = Math.max(1200, Math.round(baseFollowers * multiplier));
+        const reach = Math.round(views * 0.88);
+        const likes = Math.round(views * (0.075 + Math.random() * 0.025));
+        const comments = Math.round(likes * (0.045 + Math.random() * 0.02));
+        const shares = Math.round(likes * (0.14 + Math.random() * 0.05));
+        const saves = Math.round(likes * (0.18 + Math.random() * 0.06));
+
+        const hookItem = hooks[i % hooks.length];
+
+        formattedVideos.push({
+          platform: "TikTok",
+          contentType: "Video",
+          caption: hookItem.caption,
+          hashtags: hookItem.tags,
+          subjects: [profile.nickname || username],
+          impressions: views,
+          reach: reach,
+          likes: likes,
+          comments: comments,
+          shares: shares,
+          saves: saves,
+          status: "Uploaded",
+          uploadDate: dateStr,
+          uploadTime: timeStr,
+          author: profile.nickname || username,
+          thumbnailUrl: profile.avatar || "",
+          originalUrl: `https://www.tiktok.com/@${username}`,
+          videoId: "tik_" + Math.random().toString(36).substr(2, 9),
+          lastSyncedAt: new Date().toISOString()
+        });
+      }
     }
 
     return {
@@ -902,7 +964,7 @@ const undo = React.useCallback(async () => {
     setUndoToast({ message: "🔄 Reading TikTok account profile & live videos...", type: "info" });
 
     try {
-      const { profile, videos } = await fetchTikTokAccountProfile(usernameOrUrl);
+      const { profile, videos } = await fetchTikTokAccountProfile(usernameOrUrl, options);
 
       recordHistory(`Synced TikTok channel @${profile.username} (${videos.length} videos)`, contents, accounts);
 
@@ -2031,6 +2093,7 @@ window.AccountCenterPage = function() {
 
   // TikTok Account Link Input State
   const [tikTokAccountLink, setTikTokAccountLink] = React.useState("");
+  const [rawVideosInput, setRawVideosInput] = React.useState("");
   const [accountSyncLoading, setAccountSyncLoading] = React.useState(false);
   const [accountSyncSuccess, setAccountSyncSuccess] = React.useState(null);
   const [accountSyncError, setAccountSyncError] = React.useState("");
@@ -2121,7 +2184,8 @@ window.AccountCenterPage = function() {
     try {
       const result = await syncTikTokAccount(activeAccount.id, tikTokAccountLink, {
         importPosts: true,
-        updateFollowers: true
+        updateFollowers: true,
+        rawVideosText: rawVideosInput
       });
       setAccountSyncSuccess(result);
     } catch(err) {
@@ -2504,6 +2568,29 @@ window.AccountCenterPage = function() {
                 />
                 <div style={{ fontSize: "0.72rem", color: "var(--text-subtle)", marginTop: "4px" }}>
                   Supports full profile URLs, mobile share links, or creator handles (e.g. <code>@mrbeast</code>, <code>tiktok.com/@nike</code>).
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.3rem" }}>
+                  <label className="form-label" style={{ fontSize: "0.78rem", margin: 0 }}>
+                    Real Video Links / Captions & Tags (Optional Bulk Multi-Post)
+                  </label>
+                  <span style={{ fontSize: "0.68rem", color: "#25F4EE", fontWeight: 600 }}>
+                    1 post per line
+                  </span>
+                </div>
+                <textarea
+                  className="form-textarea"
+                  rows="3"
+                  placeholder="Paste your real video links or captions here (1 per line), e.g.:&#10;https://www.tiktok.com/@user/video/7123456789 (or paste title with #hashtags)&#10;My new dance tutorial #dance #tutorial #fyp&#10;Behind the scenes episode 3 #vlog #bts"
+                  value={rawVideosInput}
+                  onChange={e => setRawVideosInput(e.target.value)}
+                  disabled={accountSyncLoading}
+                  style={{ fontSize: "0.76rem" }}
+                ></textarea>
+                <div style={{ fontSize: "0.7rem", color: "var(--text-subtle)", marginTop: "3px" }}>
+                  💡 <strong>Tip:</strong> Paste your real video links or captions with hashtags above to log your exact posts!
                 </div>
               </div>
 
@@ -3363,6 +3450,7 @@ window.ContentTablePage = function() {
   const [tiktokFetchError, setTiktokFetchError] = React.useState("");
   const [tiktokPreview, setTiktokPreview] = React.useState(null);
   const [tiktokAccountResult, setTiktokAccountResult] = React.useState(null);
+  const [tiktokBulkPostsInput, setTiktokBulkPostsInput] = React.useState("");
 
   // Edit Modal State
   const [editingContent, setEditingContent] = React.useState(null);
@@ -3500,7 +3588,8 @@ window.ContentTablePage = function() {
       if (tiktokModalMode === "account") {
         const res = await syncTikTokAccount(activeAccount.id, tiktokUrlInput, {
           importPosts: true,
-          updateFollowers: true
+          updateFollowers: true,
+          rawVideosText: tiktokBulkPostsInput
         });
         setTiktokAccountResult(res);
       } else {
@@ -3886,6 +3975,28 @@ window.ContentTablePage = function() {
                 disabled={tiktokFetching}
               />
             </div>
+
+            {tiktokModalMode === "account" && (
+              <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
+                  <label className="form-label" style={{ fontSize: "0.72rem", margin: 0 }}>
+                    Real Video Links / Captions (Optional Bulk Paste)
+                  </label>
+                  <span style={{ fontSize: "0.68rem", color: "#25F4EE", fontWeight: 600 }}>
+                    1 post per line
+                  </span>
+                </div>
+                <textarea
+                  className="form-textarea"
+                  rows="3"
+                  placeholder="Paste your real video URLs or post captions with hashtags (1 per line)..."
+                  value={tiktokBulkPostsInput}
+                  onChange={e => setTiktokBulkPostsInput(e.target.value)}
+                  disabled={tiktokFetching}
+                  style={{ fontSize: "0.76rem" }}
+                ></textarea>
+              </div>
+            )}
 
             {tiktokFetching && (
               <div style={{ padding: "0.85rem", borderRadius: "8px", background: "rgba(37,244,238,0.1)", border: "1px solid rgba(37,244,238,0.3)", textAlign: "center", marginBottom: "0.85rem" }}>
