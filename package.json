@@ -1,0 +1,10 @@
+{
+  "name": "sociavault",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Multi-Account Social Media Command Suite with 24/7 Cloud Background Live Tracking",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

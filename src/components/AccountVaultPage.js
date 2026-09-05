@@ -1,4 +1,4 @@
-// AccountVaultPage Component - Manage & Switch Accounts/Vaults
+// AccountVaultPage Component - Modern, Compact Account Vault Hub & Weekly Schedule
 window.AccountVaultPage = function() {
   const { user } = React.useContext(window.AuthContext);
   const {
@@ -16,6 +16,7 @@ window.AccountVaultPage = function() {
   const [showAddModal, setShowAddModal] = React.useState(false);
   const [accountName, setAccountName] = React.useState("");
   const [accountDesc, setAccountDesc] = React.useState("");
+  const [vaultSearch, setVaultSearch] = React.useState("");
 
   // Edit modal state
   const [editingAcc, setEditingAcc] = React.useState(null);
@@ -27,15 +28,6 @@ window.AccountVaultPage = function() {
 
   const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-  const getDayOfWeek = (dateStr) => {
-    if (!dateStr) return "Mon";
-    const parts = dateStr.split("-").map(Number);
-    if (parts.length < 3) return "Mon";
-    const date = new Date(parts[0], parts[1] - 1, parts[2]);
-    const dayIndex = date.getDay();
-    return dayIndex === 0 ? "Sun" : daysOfWeek[dayIndex - 1];
-  };
-
   // Accounts accessible by current user, sorted alphabetically
   const accessibleAccounts = React.useMemo(() => {
     if (!user) return [];
@@ -44,8 +36,13 @@ window.AccountVaultPage = function() {
         acc.ownerEmail === user.email ||
         (acc.collaborators && acc.collaborators.some(c => c.email === user.email))
       )
+      .filter(acc => {
+        if (!vaultSearch.trim()) return true;
+        const q = vaultSearch.toLowerCase();
+        return (acc.name || "").toLowerCase().includes(q) || (acc.description || "").toLowerCase().includes(q);
+      })
       .sort((a, b) => (a.name || "").localeCompare((b.name || "")));
-  }, [accounts, user]);
+  }, [accounts, user, vaultSearch]);
 
   const handleCreate = (e) => {
     e.preventDefault();
@@ -107,7 +104,6 @@ window.AccountVaultPage = function() {
     return { Mon: [""], Tue: [""], Wed: [""], Thu: [""], Fri: [""], Sat: [""], Sun: [""] };
   });
 
-  // Persist schedule to localStorage on change
   React.useEffect(() => {
     try { localStorage.setItem(DAYS_KEY, JSON.stringify(scheduleByDay)); } catch(e) {}
   }, [scheduleByDay]);
@@ -133,320 +129,269 @@ window.AccountVaultPage = function() {
 
   return (
     <div className="page-container">
-      {/* Header */}
-      <div className="page-header">
+      {/* ── Header Bar ── */}
+      <div className="page-header" style={{ marginBottom: "1.25rem" }}>
         <div>
-          <h1 className="page-title">Account Vault Hub</h1>
-          <p className="page-subtitle">Select an account workspace to view platforms, content tables, and analytics.</p>
+          <h1 className="page-title" style={{ fontSize: "1.45rem", fontWeight: 800 }}>Account Vault Hub</h1>
+          <p className="page-subtitle" style={{ fontSize: "0.82rem" }}>
+            Select a brand workspace or assign weekly posting schedules
+          </p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
-          <i data-lucide="plus" style={{ width: "18px", height: "18px" }}></i>
-          Add New Account
-        </button>
+
+        <div style={{ display: "flex", gap: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Search vaults..."
+            value={vaultSearch}
+            onChange={e => setVaultSearch(e.target.value)}
+            style={{ width: "180px", minHeight: "34px", padding: "0.35rem 0.75rem", fontSize: "0.8rem" }}
+          />
+          <button onClick={() => setShowAddModal(true)} className="btn btn-sm btn-primary" style={{ fontWeight: 700 }}>
+            <span>➕ New Account Vault</span>
+          </button>
+        </div>
       </div>
 
-      {/* Account Cards Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.5rem", marginBottom: "2.5rem" }}>
+      {/* ── Account Cards Grid ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))", gap: "1rem", marginBottom: "2rem" }}>
         {accessibleAccounts.map(acc => {
           const role = getUserRole(acc);
           const accContents = contents.filter(c => c.accountId === acc.id);
           const totalViews = accContents.reduce((sum, c) => sum + (c.impressions || 0), 0);
+          const totalFollowers = (acc.platforms || []).reduce((sum, p) => sum + (Number(p.followers) || 0), 0);
 
           return (
             <div
               key={acc.id}
               className="glass-card glass-card-interactive"
-              style={{ cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "space-between" }}
+              style={{
+                cursor: "pointer",
+                padding: "1.1rem",
+                borderRadius: "14px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                border: "1px solid rgba(255,255,255,0.08)",
+                background: "linear-gradient(145deg, rgba(22,30,46,0.9), rgba(13,17,23,0.95))"
+              }}
               onClick={() => selectAccount(acc.id)}
             >
               <div>
-                {/* Card Top Row: Avatar + Badges + Actions */}
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1rem" }}>
-                  {/* Profile Photo or Initial */}
-                  {acc.photoURL ? (
-                    <img
-                      src={acc.photoURL}
-                      alt={acc.name}
-                      style={{ width: "48px", height: "48px", borderRadius: "12px", objectFit: "cover", border: "2px solid rgba(139, 92, 246, 0.4)" }}
-                      onError={e => { e.target.style.display = "none"; }}
-                    />
-                  ) : (
-                    <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "linear-gradient(135deg, rgba(139,92,246,0.25), rgba(6,182,212,0.2))", border: "1px solid rgba(139,92,246,0.35)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", fontSize: "1.35rem", fontWeight: 800 }}>
-                      {acc.name ? acc.name.charAt(0).toUpperCase() : "V"}
+                {/* Card Top Row: Avatar + Role Badge + Actions */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.85rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                    {acc.photoURL ? (
+                      <img
+                        src={acc.photoURL}
+                        alt={acc.name}
+                        style={{ width: "42px", height: "42px", borderRadius: "10px", objectFit: "cover", border: "2px solid rgba(139, 92, 246, 0.4)" }}
+                        onError={e => { e.target.style.display = "none"; }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: "42px",
+                        height: "42px",
+                        borderRadius: "10px",
+                        background: "linear-gradient(135deg, rgba(139,92,246,0.3), rgba(6,182,212,0.25))",
+                        border: "1px solid rgba(139,92,246,0.4)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#fff",
+                        fontSize: "1.15rem",
+                        fontWeight: 800
+                      }}>
+                        {acc.name ? acc.name.charAt(0).toUpperCase() : "V"}
+                      </div>
+                    )}
+
+                    <div>
+                      <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0, color: "#fff" }}>{acc.name}</h3>
+                      <span className={`badge ${role === 'owner' ? 'badge-uploaded' : (role === 'editor' ? 'badge-scheduled' : 'badge-privated')}`} style={{ fontSize: "0.62rem", marginTop: "2px" }}>
+                        {role}
+                      </span>
+                    </div>
+                  </div>
+
+                  {role === 'owner' && (
+                    <div style={{ display: "flex", gap: "0.3rem" }}>
+                      <button
+                        onClick={(e) => openEditModal(e, acc)}
+                        className="btn btn-secondary btn-icon"
+                        title="Edit Account"
+                        style={{ width: "26px", height: "26px", minWidth: "26px", minHeight: "26px", padding: 0, fontSize: "0.75rem" }}
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); if (confirm(`Delete account "${acc.name}"?`)) removeAccount(acc.id); }}
+                        className="btn btn-danger btn-icon"
+                        title="Delete Account"
+                        style={{ width: "26px", height: "26px", minWidth: "26px", minHeight: "26px", padding: 0, fontSize: "0.75rem" }}
+                      >
+                        🗑️
+                      </button>
                     </div>
                   )}
-
-                  {/* Badges + Action Buttons */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
-                    <span className={`badge ${role === 'owner' ? 'badge-uploaded' : role === 'editor' ? 'badge-scheduled' : 'badge-privated'}`}>
-                      {role}
-                    </span>
-                    {role === 'owner' && (
-                      <>
-                        {/* Edit Button */}
-                        <button
-                          onClick={(e) => openEditModal(e, acc)}
-                          className="btn btn-secondary btn-icon"
-                          title="Edit Account"
-                          style={{ width: "30px", height: "30px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
-                        >
-                          <i data-lucide="pencil" style={{ width: "14px", height: "14px" }}></i>
-                        </button>
-                        {/* Delete Button */}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); if (confirm(`Delete account "${acc.name}"?`)) removeAccount(acc.id); }}
-                          className="btn btn-danger btn-icon"
-                          title="Delete Account"
-                          style={{ width: "30px", height: "30px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
-                        >
-                          <i data-lucide="trash-2" style={{ width: "14px", height: "14px" }}></i>
-                        </button>
-                      </>
-                    )}
-                  </div>
                 </div>
 
-                <h3 style={{ fontSize: "1.2rem", fontWeight: 700, marginBottom: "0.35rem" }}>{acc.name}</h3>
-                <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1.1rem", lineHeight: 1.5 }}>{acc.description}</p>
+                <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "0.85rem", lineHeight: 1.4, minHeight: "2.2em" }}>
+                  {acc.description || "Social media workspace"}
+                </p>
 
-                {/* Platform Chips */}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1.1rem" }}>
+                {/* Connected Platforms Pill Chips */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem", marginBottom: "0.85rem" }}>
                   {(acc.platforms || []).map(p => (
-                    <span key={p.id || p.name} className="chip" style={{ fontSize: "0.75rem" }}>
+                    <span key={p.id || p.name} className="chip" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem" }}>
                       {p.name}: {p.handle}
                     </span>
                   ))}
+                  {(acc.platforms || []).length === 0 && (
+                    <span style={{ fontSize: "0.72rem", color: "var(--text-subtle)" }}>No channels linked</span>
+                  )}
                 </div>
               </div>
 
-              {/* Card Footer */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "0.85rem", borderTop: "1px solid var(--border-color)", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                <div><strong style={{ color: "#fff" }}>{accContents.length}</strong> Content Items</div>
-                <div><strong style={{ color: "var(--accent-cyan)" }}>{(totalViews / 1000).toFixed(1)}k</strong> Views</div>
+              {/* Card Footer Metrics */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "0.75rem", borderTop: "1px solid var(--border-color)", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                <div>👥 <strong>{totalFollowers.toLocaleString()}</strong> aud</div>
+                <div>📋 <strong>{accContents.length}</strong> posts</div>
+                <div>👀 <strong style={{ color: "var(--accent-cyan-light)" }}>{(totalViews / 1000).toFixed(1)}k</strong> views</div>
               </div>
             </div>
           );
         })}
 
         {accessibleAccounts.length === 0 && (
-          <div className="glass-card" style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem 1.5rem" }}>
-            <i data-lucide="folder-plus" style={{ width: "48px", height: "48px", color: "var(--text-subtle)", marginBottom: "1rem" }}></i>
-            <h3 style={{ fontSize: "1.2rem", fontWeight: 700 }}>No Accounts Found</h3>
-            <p style={{ color: "var(--text-muted)", margin: "0.5rem 0 1.5rem" }}>You haven't created any social media accounts yet.</p>
-            <button onClick={() => setShowAddModal(true)} className="btn btn-primary">Create Your First Account</button>
+          <div className="glass-card" style={{ gridColumn: "1 / -1", textAlign: "center", padding: "2.5rem 1.5rem" }}>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 700 }}>No Accounts Match Your Search</h3>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: "0.4rem 0 1rem" }}>Create a new brand account or clear your filter</p>
+            <button onClick={() => setShowAddModal(true)} className="btn btn-primary btn-sm">Create New Vault</button>
           </div>
         )}
       </div>
 
-      {/* WEEKLY SCHEDULE TABLE HUB — Account Picker per Day */}
-      <div style={{ marginBottom: "2rem" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+      {/* ── Global Weekly Schedule Hub ── */}
+      <div className="glass-card" style={{ padding: "1.25rem", borderRadius: "14px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
           <div>
-            <h2 style={{ fontSize: "1.35rem", fontWeight: 700, color: "#FFFFFF" }}>Global Weekly Schedule Hub</h2>
-            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>Assign which accounts post on each day of the week</p>
+            <h2 style={{ fontSize: "1.15rem", fontWeight: 700, color: "#fff", margin: 0 }}>
+              📅 Global Weekly Schedule Board
+            </h2>
+            <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", margin: "2px 0 0" }}>
+              Assign designated accounts & workspaces for each posting day
+            </p>
           </div>
         </div>
 
-        <div className="weekly-schedule-card">
-          {/* Header Row: Mon – Sun */}
-          <div className="weekly-table-header">
-            {daysOfWeek.map(day => (
-              <div key={day} className="weekly-header-col">{day}</div>
-            ))}
-          </div>
-
-          {/* Grid Columns — each pill is an account-picker <select> */}
-          <div className="weekly-table-grid">
-            {daysOfWeek.map(day => {
-              const slots = scheduleByDay[day] || [""];
-              return (
-                <div key={day} className="weekly-day-column">
-                  {slots.map((accId, idx) => {
-                    const selectedAcc = accessibleAccounts.find(a => a.id === accId);
-                    return (
-                      <div key={idx} className={`weekly-pill-item${accId ? "" : " pill-empty"}`} style={{ position: "relative", padding: 0, overflow: "visible" }}>
-                        <select
-                          value={accId}
-                          onChange={e => updateSlotForDay(day, idx, e.target.value)}
-                          title={selectedAcc ? selectedAcc.name : "Pick an account"}
-                          style={{
-                            width: "100%",
-                            background: "transparent",
-                            border: "none",
-                            color: accId ? "#fff" : "rgba(255,255,255,0.45)",
-                            fontSize: "0.78rem",
-                            fontWeight: accId ? 600 : 400,
-                            cursor: "pointer",
-                            outline: "none",
-                            padding: "0 0.6rem",
-                            height: "32px",
-                            appearance: "none",
-                            WebkitAppearance: "none",
-                          }}
-                        >
-                          <option value="" style={{ background: "#0f1024", color: "rgba(255,255,255,0.5)" }}>Dropdown</option>
-                          {accessibleAccounts.map(acc => (
-                            <option key={acc.id} value={acc.id} style={{ background: "#0f1024", color: "#fff" }}>
-                              {acc.name}
-                            </option>
-                          ))}
-                        </select>
-                        {accId && (
-                          <button
-                            onClick={() => removeSlotForDay(day, idx)}
-                            title="Remove"
-                            style={{
-                              position: "absolute", right: "4px", top: "50%", transform: "translateY(-50%)",
-                              background: "none", border: "none", color: "rgba(255,255,255,0.35)",
-                              cursor: "pointer", fontSize: "0.7rem", lineHeight: 1, padding: "2px", display: "flex"
-                            }}
-                          >✕</button>
-                        )}
-                      </div>
-                    );
-                  })}
+        {/* 7-Day Columns Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(130px, 1fr))", gap: "0.6rem", overflowX: "auto", paddingBottom: "0.5rem" }}>
+          {daysOfWeek.map(day => {
+            const slots = scheduleByDay[day] || [""];
+            return (
+              <div key={day} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "0.6rem", display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+                <div style={{ textAlign: "center", fontWeight: 800, fontSize: "0.8rem", color: "var(--accent-primary-light)", paddingBottom: "0.35rem", borderBottom: "1px solid var(--border-subtle)" }}>
+                  {day}
                 </div>
-              );
-            })}
-          </div>
 
-          {/* Footer: "+" button per day to add a new account slot */}
-          <div className="weekly-add-footer">
-            {daysOfWeek.map(day => (
-              <div key={day} className="weekly-add-col">
+                {slots.map((accId, idx) => {
+                  const selectedAcc = accounts.find(a => a.id === accId);
+                  return (
+                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: "0.25rem", background: accId ? "rgba(139,92,246,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${accId ? "rgba(139,92,246,0.35)" : "var(--border-color)"}`, borderRadius: "6px", padding: "0.2rem 0.35rem" }}>
+                      <select
+                        value={accId}
+                        onChange={e => updateSlotForDay(day, idx, e.target.value)}
+                        style={{ width: "100%", background: "transparent", border: "none", color: accId ? "#fff" : "var(--text-muted)", fontSize: "0.74rem", fontWeight: accId ? 700 : 400, outline: "none", cursor: "pointer" }}
+                      >
+                        <option value="" style={{ background: "#0F172A", color: "var(--text-muted)" }}>+ Assign...</option>
+                        {accounts.map(acc => (
+                          <option key={acc.id} value={acc.id} style={{ background: "#0F172A", color: "#fff" }}>
+                            {acc.name}
+                          </option>
+                        ))}
+                      </select>
+                      {accId && (
+                        <button
+                          onClick={() => removeSlotForDay(day, idx)}
+                          style={{ background: "none", border: "none", color: "var(--text-subtle)", cursor: "pointer", fontSize: "0.75rem", padding: "0 2px" }}
+                          title="Clear slot"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+
                 <button
-                  className="weekly-add-btn"
-                  title={`Add account slot for ${day}`}
+                  type="button"
                   onClick={() => addSlotForDay(day)}
-                >+</button>
+                  style={{ width: "100%", padding: "0.2rem", borderRadius: "4px", background: "transparent", border: "1px dashed var(--border-color)", color: "var(--text-subtle)", fontSize: "0.68rem", cursor: "pointer" }}
+                >
+                  + slot
+                </button>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* ── Add Account Modal ── */}
+      {/* ── CREATE ACCOUNT MODAL ── */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">Add New Social Account Vault</h2>
-              <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon" style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>✕</span>
-              </button>
+          <div className="modal-content" style={{ maxWidth: "440px", width: "90%" }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0 }}>Create Account Vault</h2>
+              <button onClick={() => setShowAddModal(false)} className="btn btn-secondary btn-icon" style={{ width: "28px", height: "28px" }}>✕</button>
             </div>
+
             <form onSubmit={handleCreate}>
-              <div className="form-group">
-                <label className="form-label">Account / Brand Name</label>
-                <input type="text" className="form-input" placeholder="e.g. Creator Gaming Hub" required value={accountName} onChange={e => setAccountName(e.target.value)} />
+              <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+                <label className="form-label">Brand / Account Name</label>
+                <input type="text" className="form-input" placeholder="e.g. Nike Football, Tech Daily" required value={accountName} onChange={e => setAccountName(e.target.value)} />
               </div>
-              <div className="form-group">
-                <label className="form-label">Description / Niche</label>
-                <textarea className="form-textarea" placeholder="e.g. Gaming news, live highlights, short-form clips" rows="3" value={accountDesc} onChange={e => setAccountDesc(e.target.value)}></textarea>
+
+              <div className="form-group" style={{ marginBottom: "1.25rem" }}>
+                <label className="form-label">Description / Purpose</label>
+                <textarea className="form-textarea" rows="2" placeholder="Briefly describe this workspace..." value={accountDesc} onChange={e => setAccountDesc(e.target.value)}></textarea>
               </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
                 <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary">Cancel</button>
-                <button type="submit" className="btn btn-primary">Create Account</button>
+                <button type="submit" className="btn btn-primary">Create Vault</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ── Edit Account Modal ── */}
+      {/* ── EDIT ACCOUNT MODAL ── */}
       {editingAcc && (
         <div className="modal-overlay" onClick={() => setEditingAcc(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: "520px" }}>
-            <div className="modal-header">
-              <h2 className="modal-title">Edit Account</h2>
-              <button type="button" onClick={() => setEditingAcc(null)} className="btn btn-secondary btn-icon" style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>✕</span>
-              </button>
+          <div className="modal-content" style={{ maxWidth: "480px", width: "90%" }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0 }}>Edit Account Settings</h2>
+              <button onClick={() => setEditingAcc(null)} className="btn btn-secondary btn-icon" style={{ width: "28px", height: "28px" }}>✕</button>
             </div>
 
             <form onSubmit={handleEditSave}>
-              {/* Photo Preview */}
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem" }}>
-                {editPhotoPreview ? (
-                  <img
-                    src={editPhotoPreview}
-                    alt="Preview"
-                    style={{ width: "80px", height: "80px", borderRadius: "16px", objectFit: "cover", border: "2px solid rgba(139,92,246,0.4)" }}
-                    onError={e => { e.target.style.display = "none"; }}
-                  />
-                ) : (
-                  <div style={{ width: "80px", height: "80px", borderRadius: "16px", background: "linear-gradient(135deg, rgba(139,92,246,0.25), rgba(6,182,212,0.2))", border: "2px dashed rgba(139,92,246,0.4)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent-primary)", fontSize: "2rem", fontWeight: 800 }}>
-                    {editName.charAt(0).toUpperCase() || "?"}
-                  </div>
-                )}
+              <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+                <label className="form-label">Account Name</label>
+                <input type="text" className="form-input" required value={editName} onChange={e => setEditName(e.target.value)} />
               </div>
 
-              {/* Account Name */}
-              <div className="form-group">
-                <label className="form-label">Account / Brand Name</label>
-                <input type="text" className="form-input" required value={editName} onChange={e => setEditName(e.target.value)} placeholder="e.g. Creator Gaming Hub" />
+              <div className="form-group" style={{ marginBottom: "0.85rem" }}>
+                <label className="form-label">Description</label>
+                <textarea className="form-textarea" rows="2" value={editDesc} onChange={e => setEditDesc(e.target.value)}></textarea>
               </div>
 
-              {/* Description */}
-              <div className="form-group">
-                <label className="form-label">Description / Niche</label>
-                <textarea className="form-textarea" rows="3" value={editDesc} onChange={e => setEditDesc(e.target.value)} placeholder="e.g. Gaming, tech reviews, lifestyle..."></textarea>
+              <div className="form-group" style={{ marginBottom: "1.25rem" }}>
+                <label className="form-label">Photo / Logo URL</label>
+                <input type="text" className="form-input" placeholder="https://..." value={editPhoto} onChange={e => handleEditPhotoUrlChange(e.target.value)} />
               </div>
 
-              {/* Profile Photo */}
-              <div className="form-group">
-                <label className="form-label">Profile Photo</label>
-
-                {/* Mode Toggle */}
-                <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
-                  <button
-                    type="button"
-                    onClick={() => setEditPhotoMode("url")}
-                    className={`btn ${editPhotoMode === "url" ? "btn-primary" : "btn-secondary"}`}
-                    style={{ fontSize: "0.82rem", padding: "0.35rem 0.9rem" }}
-                  >
-                    🔗 Image URL
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditPhotoMode("upload")}
-                    className={`btn ${editPhotoMode === "upload" ? "btn-primary" : "btn-secondary"}`}
-                    style={{ fontSize: "0.82rem", padding: "0.35rem 0.9rem" }}
-                  >
-                    📁 Local Upload
-                  </button>
-                </div>
-
-                {editPhotoMode === "url" ? (
-                  <input
-                    type="url"
-                    className="form-input"
-                    placeholder="https://example.com/photo.jpg"
-                    value={editPhoto}
-                    onChange={e => handleEditPhotoUrlChange(e.target.value)}
-                  />
-                ) : (
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="form-input"
-                    style={{ padding: "0.45rem" }}
-                    onChange={handleEditPhotoUpload}
-                  />
-                )}
-
-                {editPhotoPreview && (
-                  <button
-                    type="button"
-                    onClick={() => { setEditPhoto(""); setEditPhotoPreview(""); }}
-                    style={{ marginTop: "0.5rem", background: "none", border: "none", color: "#F43F5E", fontSize: "0.82rem", cursor: "pointer", padding: 0 }}
-                  >
-                    ✕ Remove photo
-                  </button>
-                )}
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
                 <button type="button" onClick={() => setEditingAcc(null)} className="btn btn-secondary">Cancel</button>
                 <button type="submit" className="btn btn-primary">Save Changes</button>
               </div>
